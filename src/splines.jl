@@ -71,7 +71,7 @@ function integrate_gausslegendre(f, a::T, b::T, nq::Int) where {T}
     return 0.5*(b-a)*dot(weights, f( 0.5 .* (b-a) .* nodes .+ 0.5 .* (a+b) ) )
 end
 
-function rhs_PBSBasis(f, S::PBSpline{T}, q = S.p+1, rhs = zeros(S.nₕ)) where {T}
+function rhs_PBSBasis(f, S::PBSpline{T}, q = S.p+1, rhs = zeros(T, S.nₕ)) where {T}
     for i in 1:S.nₕ
         for k in 0:S.p
             if i+k <= S.nₕ
