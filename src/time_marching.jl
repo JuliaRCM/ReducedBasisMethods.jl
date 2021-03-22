@@ -108,15 +108,15 @@ function integrate_vp(P₀::Particles{T},
 
             # solve for potential
             if given_phi
-                IC.ϕ .= Φₑₓₜ[:,1 + (p-1)*IP.nₛ]
+                @views IC.ϕ .= Φₑₓₜ[:,1 + (p-1)*IP.nₛ]
             else
                 IC.rhs .= IC.ρ₀ .- rhs_particles_PBSBasis(IC.x,P₀.w,S,IC.rhs)
-                IC.rhs[S.nₕ] = 0.0
-                IC.ϕ = K\IC.rhs ./ χ^2
+                IC.rhs[S.nₕ] = 0
+                IC.ϕ .= K\IC.rhs ./ χ^2
             end
 
             # electric field
-            IC.a .= eval_deriv_PBSBasis(IC.ϕ,S,IC.x,IC.a,nₕᵣₐₙ)
+            IC.a .= eval_deriv_PBSBasis(IC.ϕ,S,IC.x,IC.a)
 
             IC.X[:,1 + (p-1)*IP.nₛ] .= IC.x
             IC.V[:,1 + (p-1)*IP.nₛ] .= IC.v
@@ -132,20 +132,20 @@ function integrate_vp(P₀::Particles{T},
         for t = 1:IP.nₜ
             if save || t == 1
                 # half an advection step
-                IC.x .+= 0.5 * IP.dt * IC.v * χ
+                IC.x .+= 0.5 .* IP.dt .* IC.v .* χ
             end
 
             # solve for potential
             if given_phi
-                IC.ϕ .= Φₑₓₜ[:, t + 1 + (p-1)*IP.nₛ]
+                @views IC.ϕ .= Φₑₓₜ[:, t + 1 + (p-1)*IP.nₛ]
             else
                 IC.rhs .= IC.ρ₀ .- rhs_particles_PBSBasis(IC.x,P₀.w,S,IC.rhs)
-                IC.rhs[S.nₕ] = 0.0
-                IC.ϕ = K\IC.rhs ./ χ^2
+                IC.rhs[S.nₕ] = 0
+                IC.ϕ .= K\IC.rhs ./ χ^2
             end
 
             # electric field
-            IC.a .= eval_deriv_PBSBasis(IC.ϕ,S,IC.x,IC.a,nₕᵣₐₙ)
+            IC.a .= eval_deriv_PBSBasis(IC.ϕ,S,IC.x,IC.a)
 
             # acceleration step
             IC.v .+= IP.dt .* IC.a .* χ
