@@ -1,3 +1,6 @@
+
+using Plots, LaTeXStrings
+
 function plot_f(x::Array{Float64}, v::Array{Float64}, f)
     F = zeros(Float64, length(x), length(v))
 

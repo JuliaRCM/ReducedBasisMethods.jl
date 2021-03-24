@@ -1,3 +1,8 @@
+
+using Random
+using Sobol
+using SpecialFunctions
+
 """
 Returns particles drawn from g for the bump-on-tail case.
 

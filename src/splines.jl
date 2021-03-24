@@ -1,3 +1,7 @@
+
+using FastGaussQuadrature
+using LinearAlgebra
+
 struct PBSpline{T}
     p :: Int       # spline degree
     nₕ :: Int      # number of splines
@@ -11,7 +15,7 @@ struct PBSpline{T}
 end
 
 # convenience constructor
-PBSpline(p::Int, nₕ::Int, L::T) where {T} = PBSpline(p, nₕ, L, L/nₕ)
+PBSpline(p::Int, nₕ::Int, L) = PBSpline(p, nₕ, L, L/nₕ)
 
 Base.size(S::PBSpline) = (1,)
 Base.length(S::PBSpline) = 1

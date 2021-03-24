@@ -91,16 +91,20 @@ function integrate_vp(P₀::Particles{T},
 
     if given_phi
         @assert IP.nₛ == IP.nₜ + 1
+    else
+        # LU factorization
+        Kfac = lu(K)
     end
 
     for p in 1:IP.nₚ
 
         print("parameter nb. ", p, "\n")
 
-        χ = μ[p,1]/μₛₐₘₚ[1]
+        χ = μ[p,1] / μₛₐₘₚ[1]
 
         # initial conditions
-        IC.x .= P₀.x;  IC.v .= P₀.v
+        IC.x .= P₀.x
+        IC.v .= P₀.v
         IC.ρ₀ .= S.h
 
         # save initial conditions
@@ -112,7 +116,9 @@ function integrate_vp(P₀::Particles{T},
             else
                 IC.rhs .= IC.ρ₀ .- rhs_particles_PBSBasis(IC.x,P₀.w,S,IC.rhs)
                 IC.rhs[S.nₕ] = 0
-                IC.ϕ .= K\IC.rhs ./ χ^2
+                # IC.ϕ .= Kfac \ IC.rhs ./ χ^2
+                ldiv!(IC.ϕ, Kfac, IC.rhs)
+                IC.ϕ ./= χ^2
             end
 
             # electric field
@@ -141,7 +147,9 @@ function integrate_vp(P₀::Particles{T},
             else
                 IC.rhs .= IC.ρ₀ .- rhs_particles_PBSBasis(IC.x,P₀.w,S,IC.rhs)
                 IC.rhs[S.nₕ] = 0
-                IC.ϕ .= K\IC.rhs ./ χ^2
+                # IC.ϕ .= Kfac \ IC.rhs ./ χ^2
+                ldiv!(IC.ϕ, Kfac, IC.rhs)
+                IC.ϕ ./= χ^2
             end
 
             # electric field
