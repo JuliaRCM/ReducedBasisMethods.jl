@@ -1,3 +1,6 @@
 .ipynb_checkpoints
 Manifest.toml
+Presentations/*.png
+Presentations/*.pdf
+runs/*.h5
 docs/build/
