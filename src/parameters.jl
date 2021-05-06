@@ -1,5 +1,5 @@
 
-import Base: getindex, NamedTuple
+import Base: collect, getindex, length, maximum, minimum, size, NamedTuple
 
 
 """
@@ -47,6 +47,9 @@ end
 
 Base.length(p::Parameter) = length(p.samples)
 Base.size(p::Parameter) = size(p.samples)
+Base.collect(p::Parameter) = p.samples
+Base.maximum(p::Parameter) = p.maximum
+Base.minimum(p::Parameter) = p.minimum
 
 
 function Base.NamedTuple(parameters::Vararg{Parameter{DT}}) where {DT}
@@ -119,4 +122,3 @@ end
 
 Base.size(ps::ParameterSpace) = size(ps.samples)
 Base.size(ps::ParameterSpace, d) = size(ps.samples, d)
-

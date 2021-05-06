@@ -39,6 +39,24 @@ grid    = [0.0 0.5 1.0 0.0 0.5 1.0;
     @test size(p4) == (0,)
     @test size(p5) == (0,)
 
+    @test collect(p1) == samples
+    @test collect(p2) == samples
+    @test collect(p3) == samples
+    @test collect(p4) == Vector{Float64}()
+    @test collect(p5) == Vector{Float64}()
+
+    @test minimum(p1) == 0.0
+    @test minimum(p2) == 0.0
+    @test minimum(p3) == 0.0
+    @test minimum(p4) == 0.0
+    @test minimum(p5) == 0.0
+    
+    @test maximum(p1) == 4.0
+    @test maximum(p2) == 4.0
+    @test maximum(p3) == 4.0
+    @test maximum(p4) == 4.0
+    @test maximum(p5) == 4.0
+
     p1 = Parameter(:μ, 0.0, 1.0, 3)
     p2 = Parameter(:ν, 1.0, 1.0, 1)
     p3 = Parameter(:σ, 0.0, 4.0, 2)
