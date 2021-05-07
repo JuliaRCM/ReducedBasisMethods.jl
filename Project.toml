@@ -8,6 +8,7 @@ GeometricIntegrators = "dcce2d33-59f6-5b8d-9047-0defad88ae06"
 Particles = "b097825d-39ce-45b2-a4ab-941e2c2df7e8"
 
 [compat]
+GeometricIntegrators = "0.8"
 julia = "1"
 
 [extras]
