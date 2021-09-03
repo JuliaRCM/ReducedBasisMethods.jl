@@ -4,9 +4,9 @@ ReducedBasisMethods' development is coordinated by a group of *principal develop
 
 ## Principal Developers
 
-* Tobias M. Blickhan,
-  Max Planck Institute for Plasma Physics, Garching, Germany
 * [Michael Kraus](https://www.michael-kraus.org/),
+  Max Planck Institute for Plasma Physics, Garching, Germany
+* Tobias M. Blickhan,
   Max Planck Institute for Plasma Physics, Garching, Germany
 * Tomasz M. Tyranoski,
   Max Planck Institute for Plasma Physics, Garching, Germany
@@ -15,3 +15,6 @@ ReducedBasisMethods' development is coordinated by a group of *principal develop
 
 The following people contributed to ReducedBasisMethods and are listed in alphabetical order:
 
+* Tobias M. Blickhan
+* Michael Kraus
+* Tomasz M. Tyranoski
