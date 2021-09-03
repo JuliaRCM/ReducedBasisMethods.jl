@@ -26,15 +26,15 @@ IP = IntegratorParameters(fpath)
 poisson = PoissonSolverPBSplines(fpath)
 
 # read snaptshot data
-X = h5read(fpath, "snapshots/X");
-V = h5read(fpath, "snapshots/V");
-E = h5read(fpath, "snapshots/E");
-# D = h5read(fpath, "snapshots/D");
-# Φ = h5read(fpath, "snapshots/Phi");
+X = h5read(fpath, "snapshots/X")
+V = h5read(fpath, "snapshots/V")
+E = h5read(fpath, "snapshots/E")
+# D = h5read(fpath, "snapshots/D")
+# Φ = h5read(fpath, "snapshots/Phi")
 
 
 # Reference draw
-P₀ = ParticleList(X[:,1], V[:,1], ones(IP.nₚ) .* poisson.L ./ IP.nₚ);
+P₀ = ParticleList(X[:,1], V[:,1], ones(IP.nₚ) .* poisson.L ./ IP.nₚ)
 
 
 # EVD
@@ -52,13 +52,13 @@ X, V = 0, 0
 GC.gc()
 
 
-# @time F = eigen(Xₑₓₜ' * Xₑₓₜ);
-# Λ, Ω = sorteigen(F.values, F.vectors);
-@time F = eigen(XV' * XV);
-@time Λ, Ω = sorteigen(F.values, F.vectors);
+# @time F = eigen(Xₑₓₜ' * Xₑₓₜ)
+# Λ, Ω = sorteigen(F.values, F.vectors)
+@time F = eigen(XV' * XV)
+@time Λ, Ω = sorteigen(F.values, F.vectors)
 
-@time Fₑ = eigen(E' * E);
-@time Λₑ, Ωₑ = sorteigen(Fₑ.values, Fₑ.vectors);
+@time Fₑ = eigen(E' * E)
+@time Λₑ, Ωₑ = sorteigen(Fₑ.values, Fₑ.vectors)
 
 
 # clear
@@ -92,7 +92,7 @@ GC.gc()
 
 
 # DEIM
-@time Πₑ = deim_get_Π(Ψₑ);
+@time Πₑ = deim_get_Π(Ψₑ)
 
 
 # save to HDF5
