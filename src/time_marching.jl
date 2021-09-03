@@ -1,16 +1,21 @@
+
+using LinearAlgebra: lu, ldiv!
+using Particles: PBSpline, stiffnessmatrix, eval_deriv_PBSBasis, rhs_particles_PBSBasis
+
 struct IntegratorParameters{T}
-    dt::T       # time step
-    nₜ::Int     # number of time steps
-    nₛ::Int     # number of saved time steps
-    nₚ::Int     # number of equation parameters sampled
+    dt::T          # time step
+    nₜ::Int        # number of time steps
+    nₛ::Int        # number of saved time steps
+    nₕ::Int        # number of basis functions
+    nₚ::Int        # number of particles
+    nparam::Int    # number of equation parameters sampled
 
-    nₕ::Int     # number of basis functions
+    t::Vector{T}
 
-    Nₚ::Int     # number of particles
-
-    # function IntegratorParameters(dt::T, nₜ::Int, nₛ::Int, nₚ::Int, nₕ::Int, Nₚ::Int) where {T}
-    #     new{T}(dt,nₜ,nₛ,nₚ,nₕ,Nₚ)
-    # end
+    function IntegratorParameters(dt::T, nₜ::Int, nₛ::Int, nₕ::Int, nₚ::Int, nparam::Int) where {T}
+        t = collect(range(0, stop=dt*nₜ, length=nₛ))
+        new{T}(dt,nₜ,nₛ,nₕ,nₚ,nparam,t)
+    end
 end
 
 mutable struct ReducedIntegratorCache{T}
@@ -25,9 +30,9 @@ mutable struct ReducedIntegratorCache{T}
     ϕ::Vector{T}
     rhs::Vector{T}
 
-    Zₓ::Array{T}
-    Zᵥ::Array{T}
-    Φ::Array{T}
+    Zₓ::Matrix{T}
+    Zᵥ::Matrix{T}
+    Φ::Matrix{T}
 end
 
 mutable struct IntegratorCache{T}
@@ -40,72 +45,68 @@ mutable struct IntegratorCache{T}
     ϕ::Vector{T}
     rhs::Vector{T}
 
-    X::Array{T}
-    V::Array{T}
-    E::Array{T}
-    # D::Array{T}
-    Φ::Array{T}
+    X::Matrix{T}
+    V::Matrix{T}
+    E::Matrix{T}
+    # D::Matrix{T}
+    Φ::Matrix{T}
 end
 
-IntegratorCache(IP::IntegratorParameters{T}) where {T} = IntegratorCache(zeros(T,IP.Nₚ), # x
-                                                            zeros(T,IP.Nₚ), # v
-                                                            zeros(T,IP.Nₚ), # a
+IntegratorCache(IP::IntegratorParameters{T}) where {T} = IntegratorCache(zeros(T,IP.nₚ), # x
+                                                            zeros(T,IP.nₚ), # v
+                                                            zeros(T,IP.nₚ), # a
                                                             zeros(T,IP.nₕ), # ρ
                                                             zeros(T,IP.nₕ), # ρ₀
                                                             zeros(T,IP.nₕ), # ϕ
                                                             zeros(T,IP.nₕ), # rhs
-                                                            zeros(T,IP.Nₚ,IP.nₚ*IP.nₛ), # X
-                                                            zeros(T,IP.Nₚ,IP.nₚ*IP.nₛ), # V
-                                                            zeros(T,IP.Nₚ,IP.nₚ*IP.nₛ), # E
-                                                            # zeros(T,IP.Nₚ,IP.nₚ*IP.nₛ*IP.nₕ), # D
-                                                            zeros(T,IP.nₕ,IP.nₚ*IP.nₛ) # Φ
+                                                            zeros(T,IP.nₚ,IP.nparam*IP.nₛ), # X
+                                                            zeros(T,IP.nₚ,IP.nparam*IP.nₛ), # V
+                                                            zeros(T,IP.nₚ,IP.nparam*IP.nₛ), # E
+                                                            # zeros(T,IP.nₚ,IP.nparam*IP.nₛ*IP.nₕ), # D
+                                                            zeros(T,IP.nₕ,IP.nparam*IP.nₛ) # Φ
                                                             )
 
 ReducedIntegratorCache(IP::IntegratorParameters{T},k::Int,kₑ::Int) where {T} = ReducedIntegratorCache(zeros(T,k), # zₓ
                                                                                 zeros(T,k), # zᵥ
-                                                                                zeros(T,IP.Nₚ), # x
+                                                                                zeros(T,IP.nₚ), # x
                                                                                 zeros(T,kₑ), # xₑ
                                                                                 zeros(T,IP.nₕ), # ρ
                                                                                 zeros(T,IP.nₕ), # ρ₀
                                                                                 zeros(T,IP.nₕ), # ϕ
                                                                                 zeros(T,IP.nₕ), # rhs
-                                                                                zeros(T,k,IP.nₚ*IP.nₛ), # Zₓ
-                                                                                zeros(T,k,IP.nₚ*IP.nₛ), # Zᵥ
-                                                                                zeros(T,IP.nₕ,IP.nₚ*IP.nₛ) # Φ
+                                                                                zeros(T,k,IP.nparam*IP.nₛ), # Zₓ
+                                                                                zeros(T,k,IP.nparam*IP.nₛ), # Zᵥ
+                                                                                zeros(T,IP.nₕ,IP.nparam*IP.nₛ) # Φ
                                                                                 )
 
-function integrate_vp(P₀::Particles{T},
-                      S::PBSpline{T},
+function integrate_vp(P₀::ParticleList{T},
                       μ::Array{T},
-                      μₛₐₘₚ::Vector{T},
-                      K::Matrix{T},
+                      params::NamedTuple,
+                      P::PoissonSolverPBSplines{T},
                       IP::IntegratorParameters{T},
                       IC::IntegratorCache{T} = IntegratorCache(IP);
                       given_phi = false,
-                      Φₑₓₜ::Array{T} = zeros(T,IP.nₕ,IP.nₚ*IP.nₛ),
+                      Φₑₓₜ::Array{T} = zeros(T,IP.nₕ,IP.nparam*IP.nₛ),
                       save = true) where {T}
 
     # K needs to already be augmented for boundary conditions
     nₜₛ = div(IP.nₜ,IP.nₛ-1)
-    nₕᵣₐₙ = 1:S.nₕ
+    nₕᵣₐₙ = 1:P.bspl.nₕ
 
     if given_phi
         @assert IP.nₛ == IP.nₜ + 1
-    else
-        # LU factorization
-        Kfac = lu(K)
     end
 
-    for p in 1:IP.nₚ
+    for p in 1:IP.nparam
 
-        print("parameter nb. ", p, "\n")
+        println("parameter nb. $p")
 
-        χ = μ[p,1] / μₛₐₘₚ[1]
+        χ = μ[p,1] / params.κ
 
         # initial conditions
         IC.x .= P₀.x
         IC.v .= P₀.v
-        IC.ρ₀ .= S.h
+        IC.ρ₀ .= P.bspl.h
 
         # save initial conditions
         if save
@@ -114,15 +115,12 @@ function integrate_vp(P₀::Particles{T},
             if given_phi
                 @views IC.ϕ .= Φₑₓₜ[:,1 + (p-1)*IP.nₛ]
             else
-                IC.rhs .= IC.ρ₀ .- rhs_particles_PBSBasis(IC.x,P₀.w,S,IC.rhs)
-                IC.rhs[S.nₕ] = 0
-                # IC.ϕ .= Kfac \ IC.rhs ./ χ^2
-                ldiv!(IC.ϕ, Kfac, IC.rhs)
-                IC.ϕ ./= χ^2
+                solve!(P, IC.x, P₀.w)
+                IC.ϕ .= P.ϕ ./ χ^2
             end
 
             # electric field
-            IC.a .= eval_deriv_PBSBasis(IC.ϕ,S,IC.x,IC.a)
+            IC.a .= eval_deriv_PBSBasis(IC.ϕ,P.bspl,IC.x,IC.a)
 
             IC.X[:,1 + (p-1)*IP.nₛ] .= IC.x
             IC.V[:,1 + (p-1)*IP.nₛ] .= IC.v
@@ -145,15 +143,12 @@ function integrate_vp(P₀::Particles{T},
             if given_phi
                 @views IC.ϕ .= Φₑₓₜ[:, t + 1 + (p-1)*IP.nₛ]
             else
-                IC.rhs .= IC.ρ₀ .- rhs_particles_PBSBasis(IC.x,P₀.w,S,IC.rhs)
-                IC.rhs[S.nₕ] = 0
-                # IC.ϕ .= Kfac \ IC.rhs ./ χ^2
-                ldiv!(IC.ϕ, Kfac, IC.rhs)
-                IC.ϕ ./= χ^2
+                solve!(P, IC.x, P₀.w)
+                IC.ϕ .= P.ϕ ./ χ^2
             end
 
             # electric field
-            IC.a .= eval_deriv_PBSBasis(IC.ϕ,S,IC.x,IC.a)
+            IC.a .= eval_deriv_PBSBasis(IC.ϕ,P.bspl,IC.x,IC.a)
 
             # acceleration step
             IC.v .+= IP.dt .* IC.a .* χ
@@ -195,7 +190,7 @@ function integrate_vp(P₀::Particles{T},
     return IC
 end
 
-function reduced_integrate_vp(P₀::Particles{T},
+function reduced_integrate_vp(P₀::ParticleList{T},
                               Ψ::Array{T},
                               ΨᵀPₑ::Array{T},      # Ψ' * Ψₑ * inv(Πₑ' * Ψₑ)
                               ΠₑᵀΨ::Array{T},    # Πₑ' * Ψ
@@ -207,7 +202,7 @@ function reduced_integrate_vp(P₀::Particles{T},
                               IC::ReducedIntegratorCache{T} = ReducedIntegratorCache(IP,size(Pₑ)[1],size(Pₑ)[2]);
                               DEIM = true,
                               given_phi = false,
-                              Φₑₓₜ::Array{T} = zeros(T,IP.nₕ,IP.nₚ*IP.nₛ),
+                              Φₑₓₜ::Array{T} = zeros(T,IP.nₕ,IP.nparam*IP.nₛ),
                               save = true) where {T}
 
     # K needs to already be augmented for boundary conditions
@@ -218,7 +213,7 @@ function reduced_integrate_vp(P₀::Particles{T},
         @assert IP.nₛ == IP.nₜ + 1
     end
 
-    for p in 1:IP.nₚ
+    for p in 1:IP.nparam
 
         χ = μ[p,1]/μₛₐₘₚ[1]
         print("running parameter nb. ", p, " with chi = ", χ, "\n")

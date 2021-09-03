@@ -12,10 +12,9 @@ function find_maxima(w, n)
 end
 
 function get_regression_αβ(t, W, n)
-    nₚ = size(W, 2)
-    α = zeros(nₚ)
-    β = zeros(nₚ)
-    for i in 1:nₚ
+    α = zeros(axes(W,2))
+    β = zeros(axes(W,2))
+    for i in axes(W,2)
         m = find_maxima(W[:,i], n)
         #!! bump on tail
         m = m[2:5]
