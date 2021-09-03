@@ -75,7 +75,7 @@ function run()
     Result = ReducedBasisMethods.integrate_vp(P, μ, params, poisson, IP, IC; save=true, given_phi=false)
 
     # save results to HDF5
-    save_h5("../runs/BoT_Np5e4_k_010_050_np_10_T25.h5", IP, poisson, params, μ, Result)
+    h5save("../runs/BoT_Np5e4_k_010_050_np_10_T25.h5", IP, poisson, params, μ, Result)
 
     #
     W = zero(Result.Φ[1,:]);
@@ -93,7 +93,7 @@ function run()
     # plot
     plot(IP.t, W[:,:], linewidth = 2, xlabel = L"$n_t$", yscale = :log10, legend = :none,
         grid = true, gridalpha = 0.5, minorgrid = true, minorgridalpha = 0.2)
-    savefig("../runs/BoT_Np5e4_k_010_050_np_10_T25_plot1.png")
+    savefig("../runs/BoT_Np5e4_k_010_050_np_10_T25_plot1.pdf")
     # TODO: Change filename to something meaningful!
 
     #
@@ -110,7 +110,7 @@ function run()
         grid = true, gridalpha = 0.5, minorgrid = true, minorgridalpha = 0.2)
     plot!(IP.t, W[:,1:5], linewidth = 2, alpha = 0.25)
     plot!(IP.t, Wₗᵢₙ[:,1:5], linewidth = 2, alpha = 0.5)
-    savefig("../runs/BoT_Np5e4_k_010_050_np_10_T25_plot2.png")
+    savefig("../runs/BoT_Np5e4_k_010_050_np_10_T25_plot2.pdf")
     # TODO: Change filename to something meaningful!
 
     # plot
@@ -118,7 +118,7 @@ function run()
         grid = true, gridalpha = 0.5, minorgrid = true, minorgridalpha = 0.2)
     plot!(IP.t, W[:,6:10], linewidth = 2, alpha = 0.25)
     plot!(IP.t, Wₗᵢₙ[:,6:10], linewidth = 2, alpha = 0.5)
-    savefig("../runs/BoT_Np5e4_k_010_050_np_10_T25_plot3.png")
+    savefig("../runs/BoT_Np5e4_k_010_050_np_10_T25_plot3.pdf")
     # TODO: Change filename to something meaningful!
 
 end

@@ -15,8 +15,20 @@ module ReducedBasisMethods
 
     export IntegratorCache, IntegratorParameters, integrate_vp
 
+    include("eigen.jl")
+
+    export sorteigen
+
+    include("projection.jl")
+
+    export get_Ψ
+
+    include("deim.jl")
+    
+    export deim_get_Π
+
     include("h5routines.jl")
 
-    export save_h5
+    export h5save, read_sampling_parameters
 
 end

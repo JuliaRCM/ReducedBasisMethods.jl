@@ -18,6 +18,34 @@ struct IntegratorParameters{T}
     end
 end
 
+function IntegratorParameters(fpath::AbstractString)
+    h5open(fpath, "r") do file
+        IntegratorParameters(
+            read(attributes(file)["dt"]),
+            read(attributes(file)["nt"]),
+            read(attributes(file)["ns"]),
+            read(attributes(file)["nh"]),
+            read(attributes(file)["np"]),
+            read(attributes(file)["nparam"]),
+        )
+    end
+end
+
+"""
+save integrator parameters
+"""
+function h5save(fpath::AbstractString, IP::IntegratorParameters)
+    h5open(fpath, "r+") do file
+        attributes(file)["dt"] = IP.dt
+        attributes(file)["nt"] = IP.nₜ
+        attributes(file)["ns"] = IP.nₛ
+        attributes(file)["nh"] = IP.nₕ
+        attributes(file)["np"] = IP.nₚ
+        attributes(file)["nparam"] = IP.nparam
+    end
+end
+
+
 mutable struct ReducedIntegratorCache{T}
     zₓ::Vector{T}
     zᵥ::Vector{T}
