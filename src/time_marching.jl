@@ -222,10 +222,9 @@ function reduced_integrate_vp(P₀::ParticleList{T},
                               Ψ::Array{T},
                               ΨᵀPₑ::Array{T},      # Ψ' * Ψₑ * inv(Πₑ' * Ψₑ)
                               ΠₑᵀΨ::Array{T},    # Πₑ' * Ψ
-                              S::PBSpline{T},
                               μ::Array{T},
-                              μₛₐₘₚ::Vector{T},
-                              K::Matrix{T},
+                              params::NamedTuple,
+                              P::PoissonSolverPBSplines{T},
                               IP::IntegratorParameters{T},
                               IC::ReducedIntegratorCache{T} = ReducedIntegratorCache(IP,size(Pₑ)[1],size(Pₑ)[2]);
                               DEIM = true,
@@ -235,7 +234,7 @@ function reduced_integrate_vp(P₀::ParticleList{T},
 
     # K needs to already be augmented for boundary conditions
     nₜₛ = div(IP.nₜ,IP.nₛ-1)
-    nₕᵣₐₙ = 1:S.nₕ
+    nₕᵣₐₙ = 1:P.bspl.nₕ
 
     if given_phi
         @assert IP.nₛ == IP.nₜ + 1
@@ -243,12 +242,12 @@ function reduced_integrate_vp(P₀::ParticleList{T},
 
     for p in 1:IP.nparam
 
-        χ = μ[p,1]/μₛₐₘₚ[1]
+        χ = μ[p,1]/params.κ
         print("running parameter nb. ", p, " with chi = ", χ, "\n")
 
         # initial conditions
         IC.zₓ .= Ψ' * P₀.x;  IC.zᵥ .= Ψ' * P₀.v
-        IC.ρ₀ .= S.h
+        IC.ρ₀ .= P.bspl.h
 
         # save initial conditions
         if save
@@ -257,9 +256,8 @@ function reduced_integrate_vp(P₀::ParticleList{T},
                 IC.ϕ .= Φₑₓₜ[:,1 + (p-1)*IP.nₛ]
             else
                 IC.x .= Ψ * IC.zₓ
-                IC.rhs .= IC.ρ₀ .- rhs_particles_PBSBasis(IC.x,P₀.w,S,IC.rhs)
-                IC.rhs[S.nₕ] = 0.0
-                IC.ϕ = K\IC.rhs ./ χ^2
+                solve!(P, IC.x, P₀.w)
+                IC.ϕ .= P.ϕ ./ χ^2
             end
 
             IC.Zₓ[:,1 + (p-1)*IP.nₛ] .= IC.zₓ
@@ -280,20 +278,19 @@ function reduced_integrate_vp(P₀::ParticleList{T},
                 IC.ϕ = Φₑₓₜ[:,t + 1 + (p-1)*IP.nₛ]
             else
                 IC.x .= Ψ * IC.zₓ
-                IC.rhs .= IC.ρ₀ .- rhs_particles_PBSBasis(IC.x,P₀.w,S,IC.rhs)
-                IC.rhs[S.nₕ] = 0.0
-                IC.ϕ = K\IC.rhs ./ χ^2
+                solve!(P, IC.x, P₀.w)
+                IC.ϕ .= P.ϕ ./ χ^2
             end
 
             # acceleration step
             if DEIM
                 IC.xₑ .= ΠₑᵀΨ * IC.zₓ
-                IC.zᵥ .+= IP.dt .* ΨᵀPₑ * eval_deriv_PBSBasis(IC.ϕ,S,IC.xₑ) .* χ
+                IC.zᵥ .+= IP.dt .* ΨᵀPₑ * eval_deriv_PBSBasis(IC.ϕ,P.bspl,IC.xₑ) .* χ
             else
                 if given_phi
                     IC.x .= Ψ * IC.zₓ
                 end
-                IC.zᵥ .+= IP.dt .* Ψ' * eval_deriv_PBSBasis(IC.ϕ,S,IC.x) .* χ
+                IC.zᵥ .+= IP.dt .* Ψ' * eval_deriv_PBSBasis(IC.ϕ,P.bspl,IC.x) .* χ
             end
 
             if save || t == IP.nₜ
@@ -311,7 +308,7 @@ function reduced_integrate_vp(P₀::ParticleList{T},
                 #     IC.ϕ = Φₑₓₜ[:,t+1]
                 # else
                 #     IC.x .= Ψ * IC.zₓ
-                #     IC.rhs .= IC.ρ₀ .- rhs_particles_PBSBasis(IC.x,P₀.w,S,IC.rhs)
+                #     IC.rhs .= IC.ρ₀ .- rhs_particles_PBSBasis(IC.x,P₀.w,P.bspl,IC.rhs)
                 #     IC.rhs[S.nₕ] = 0.0
                 #     IC.ϕ = K\IC.rhs ./ χ^2
                 # end

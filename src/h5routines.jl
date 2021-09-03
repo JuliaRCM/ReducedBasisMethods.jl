@@ -4,20 +4,30 @@ using HDF5
 import Particles.PoissonSolverPBSplines
 
 
-function save_snapshots(fpath::String, X::Matrix{T}, V::Matrix{T}, E::Matrix{T}, Φ::Matrix{T}) where {T}
+function _create_parameter_group(file)
+    if haskey(file, "parameters")
+        g = file["parameters"]
+    else
+        g = create_group(file, "parameters")
+    end
+    return g
+end
+
+
+function save_snapshots(fpath::String, Result) where {T}
     h5open(fpath, "w") do file
         s = create_group(file, "snapshots")
-        s["X"] = X
-        s["V"] = V
-        s["E"] = E
-        s["Φ"] = Φ
+        s["X"] = Result.X
+        s["V"] = Result.V
+        s["E"] = Result.E
+        s["Φ"] = Result.Φ
     end
 end
 
 
 function save_projections(fpath::String, k, kₑ, Ψ, Ψₑ, Πₑ, P₀) where {T}
     h5open(fpath, "w") do file
-        g = create_group(file, "parameters") # create a group
+        g = _create_parameter_group(file)
         g["k"] = k
         g["k_e"] = kₑ
             
@@ -34,25 +44,31 @@ function save_projections(fpath::String, k, kₑ, Ψ, Ψₑ, Πₑ, P₀) where 
 end
 
 
+function save_tests(fpath::String, Rtest, Rrm, Ψ)
+    h5open(fpath, "w") do file
+        s = create_group(file, "tests")
+        s["X_test"] = Rtest.X
+        s["V_test"] = Rtest.V
+        s["Phi_test"] = Rtest.Φ
+        s["X_rm"] = Ψ * Rrm.Zₓ
+        s["V_rm"] = Ψ * Rrm.Zᵥ
+        s["Phi_rm"] = Rrm.Φ
+    end
+end
+
+
 """
 save sampling parameters
 """
-function save_sampling_parameters(fpath::AbstractString, sampling_params::NamedTuple, μₜ::Matrix)
+function save_sampling_parameters(fpath::AbstractString, sampling_params::NamedTuple)
     h5open(fpath, "r+") do file
-        if haskey(file, "parameters")
-            g = file["parameters"]
-        else
-            g = create_group(file, "parameters")
-        end
-
+        g = _create_parameter_group(file)
         g["κ"]  = sampling_params.κ
         g["ε"]  = sampling_params.ε
         g["a"]  = sampling_params.a
         g["v₀"] = sampling_params.v₀
         g["σ"]  = sampling_params.σ
         g["χ"]  = sampling_params.χ
-
-        g["mu_train"] = μₜ
     end
 end
 
@@ -68,6 +84,29 @@ function read_sampling_parameters(fpath::AbstractString)
         )
     end
 end
+
+
+"""
+save training parameters
+"""
+function save_training_parameters(fpath::AbstractString, μₜ::Matrix)
+    h5open(fpath, "r+") do file
+        g = _create_parameter_group(file)
+        g["mu_train"] = μₜ
+    end
+end
+
+
+"""
+save testing parameters
+"""
+function save_testing_parameters(fpath::AbstractString, μₜ::Matrix)
+    h5open(fpath, "r+") do file
+        g = _create_parameter_group(file)
+        g["mu_test"] = μₜ
+    end
+end
+
 
 """
 save spline solver parameters
@@ -91,17 +130,13 @@ end
 """
 save training data
 """
-function h5save(fpath::String, IP::IntegratorParameters, P::PoissonSolverPBSplines{T}, sampling_params::NamedTuple, μₜ::Matrix{T}, Result) where {T}
+function h5save(fpath::String, IP::IntegratorParameters, P::PoissonSolverPBSplines{T}, sampling_params::NamedTuple, μtrain::Matrix{T}, Result) where {T}
     # create file and save snapshots
-    save_snapshots(fpath,
-             Result.X,
-             Result.V,
-             Result.E,
-             Result.Φ)
-    
+    save_snapshots(fpath, Result)
     h5save(fpath, P)
     h5save(fpath, IP)
-    save_sampling_parameters(fpath, sampling_params, μₜ)
+    save_sampling_parameters(fpath, sampling_params)
+    save_training_parameters(fpath, μtrain)
 end
 
 
@@ -109,11 +144,25 @@ end
 """
 save projection data
 """
-function h5save(fpath::String, IP::IntegratorParameters, P::PoissonSolverPBSplines{T}, sampling_params::NamedTuple, μₜ::Matrix{T}, k, kₑ, Ψ, Ψₑ, Πₑ, P₀) where {T}
+function h5save(fpath::String, IP::IntegratorParameters, P::PoissonSolverPBSplines{T}, sampling_params::NamedTuple, μtrain::Matrix{T}, k, kₑ, Ψ, Ψₑ, Πₑ, P₀) where {T}
     # create file and save projections
     save_projections(fpath, k, kₑ, Ψ, Ψₑ, Πₑ, P₀)
-    
     h5save(fpath, P)
     h5save(fpath, IP)
-    save_sampling_parameters(fpath, sampling_params, μₜ)
+    save_sampling_parameters(fpath, sampling_params)
+    save_training_parameters(fpath, μtrain)
+end
+
+
+"""
+save testing data
+"""
+function h5save(fpath::String, IP::IntegratorParameters, P::PoissonSolverPBSplines{T}, sampling_params::NamedTuple, μtrain::Matrix{T}, μtest::Matrix{T}, Rtest, Rrm, Ψ) where {T}
+    # create file and save test data
+    save_tests(fpath, Rtest, Rrm, Ψ)
+    h5save(fpath, P)
+    h5save(fpath, IP)
+    save_sampling_parameters(fpath, sampling_params)
+    save_training_parameters(fpath, μtrain)
+    save_testing_parameters(fpath, μtest)
 end

@@ -13,7 +13,8 @@ module ReducedBasisMethods
 
     include("time_marching.jl")
 
-    export IntegratorCache, IntegratorParameters, integrate_vp
+    export IntegratorParameters, IntegratorCache, ReducedIntegratorCache
+    export integrate_vp, reduced_integrate_vp
 
     include("eigen.jl")
 
