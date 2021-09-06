@@ -2,10 +2,16 @@ module ReducedBasisMethods
 
     using Particles
 
-    include("parameters.jl")
+    include("parameter.jl")
 
     export Parameter, hassamples
+
+    include("parametersampler.jl")
+
     export ParameterSampler, CartesianParameterSampler, sample
+
+    include("parameterspace.jl")
+
     export ParameterSpace
 
     include("regression.jl")
