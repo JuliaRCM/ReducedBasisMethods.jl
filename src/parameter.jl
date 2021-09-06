@@ -47,18 +47,21 @@ function show(io::IO, p::Parameter)
     show(io, p.samples)
 end
 
+const ParameterWithSamples = Parameter{DT,ST} where {DT, ST <: AbstractVector}
+const ParameterWithoutSamples = Parameter{DT,ST} where {DT, ST <: Nothing}
+
 Base.collect(p::Parameter) = p.samples
 Base.maximum(p::Parameter) = p.maximum
 Base.minimum(p::Parameter) = p.minimum
 
-Base.length(p::Parameter{DT,ST}) where {DT, ST <: Nothing} = 0
-Base.length(p::Parameter{DT,ST}) where {DT, ST <: AbstractVector} = length(p.samples)
+Base.length(p::ParameterWithSamples) = length(p.samples)
+Base.length(p::ParameterWithoutSamples) = 0
 
-Base.size(p::Parameter{DT,ST}) where {DT, ST <: Nothing} = (0,)
-Base.size(p::Parameter{DT,ST}) where {DT, ST <: AbstractVector} = size(p.samples)
+Base.size(p::ParameterWithSamples) = size(p.samples)
+Base.size(p::ParameterWithoutSamples) = (0,)
 
-hassamples(p::Parameter{DT,ST}) where {DT, ST <: Nothing} = false
-hassamples(p::Parameter{DT,ST}) where {DT, ST <: AbstractVector} = length(p.samples) > 0
+hassamples(p::ParameterWithSamples) = length(p.samples) > 0
+hassamples(p::ParameterWithoutSamples) = false
 
 
 function Base.NamedTuple(parameters::Vararg{Parameter{DT}}) where {DT}
