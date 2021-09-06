@@ -1,5 +1,5 @@
 
-import Base: collect, getindex, length, ndims, size
+import Base: collect, eachindex, getindex, length, ndims, size
 
 """
 ParameterSpace collects all parameters of a system as well as samples in the parameter space.
@@ -37,6 +37,7 @@ Base.:(==)(ps1::ParameterSpace, ps2::ParameterSpace) = (
 
 
 Base.collect(ps::ParameterSpace) = vcat(transpose.(collect.(ps.samples))...)
+Base.eachindex(ps::ParameterSpace) = eachindex(ps.samples)
 Base.length(ps::ParameterSpace) = length(ps.samples)
 Base.ndims(ps::ParameterSpace) = length(ps.parameters)
 Base.size(ps::ParameterSpace) = (length(ps.samples), length(ps.parameters))
