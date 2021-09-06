@@ -1,5 +1,5 @@
 
-import Base: collect, length, maximum, minimum, size, NamedTuple
+import Base: collect, getindex, length, maximum, minimum, size, NamedTuple
 
 
 AbstractSample{DT} = Union{Nothing, AbstractVector{DT}}
@@ -63,6 +63,10 @@ Base.size(p::ParameterWithoutSamples) = (0,)
 hassamples(p::ParameterWithSamples) = length(p.samples) > 0
 hassamples(p::ParameterWithoutSamples) = false
 
+@inline Base.@propagate_inbounds Base.getindex(p::ParameterWithSamples, i) = p.samples[i]
+@inline Base.@propagate_inbounds Base.getindex(p::ParameterWithoutSamples, i) = error("Parameter $(p.name) indexed with $(i) but has no samples.")
+@inline Base.@propagate_inbounds Base.getindex(p::ParameterWithSamples, ::Colon) = p.samples
+@inline Base.@propagate_inbounds Base.getindex(p::ParameterWithoutSamples, ::Colon) = error("Parameter $(p.name) has no samples.")
 
 function Base.NamedTuple(parameters::Vararg{Parameter{DT}}) where {DT}
     names = Tuple(p.name for p in parameters)
