@@ -20,6 +20,10 @@ module ReducedBasisMethods
 
     export get_regression_αβ
 
+    include("trainingset.jl")
+
+    export TrainingSet
+
     include("time_marching.jl")
 
     export IntegratorParameters, IntegratorCache, ReducedIntegratorCache
