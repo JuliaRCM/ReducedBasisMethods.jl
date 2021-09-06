@@ -1,8 +1,11 @@
 
 samples = [0.0, 1.0, 2.0, 3.0, 4.0]
-grid    = [0.0 0.5 1.0 0.0 0.5 1.0;
-           1.0 1.0 1.0 1.0 1.0 1.0;
-           0.0 0.0 0.0 4.0 4.0 4.0]
+grid    = [ 0.0  1.0  0.0
+            0.5  1.0  0.0
+            1.0  1.0  0.0
+            0.0  1.0  4.0
+            0.5  1.0  4.0
+            1.0  1.0  4.0 ]
 
 @testset "Parameter" begin
 
@@ -15,7 +18,7 @@ grid    = [0.0 0.5 1.0 0.0 0.5 1.0;
     p2 = Parameter(:μ, 0.0, 4.0, samples)
     p3 = Parameter(:μ, 0.0, 4.0, 5)
     p4 = Parameter(:μ, 0.0, 4.0)
-    p5 = Parameter(:μ, 0.0, 4.0, Vector{Float64}())
+    p5 = Parameter(:μ, 0.0, 4.0, nothing)
 
     @test p1 == p2
     @test p1 == p3
@@ -39,11 +42,17 @@ grid    = [0.0 0.5 1.0 0.0 0.5 1.0;
     @test size(p4) == (0,)
     @test size(p5) == (0,)
 
+    @test hassamples(p1) == true
+    @test hassamples(p2) == true
+    @test hassamples(p3) == true
+    @test hassamples(p4) == false
+    @test hassamples(p5) == false
+
     @test collect(p1) == samples
     @test collect(p2) == samples
     @test collect(p3) == samples
-    @test collect(p4) == Vector{Float64}()
-    @test collect(p5) == Vector{Float64}()
+    @test collect(p4) === nothing
+    @test collect(p5) === nothing
 
     @test minimum(p1) == 0.0
     @test minimum(p2) == 0.0
@@ -63,8 +72,6 @@ grid    = [0.0 0.5 1.0 0.0 0.5 1.0;
 
     @test NamedTuple(p1, p2, p3) == NamedTuple{(:μ, :ν, :σ)}((p1, p2, p3))
 
-    @test parameter_grid(p1, p2, p3) == grid
-
 end
 
 @testset "ParameterSpace" begin
@@ -73,27 +80,34 @@ end
     ν = Parameter(:ν, 1.0, 1.0, 1)
     σ = Parameter(:σ, 0.0, 4.0, 2)
 
-    p1 = ParameterSpace(NamedTuple(μ, ν, σ), parameter_grid(μ, ν, σ))
-    p2 = ParameterSpace(μ, ν, σ)
+    pkeys = (:μ, :ν, :σ)
+    params = (μ, ν, σ)
 
-    @test p1 == p2
+    p1 = ParameterSpace(NamedTuple(params...), sample(CartesianParameterSampler(), params...))
+    p2 = ParameterSpace(NamedTuple(params...))
+    p3 = ParameterSpace(params...)
 
-    @test p1[:] == p2[:]
+    @test p1 == p2 == p3
+    @test p1[:] == p2[:] == p3[:] == grid
+    @test p1[:,:] == p2[:,:] == p3[:,:] == grid
 
-    @test p1[:μ] == p1[1] == p2[1] == p2[:μ]
-    @test p1[:ν] == p1[2] == p2[2] == p1[:ν]
-    @test p1[:σ] == p1[3] == p2[3] == p1[:σ]
-
-    @test p1[:μ,:] == p1[1,:] == p2[1,:] == p2[:μ,:]
-    @test p1[:ν,:] == p1[2,:] == p2[2,:] == p1[:ν,:]
-    @test p1[:σ,:] == p1[3,:] == p2[3,:] == p1[:σ,:]
+    for i in axes(grid,1)
+        @test p1(i) == p2(i) == p3(i) == NamedTuple{pkeys}(Tuple(grid[i,:]))
+        @test p1[i] == p2[i] == p3[i] == grid[i,:]
+        @test p1[i,:] == p2[i,:] == p3[i,:] == grid[i,:]
+    end
 
     for j in axes(grid,2)
-        @test p1[:,j] == p2[:,j]
-
-        @test p1[:μ,j] == p1[1,j] == p2[1,j] == p2[:μ,j]
-        @test p1[:ν,j] == p1[2,j] == p2[2,j] == p1[:ν,j]
-        @test p1[:σ,j] == p1[3,j] == p2[3,j] == p1[:σ,j]
+        @test p1[:,j] == p2[:,j] == p3[:,j] == grid[:,j]
+        @test p1[:,pkeys[j]] == p2[:,pkeys[j]] == p3[:,pkeys[j]] == grid[:,j]
+        @test p1[pkeys[j]] == p2[pkeys[j]] == p3[pkeys[j]] == grid[:,j]
     end
-    
+
+    for i in axes(grid,1)
+        for j in axes(grid,2)
+            @test p1[i,j] == p2[i,j] == p3[i,j] == grid[i,j]
+            @test p1[i,pkeys[j]] == p2[i,pkeys[j]] == p3[i,pkeys[j]] == grid[i,j]
+        end
+    end
+
 end

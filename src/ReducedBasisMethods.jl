@@ -4,8 +4,9 @@ module ReducedBasisMethods
 
     include("parameters.jl")
 
-    export Parameter, ParameterSpace, ParameterSampler,
-           parameter_grid
+    export Parameter, hassamples
+    export ParameterSampler, CartesianParameterSampler, sample
+    export ParameterSpace
 
     include("regression.jl")
 

@@ -2,30 +2,42 @@
 import Base: collect, getindex, length, maximum, minimum, size, NamedTuple
 
 
-"""
+AbstractSample{DT} = Union{Nothing, AbstractVector{DT}}
 
-"""
-abstract type ParameterSampler end
+_sort(s::Nothing) = s
+_sort(s::AbstractVector) = sort(unique(s))
 
-
-"""
-
-"""
-struct Parameter{DT <: Number}
-    name::Symbol
-    minimum::DT
-    maximum::DT
-    samples::Vector{DT}
-
-    function Parameter(name::Symbol, minimum::DT, maximum::DT, samples::AbstractVector{DT}) where {DT}
-        @assert minimum ≤ maximum
-        @assert all([minimum ≤ s for s in samples])
-        @assert all([maximum ≥ s for s in samples])
-        new{DT}(name, minimum, maximum, sort(unique(samples)))
+function key_index(nt::NamedTuple, k::Symbol)
+    @assert haskey(nt, k)
+    ntkeys = keys(nt)
+    for i in eachindex(ntkeys)
+        if ntkeys[i] == k
+            return i
+        end
     end
 end
 
-Parameter(name, minimum::DT, maximum::DT) where {DT} = Parameter(name, minimum, maximum, Vector{DT}())
+
+"""
+
+"""
+struct Parameter{DT <: Number, ST <: AbstractSample{DT}}
+    name::Symbol
+    minimum::DT
+    maximum::DT
+    samples::ST
+
+    function Parameter(name::Symbol, minimum::DT, maximum::DT, samples::ST) where {DT, ST <: AbstractSample{DT}}
+        @assert minimum ≤ maximum
+        if typeof(samples) <: AbstractVector
+            @assert all([minimum ≤ s for s in samples])
+            @assert all([maximum ≥ s for s in samples])
+        end
+        new{DT,ST}(name, minimum, maximum, _sort(samples))
+    end
+end
+
+Parameter(name, minimum::DT, maximum::DT) where {DT} = Parameter(name, minimum, maximum, nothing)
 Parameter(name, minimum::DT, maximum::DT, n::Int) where {DT} = Parameter(name, minimum, maximum, LinRange(minimum, maximum, n))
 Parameter(name, samples::AbstractVector) = Parameter(name, minimum(samples), maximum(samples), samples)
 
@@ -45,11 +57,18 @@ function show(io::IO, p::Parameter)
     show(io, p.samples)
 end
 
-Base.length(p::Parameter) = length(p.samples)
-Base.size(p::Parameter) = size(p.samples)
-Base.collect(p::Parameter) = p.samples
 Base.maximum(p::Parameter) = p.maximum
 Base.minimum(p::Parameter) = p.minimum
+Base.collect(p::Parameter) = p.samples
+
+Base.length(p::Parameter{DT,ST}) where {DT, ST <: Nothing} = 0
+Base.length(p::Parameter{DT,ST}) where {DT, ST <: AbstractVector} = length(p.samples)
+
+Base.size(p::Parameter{DT,ST}) where {DT, ST <: Nothing} = (0,)
+Base.size(p::Parameter{DT,ST}) where {DT, ST <: AbstractVector} = size(p.samples)
+
+hassamples(p::Parameter{DT,ST}) where {DT, ST <: Nothing} = false
+hassamples(p::Parameter{DT,ST}) where {DT, ST <: AbstractVector} = length(p.samples) > 0
 
 
 function Base.NamedTuple(parameters::Vararg{Parameter{DT}}) where {DT}
@@ -58,67 +77,93 @@ function Base.NamedTuple(parameters::Vararg{Parameter{DT}}) where {DT}
 end
 
 
-function parameter_grid(parameters::Vararg{Parameter{DT},N}) where {DT,N}
+"""
+
+"""
+abstract type ParameterSampler end
+
+"""
+
+"""
+function sample(ps::ParameterSampler, parameters::NamedTuple)
+    sample(ps, values(parameters)...)
+end
+
+
+"""
+
+"""
+struct CartesianParameterSampler <: ParameterSampler end
+
+
+function sample(::CartesianParameterSampler, parameters::Vararg{Parameter,N}) where {N}
+    # make sure all parameters have a sample vector
+    for p in parameters
+        @assert hassamples(p)
+    end
+
     # get all parameter index combinations
     inds = CartesianIndices(zeros([length(p) for p in parameters]...))[:]
 
     # generate sample matrix
-    [parameters[i].samples[inds[j][i]] for i in 1:N, j in eachindex(inds)]
+    [Tuple((parameters[i].samples[inds[j][i]] for i in 1:N)) for j in eachindex(inds)]
 end
 
 
-
 """
-ParameterSpace collects all parameters as well as samples in the space.
+ParameterSpace collects all parameters of a system as well as samples in the parameter space.
 """
-struct ParameterSpace{DT <: Number, PT <: NamedTuple}
+struct ParameterSpace{PT <: NamedTuple, ST <: Vector{<:Tuple}}
     parameters::PT
-    samples::Matrix{DT}
+    samples::ST
 
-    function ParameterSpace(parameters::PT, samples::AbstractMatrix{DT}) where {DT, PT}
-        @assert length(parameters) == size(samples,1)
-        new{DT,PT}(parameters, samples)
+    function ParameterSpace(parameters::PT, samples::ST) where {PT,ST}
+        for s in samples
+            @assert length(parameters) == length(s)
+        end
+        new{PT,ST}(parameters, samples)
     end
 end
 
-function ParameterSpace(parameters::Vararg{Parameter{DT}}) where {DT}
-    ParameterSpace(NamedTuple(parameters...), parameter_grid(parameters...))
+function ParameterSpace(sampler::ParameterSampler, parameters::Vararg{Parameter})
+    ParameterSpace(NamedTuple(parameters...), sample(sampler, parameters...))
 end
 
-# function ParameterSpace(parameters::NamedTuple, sampler::ParameterSampler) end
+function ParameterSpace(parameters::Vararg{Parameter})
+    ParameterSpace(CartesianParameterSampler(), parameters...)
+end
+
+function ParameterSpace(parameters::NamedTuple)
+    ParameterSpace(values(parameters)...)
+end
 
 Base.:(==)(ps1::ParameterSpace, ps2::ParameterSpace) = (
                         ps1.parameters == ps2.parameters
                      && ps1.samples    == ps2.samples)
 
-@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, i) = getindex(ps.samples, i)
-@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, i, j) = getindex(ps.samples, i, j)
 
-# @inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, i::Union{Int,CartesianIndex}) = getindex(ps.samples, i)
-# @inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, I::Vararg{Int}) = getindex(ps.samples, I...)
-# @inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, i::Colon, j::Colon) = getindex(ps.samples, axes(ps.samples,1), axes(ps.samples,2))
-# @inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, i, j::Colon) = getindex(ps.samples, i, axes(ps.samples,2))
-# @inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, i::Colon, j) = getindex(ps.samples, axes(ps.samples,1), j)
+(ps::ParameterSpace)(i::Union{Int,CartesianIndex}) = NamedTuple{keys(ps.parameters)}(ps.samples[i])
 
-function key_index(nt::NamedTuple, k::Symbol)
-    @assert haskey(nt, k)
-    ntkeys = keys(nt)
-    for i in eachindex(ntkeys)
-        if ntkeys[i] == k
-            return i
-        end
-    end
-end
+
+Base.collect(ps::ParameterSpace) = vcat(transpose.(collect.(ps.samples))...)
+Base.length(ps::ParameterSpace) = length(ps.samples)
+Base.ndims(ps::ParameterSpace) = length(ps.parameters)
+Base.size(ps::ParameterSpace) = (length(ps.samples), length(ps.parameters))
+Base.size(ps::ParameterSpace, d) = size(ps)[d]
+
+@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, i) = collect(ps.samples[i])
+@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, i, j) = ps.samples[i][j]
+@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, ::Colon) = collect(ps)
+@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, ::Colon, ::Colon) = collect(ps)
+@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, i::Union{Int,CartesianIndex}, ::Colon) = ps[i]
+@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, ::Colon, j::Union{Int,CartesianIndex}) = [s[j] for s in ps.samples]
 
 @inline Base.@propagate_inbounds function Base.getindex(ps::ParameterSpace, p::Symbol)
-    i = key_index(ps.parameters, p)
-    getindex(ps.samples, i)
+    j = key_index(ps.parameters, p)
+    [s[j] for s in ps.samples]
 end
 
-@inline Base.@propagate_inbounds function Base.getindex(ps::ParameterSpace, p::Symbol, j)
-    i = key_index(ps.parameters, p)
-    getindex(ps.samples, i, j)
+@inline Base.@propagate_inbounds function Base.getindex(ps::ParameterSpace, i, p::Symbol)
+    j = key_index(ps.parameters, p)
+    ps[i,j]
 end
-
-Base.size(ps::ParameterSpace) = size(ps.samples)
-Base.size(ps::ParameterSpace, d) = size(ps.samples, d)
