@@ -7,16 +7,6 @@ AbstractSample{DT} = Union{Nothing, AbstractVector{DT}}
 _sort(s::Nothing) = s
 _sort(s::AbstractVector) = sort(unique(s))
 
-function key_index(nt::NamedTuple, k::Symbol)
-    @assert haskey(nt, k)
-    ntkeys = keys(nt)
-    for i in eachindex(ntkeys)
-        if ntkeys[i] == k
-            return i
-        end
-    end
-end
-
 
 """
 

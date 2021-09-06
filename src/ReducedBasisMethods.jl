@@ -2,6 +2,8 @@ module ReducedBasisMethods
 
     using Particles
 
+    include("utils.jl")
+
     include("parameter.jl")
 
     export Parameter, hassamples
