@@ -2,5 +2,5 @@ using ReducedBasisMethods
 using Test
 
 @testset "ReducedBasisMethods.jl" begin
-    include("parameters_tests.jl")
+    include("parameter_tests.jl")
 end
