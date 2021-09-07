@@ -5,7 +5,7 @@ struct TrainingSet{DT <: Number, PS <: ParameterSpace}
     X::Array{DT,4}
     V::Array{DT,4}
     A::Array{DT,4}
-    Φ::Array{DT,3}
+    Φ::Array{DT,4}
     W::Array{DT,2}
     K::Array{DT,2}
     M::Array{DT,2}
@@ -14,7 +14,7 @@ struct TrainingSet{DT <: Number, PS <: ParameterSpace}
         X = zeros(nd, np, ns, length(pspace))
         V = zeros(nd, np, ns, length(pspace))
         A = zeros(nd, np, ns, length(pspace))
-        Φ = zeros(nh, ns, length(pspace))
+        Φ = zeros(nd, nh, ns, length(pspace))
         W = zeros(ns, length(pspace))
         K = zeros(ns, length(pspace))
         M = zeros(ns, length(pspace))
