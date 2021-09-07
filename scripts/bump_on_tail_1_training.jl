@@ -13,7 +13,7 @@ const dt = 1e-1             # timestep
 const T = 25                # final time
 const nt = Int(div(T, dt))  # nb. of timesteps
 const np = Int(5e3)         # nb. of particles
-const ns = 16               # nb. of elements
+const nh = 16               # nb. of elements
 const p = 3                 # spline degree
 
 const nₚ₁ = 10
@@ -21,7 +21,7 @@ const nₚ₂ = 1
 const nₚ₃ = 1
 const nₚ₄ = 1
 const nₚ₅ = 1
-const nparam = nₚ₁*nₚ₂*nₚ₃*nₚ₄*nₚ₅
+const nparam = nₚ₁ * nₚ₂ * nₚ₃ * nₚ₄ * nₚ₅
 
 const vmax = +10
 const vmin = -10
@@ -35,31 +35,25 @@ params = (κ = 0.3,      # spatial perturbation wave number
           χ = 1.0)
 
 # sampling parameters
-κrange  = (0.1, 0.5)
-εrange  = (0.03, 0.03)
-arange  = (0.1, 0.1)
-v₀range = (4.5, 4.5)
-σrange  = (0.5, 0.5)
+κ = Parameter(:κ,  0.1,  0.5,  nₚ₁)
+ε = Parameter(:ε,  0.03, 0.03, nₚ₂)
+a = Parameter(:a,  0.1,  0.1,  nₚ₃)
+v₀= Parameter(:v₀, 4.5,  4.5,  nₚ₄)
+σ = Parameter(:σ,  0.5,  0.5,  nₚ₅)
 
-κ = LinRange(κrange[begin], κrange[end], nₚ₁)
-
-const μ = zeros(nparam, 5)
-for i in axes(μ, 1)
-    μ[i,:] = [κ[i], params.ε, params.a, params.v₀, params.σ]
-end
+const pspace = ParameterSpace(κ, ε, a, v₀, σ)
 
 const L = 2π/params.κ         # domain length
-const h = L/ns                # element width
-const χ = μ[:,1] ./ params.κ
+# const h = L/nh                # element width
 
 
 function run()
 
     # integrator parameters
-    IP = IntegratorParameters(dt, nt, nt+1, ns, np, nparam)
+    IP = VPIntegratorParameters(dt, nt, nt+1, nh, np)
 
     # integrator cache
-    IC = IntegratorCache(IP)
+    IC = VPIntegratorCache(IP)
     
     # B-spline Poisson solver
     poisson = PoissonSolverPBSplines(p, IP.nₕ, L)
@@ -68,39 +62,47 @@ function run()
     Random.seed!(1234)
 
     # initial data
-    P = BumpOnTail.draw_accept_reject(np, params)
-    # P = BumpOnTail.draw_importance_sampling(np, params)
+    particles = BumpOnTail.draw_accept_reject(np, params)
+    # particles = BumpOnTail.draw_importance_sampling(np, params)
 
-    # integrate particles for all parameters
-    Result = ReducedBasisMethods.integrate_vp(P, μ, params, poisson, IP, IC; save=true, given_phi=false)
+    # training set
+    TS = TrainingSet(nt+1, poisson, particles, pspace)
+
+    # loop over parameter set
+    for p in eachindex(pspace)
+
+        # get parameter tuple
+        lparams = merge(pspace(p), (χ = pspace[p, :κ] / params.κ,))
+
+        # integrate particles for parameter
+        integrate_vp!(particles, poisson, lparams, IP, IC; save=true, given_phi=false)
+
+        # copy solution
+        TS.X[1,:,:,p] .= IC.X
+        TS.V[1,:,:,p] .= IC.V
+        TS.A[1,:,:,p] .= IC.A
+        TS.Φ[1,:,:,p] .= IC.Φ
+
+        # copy diagnostics
+        TS.W[:,p] .= IC.W
+        TS.K[:,p] .= IC.K
+        TS.M[:,p] .= IC.M
+    end
 
     # save results to HDF5
-    h5save("../runs/BoT_Np5e4_k_010_050_np_10_T25.h5", IP, poisson, params, μ, Result)
-
-    #
-    W = zero(Result.Φ[1,:]);
-
-    for i in eachindex(W)
-        W[i] = 0.5 * dot(Result.Φ[:,i], poisson.M, Result.Φ[:,i])
-    end
-
-    W = reshape(W, (IP.nₛ, IP.nparam))
-
-    for p in axes(W,2)
-        W[:,p] .*= χ[p]^2
-    end
+    h5save("../runs/BoT_Np5e4_k_010_050_np_10_T25.h5", TS)
 
     # plot
-    plot(IP.t, W[:,:], linewidth = 2, xlabel = L"$n_t$", yscale = :log10, legend = :none,
+    plot(IP.t, TS.W, linewidth = 2, xlabel = L"$n_t$", yscale = :log10, legend = :none,
         grid = true, gridalpha = 0.5, minorgrid = true, minorgridalpha = 0.2)
     savefig("../runs/BoT_Np5e4_k_010_050_np_10_T25_plot1.pdf")
     # TODO: Change filename to something meaningful!
 
     #
-    α, β = get_regression_αβ(IP.t, W, 2)
+    α, β = get_regression_αβ(IP.t, TS.W, 2)
 
     #
-    Wₗᵢₙ = zero(W)
+    Wₗᵢₙ = zero(TS.W)
     for i in axes(Wₗᵢₙ,2)
         Wₗᵢₙ[:,i] .= exp.(α[i] .+ β[i] .* IP.t)
     end
@@ -108,7 +110,7 @@ function run()
     # plot
     plot(xlabel = L"$n_t$", yscale = :log10, ylims = (1E-3,1E1), legend = :none,
         grid = true, gridalpha = 0.5, minorgrid = true, minorgridalpha = 0.2)
-    plot!(IP.t, W[:,1:5], linewidth = 2, alpha = 0.25)
+    plot!(IP.t, TS.W[:,1:5], linewidth = 2, alpha = 0.25)
     plot!(IP.t, Wₗᵢₙ[:,1:5], linewidth = 2, alpha = 0.5)
     savefig("../runs/BoT_Np5e4_k_010_050_np_10_T25_plot2.pdf")
     # TODO: Change filename to something meaningful!
@@ -116,7 +118,7 @@ function run()
     # plot
     plot(xlabel = L"$n_t$", yscale = :log10, ylims = (1E-3,1E1), legend = :none,
         grid = true, gridalpha = 0.5, minorgrid = true, minorgridalpha = 0.2)
-    plot!(IP.t, W[:,6:10], linewidth = 2, alpha = 0.25)
+    plot!(IP.t, TS.W[:,6:10], linewidth = 2, alpha = 0.25)
     plot!(IP.t, Wₗᵢₙ[:,6:10], linewidth = 2, alpha = 0.5)
     savefig("../runs/BoT_Np5e4_k_010_050_np_10_T25_plot3.pdf")
     # TODO: Change filename to something meaningful!
