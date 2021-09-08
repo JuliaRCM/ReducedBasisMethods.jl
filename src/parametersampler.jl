@@ -27,5 +27,10 @@ function sample(::CartesianParameterSampler, parameters::Vararg{Parameter,N}) wh
     inds = CartesianIndices(zeros([length(p) for p in parameters]...))[:]
 
     # generate sample matrix
-    [Tuple((parameters[i].samples[inds[j][i]] for i in 1:N)) for j in eachindex(inds)]
+    smps = [parameters[i].samples[inds[j][i]] for j in eachindex(inds), i in 1:N]
+
+    sinds = Tuple(p.name for p in parameters)
+    svals = Tuple(smps[:,j] for j in axes(smps,2))
+
+    Table(; NamedTuple{sinds}(svals)...)
 end

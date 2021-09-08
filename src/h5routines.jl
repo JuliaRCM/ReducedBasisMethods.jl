@@ -87,17 +87,6 @@ end
 
 
 """
-save training parameters
-"""
-function save_training_parameters(fpath::AbstractString, μₜ::Matrix)
-    h5open(fpath, "r+") do file
-        g = _create_parameter_group(file)
-        g["mu_train"] = μₜ
-    end
-end
-
-
-"""
 save testing parameters
 """
 function save_testing_parameters(fpath::AbstractString, μₜ::Matrix)

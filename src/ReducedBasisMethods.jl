@@ -1,6 +1,7 @@
 module ReducedBasisMethods
 
     using Particles
+    using TypedTables
 
     include("utils.jl")
 

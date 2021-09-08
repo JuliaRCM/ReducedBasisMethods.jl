@@ -4,14 +4,14 @@ import Base: collect, eachindex, getindex, length, ndims, size
 """
 ParameterSpace collects all parameters of a system as well as samples in the parameter space.
 """
-struct ParameterSpace{PT <: NamedTuple, ST <: Vector{<:Tuple}}
+struct ParameterSpace{PT <: NamedTuple, ST <: Table}
     parameters::PT
     samples::ST
 
     function ParameterSpace(parameters::PT, samples::ST) where {PT,ST}
-        for s in samples
-            @assert length(parameters) == length(s)
-        end
+        # for s in samples
+        #     @assert length(parameters) == length(s)
+        # end
         new{PT,ST}(parameters, samples)
     end
 end
@@ -36,26 +36,37 @@ Base.:(==)(ps1::ParameterSpace, ps2::ParameterSpace) = (
 (ps::ParameterSpace)(i::Union{Int,CartesianIndex}) = NamedTuple{keys(ps.parameters)}(ps.samples[i])
 
 
-Base.collect(ps::ParameterSpace) = vcat(transpose.(collect.(ps.samples))...)
+Base.collect(ps::ParameterSpace) = collect(ps.samples)
 Base.eachindex(ps::ParameterSpace) = eachindex(ps.samples)
 Base.length(ps::ParameterSpace) = length(ps.samples)
 Base.ndims(ps::ParameterSpace) = length(ps.parameters)
 Base.size(ps::ParameterSpace) = (length(ps.samples), length(ps.parameters))
 Base.size(ps::ParameterSpace, d) = size(ps)[d]
 
-@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, i) = collect(ps.samples[i])
-@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, i, j) = ps.samples[i][j]
-@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, ::Colon) = collect(ps)
-@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, ::Colon, ::Colon) = collect(ps)
-@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, i::Union{Int,CartesianIndex}, ::Colon) = ps[i]
-@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, ::Colon, j::Union{Int,CartesianIndex}) = [s[j] for s in ps.samples]
+@inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, args...) = getindex(ps.samples, args...)
 
-@inline Base.@propagate_inbounds function Base.getindex(ps::ParameterSpace, p::Symbol)
-    j = key_index(ps.parameters, p)
-    [s[j] for s in ps.samples]
+
+"""
+save parameterspace
+"""
+function h5save(fpath::AbstractString, ps::ParameterSpace)
+    h5open(fpath, "r+") do file
+        g = create_group(file, "parameterspace")
+        cols = columns(ps.samples)
+        for key in keys(cols)
+            g[string(key)] = cols[key]
+        end
+    end
 end
 
-@inline Base.@propagate_inbounds function Base.getindex(ps::ParameterSpace, i, p::Symbol)
-    j = key_index(ps.parameters, p)
-    ps[i,j]
+
+function h5load(fpath::AbstractString, ::Type{ParameterSpace})
+    h5open(fpath, "r") do file
+        # g = create_group(file, "parameterspace")
+        # for (key,value) in columns(ps.samples)
+        #     g[key] = value
+        # end
+    end
 end
+
+
