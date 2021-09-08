@@ -1,6 +1,5 @@
 module BumpOnTailSimulation
 
-using LinearAlgebra: dot
 using Plots, LaTeXStrings
 using ReducedBasisMethods
 using Particles
@@ -56,7 +55,7 @@ function run()
     IC = VPIntegratorCache(IP)
     
     # B-spline Poisson solver
-    poisson = PoissonSolverPBSplines(p, IP.nₕ, L)
+    poisson = PoissonSolverPBSplines(p, nh, L)
 
     # set random generator seed
     Random.seed!(1234)
@@ -72,7 +71,7 @@ function run()
     for p in eachindex(pspace)
 
         # get parameter tuple
-        lparams = merge(pspace(p), (χ = pspace[p, :κ] / params.κ,))
+        lparams = merge(pspace(p), (χ = pspace[p].κ / params.κ,))
 
         # integrate particles for parameter
         integrate_vp!(particles, poisson, lparams, IP, IC; save=true, given_phi=false)
@@ -90,7 +89,7 @@ function run()
     end
 
     # save results to HDF5
-    h5save("../runs/BoT_Np5e4_k_010_050_np_10_T25.h5", TS)
+    h5save("../runs/BoT_Np5e4_k_010_050_np_10_T25.h5", TS, IP, poisson, pspace, params)
 
     # plot
     plot(IP.t, TS.W, linewidth = 2, xlabel = L"$n_t$", yscale = :log10, legend = :none,

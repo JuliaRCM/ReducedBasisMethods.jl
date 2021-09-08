@@ -26,3 +26,14 @@ end
 function TrainingSet(ns::Int, poisson::PoissonSolver{DT}, particles::ParticleList{DT}, pspace::ParameterSpace) where {DT}
     TrainingSet{DT}(ns, 1, length(particles), length(poisson), pspace)
 end
+
+
+function h5save(fpath::String, TS::TrainingSet)
+    h5open(fpath, "r+") do file
+        s = create_group(file, "snapshots")
+        s["X"] = TS.X
+        s["V"] = TS.V
+        s["A"] = TS.A
+        s["Φ"] = TS.Φ
+    end
+end

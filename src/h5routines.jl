@@ -14,17 +14,6 @@ function _create_parameter_group(file)
 end
 
 
-function save_snapshots(fpath::String, Result) where {T}
-    h5open(fpath, "w") do file
-        s = create_group(file, "snapshots")
-        s["X"] = Result.X
-        s["V"] = Result.V
-        s["E"] = Result.E
-        s["Φ"] = Result.Φ
-    end
-end
-
-
 function save_projections(fpath::String, k, kₑ, Ψ, Ψₑ, Πₑ, P₀) where {T}
     h5open(fpath, "w") do file
         g = _create_parameter_group(file)
@@ -119,15 +108,17 @@ end
 """
 save training data
 """
-function h5save(fpath::String, IP::IntegratorParameters, P::PoissonSolverPBSplines{T}, sampling_params::NamedTuple, μtrain::Matrix{T}, Result) where {T}
+function h5save(fpath::String, TS::TrainingSet, IP::VPIntegratorParameters, poisson::PoissonSolverPBSplines, pspace::ParameterSpace, sampling_params::NamedTuple)
     # create file and save snapshots
-    save_snapshots(fpath, Result)
-    h5save(fpath, P)
+    h5open(fpath, "w") do file
+    end
+
+    h5save(fpath, TS)
+    h5save(fpath, pspace)
+    h5save(fpath, poisson)
     h5save(fpath, IP)
     save_sampling_parameters(fpath, sampling_params)
-    save_training_parameters(fpath, μtrain)
 end
-
 
 
 """

@@ -34,14 +34,13 @@ end
 """
 save integrator parameters
 """
-function h5save(fpath::AbstractString, IP::IntegratorParameters)
+function h5save(fpath::AbstractString, IP::VPIntegratorParameters)
     h5open(fpath, "r+") do file
         attributes(file)["dt"] = IP.dt
         attributes(file)["nt"] = IP.nₜ
         attributes(file)["ns"] = IP.nₛ
         attributes(file)["nh"] = IP.nₕ
         attributes(file)["np"] = IP.nₚ
-        attributes(file)["nparam"] = IP.nparam
     end
 end
 
