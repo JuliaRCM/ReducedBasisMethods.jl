@@ -5,6 +5,7 @@ grid    = [ 0.0  1.0  0.0
             0.0  1.0  4.0
             0.5  1.0  4.0
             1.0  1.0  4.0 ]
+h5file  = "temp.h5"
 
 @testset "ParameterSpace" begin
 
@@ -30,5 +31,13 @@ grid    = [ 0.0  1.0  0.0
     @test p1.samples.μ == p2.samples.μ == p3.samples.μ == grid[:,1]
     @test p1.samples.ν == p2.samples.ν == p3.samples.ν == grid[:,2]
     @test p1.samples.σ == p2.samples.σ == p3.samples.σ == grid[:,3]
+
+    
+    h5save(p1, h5file; mode="w")
+    @test isfile(h5file)
+
+    p2 = h5load(ParameterSpace, h5file)
+    rm(h5file)
+    @test p1 == p2
 
 end

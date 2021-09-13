@@ -5,7 +5,7 @@ import Base: collect, getindex, length, maximum, minimum, size, NamedTuple
 AbstractSample{DT} = Union{Nothing, AbstractVector{DT}}
 
 _sort(s::Nothing) = s
-_sort(s::AbstractVector) = sort(unique(s))
+_sort(s::AbstractVector) = sort(unique(collect(s)))
 
 
 """
@@ -23,10 +23,12 @@ struct Parameter{DT <: Number, ST <: AbstractSample{DT}}
             @assert all([minimum ≤ s for s in samples])
             @assert all([maximum ≥ s for s in samples])
         end
-        new{DT,ST}(name, minimum, maximum, _sort(samples))
+        _samples = _sort(samples)
+        new{DT, typeof(_samples)}(name, minimum, maximum, _samples)
     end
 end
 
+Parameter(name::AbstractString, minimum, maximum, samples) = Parameter(Symbol(name), minimum, maximum, samples)
 Parameter(name, minimum::DT, maximum::DT) where {DT} = Parameter(name, minimum, maximum, nothing)
 Parameter(name, minimum::DT, maximum::DT, n::Int) where {DT} = Parameter(name, minimum, maximum, LinRange(minimum, maximum, n))
 Parameter(name, samples::AbstractVector) = Parameter(name, minimum(samples), maximum(samples), samples)
@@ -71,4 +73,27 @@ hassamples(p::ParameterWithoutSamples) = false
 function Base.NamedTuple(parameters::Vararg{Parameter{DT}}) where {DT}
     names = Tuple(p.name for p in parameters)
     NamedTuple{names}(parameters)
+end
+
+
+function Parameter(h5::H5DataStore, path::AbstractString)
+    g = h5[path]
+    name = _name(g)
+
+    minimum = read(g["minimum"])
+    maximum = read(g["maximum"])
+    samples = read(g["samples"])
+
+    Parameter(name, minimum, maximum, samples)
+end
+
+function h5save(param::Parameter, h5::H5DataStore, path::AbstractString=string(param.name))
+    g = _create_group(h5, path)
+    g["minimum"] = param.minimum
+    g["maximum"] = param.maximum
+    g["samples"] = param.samples
+end
+
+function h5load(::Type{Parameter}, h5::H5DataStore, path::AbstractString)
+    Parameter(h5, path)
 end

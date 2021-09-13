@@ -4,11 +4,17 @@ using HDF5
 import Particles.PoissonSolverPBSplines
 
 
-function _create_parameter_group(file)
-    if haskey(file, "parameters")
-        g = file["parameters"]
+function _name(h5::H5DataStore)
+    name = HDF5.name(h5)
+    name = name[findlast(isequal('/'), name)+1:end]
+end
+
+
+function _create_group(h5::H5DataStore, name)
+    if haskey(h5, name)
+        g = h5[name]
     else
-        g = create_group(file, "parameters")
+        g = create_group(h5, name)
     end
     return g
 end
@@ -145,4 +151,19 @@ function h5save(fpath::String, IP::IntegratorParameters, P::PoissonSolverPBSplin
     save_sampling_parameters(fpath, sampling_params)
     save_training_parameters(fpath, μtrain)
     save_testing_parameters(fpath, μtest)
+end
+
+
+
+function h5save(data, fpath::String, args...; mode="r+", kwargs...)
+    h5open(fpath, mode) do file
+        h5save(data, file, args...; kwargs...)
+    end
+end
+
+
+function h5load(T::Type, fpath::AbstractString, args...; mode="r", kwargs...)
+    h5open(fpath, mode) do file
+        h5load(T, file, args...; kwargs...)
+    end
 end

@@ -1,5 +1,6 @@
 
 samples = [0.0, 1.0, 2.0, 3.0, 4.0]
+h5file  = "temp.h5"
 
 @testset "Parameter" begin
 
@@ -65,5 +66,13 @@ samples = [0.0, 1.0, 2.0, 3.0, 4.0]
     p3 = Parameter(:σ, 0.0, 4.0, 2)
 
     @test NamedTuple(p1, p2, p3) == NamedTuple{(:μ, :ν, :σ)}((p1, p2, p3))
+
+
+    h5save(p1, h5file; mode="w")
+    @test isfile(h5file)
+
+    p2 = h5load(Parameter, h5file, "μ")
+    rm(h5file)
+    @test p1 == p2
 
 end

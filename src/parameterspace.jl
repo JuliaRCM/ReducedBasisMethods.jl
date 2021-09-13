@@ -46,27 +46,40 @@ Base.size(ps::ParameterSpace, d) = size(ps)[d]
 @inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, args...) = getindex(ps.samples, args...)
 
 
-"""
-save parameterspace
-"""
-function h5save(fpath::AbstractString, ps::ParameterSpace)
-    h5open(fpath, "r+") do file
-        g = create_group(file, "parameterspace")
-        cols = columns(ps.samples)
-        for key in keys(cols)
-            g[string(key)] = cols[key]
-        end
-    end
+function ParameterSpace(h5::H5DataStore, path::AbstractString="/")
+    group = h5[path]
+    samps = group["samples"]
+    sinds = Symbol.(keys(samps))
+    svals = (read(samps[key]) for key in keys(samps))
+    samples = NamedTuple{Tuple(sinds)}(Tuple(svals))
+
+    pgroup = group["parameters"]
+    params = NamedTuple{Symbol.(Tuple(keys(pgroup)))}(h5load(Parameter, pgroup, key) for key in keys(pgroup))
+
+    ParameterSpace(params, Table(; samples...))
 end
 
 
-function h5load(fpath::AbstractString, ::Type{ParameterSpace})
-    h5open(fpath, "r") do file
-        # g = create_group(file, "parameterspace")
-        # for (key,value) in columns(ps.samples)
-        #     g[key] = value
-        # end
+"""
+save ParameterSpace
+"""
+function h5save(ps::ParameterSpace, h5::H5DataStore, path::AbstractString="/")
+    cols = columns(ps.samples)
+    g = _create_group(h5, path)
+    s = _create_group(g, "samples")
+    for key in keys(cols)
+        s[string(key)] = cols[key]
+    end
+
+    p = _create_group(g, "parameters")
+    for param in ps.parameters
+        h5save(param, p)
     end
 end
 
-
+"""
+Load ParameterSpace
+"""
+function h5load(::Type{ParameterSpace}, h5::H5DataStore, path::AbstractString="/")
+    ParameterSpace(h5, path)
+end

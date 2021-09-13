@@ -1,5 +1,7 @@
 module ReducedBasisMethods
 
+    using HDF5
+    using HDF5: H5DataStore
     using Particles
     using TypedTables
 
@@ -44,6 +46,7 @@ module ReducedBasisMethods
 
     include("h5routines.jl")
 
-    export h5save, read_sampling_parameters
+    export h5save, h5load, read_sampling_parameters
+
 
 end
