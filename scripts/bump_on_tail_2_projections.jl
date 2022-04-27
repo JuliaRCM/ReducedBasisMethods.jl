@@ -11,7 +11,10 @@ using Statistics
 
 
 # HDF5 file containing training data
-fpath = "../runs/BoT_Np5e4_k_010_050_np_10_T25.h5"
+runid = "BoT_Np5e4_k_010_050_np_10_T25"
+fpath = "../runs/$(runid).h5"
+ppath = "../runs/$(runid)_projections.h5"
+
 
 # read sampling parameters
 params = read_sampling_parameters(fpath)
@@ -71,14 +74,13 @@ plot(xlabel = L"$i$", ylabel = L"$\lambda_i$", yscale = :log10,
      grid = true, gridalpha = 0.5)
 plot!(abs.(Λ )[1:1000], linewidth = 2, alpha = 0.25, label = L"$X$")
 plot!(abs.(Λₑ)[1:1000], linewidth = 2, alpha = 0.5,  label = L"$F$")
-savefig("../runs/BoT_Np5e4_k_010_050_np_10_T25_SVDs_BoT_1.pdf")
+savefig("../runs/$(runid)_SVDs_BoT_1.pdf")
 
 # plot
 plot(xlabel = L"$i$", ylabel = L"$\lambda_i$", yscale = :log10, 
      grid = true, gridalpha = 0.5, legend = :none)
 plot!(abs.(Λ ), linewidth = 2, alpha = 0.25, label = L"$X_v$")
 plot!(abs.(Λₑ), linewidth = 2, alpha = 0.5,  label = L"$E$")
-savefig("../runs/BoT_Np5e4_k_010_050_np_10_T25_SVDs_BoT_2.pdf")
 
 
 # Projection Matrices
@@ -89,6 +91,7 @@ savefig("../runs/BoT_Np5e4_k_010_050_np_10_T25_SVDs_BoT_2.pdf")
 XV, E = 0, 0
 Λ, Λₑ, Ω, Ωₑ = 0, 0, 0, 0
 GC.gc()
+savefig("../runs/$(runid)_SVDs_BoT_2.pdf")
 
 
 # DEIM
@@ -96,4 +99,4 @@ GC.gc()
 
 
 # save to HDF5
-h5save("../runs/BoT_Np5e4_k_010_050_np_10_T25_projections.h5", IP, poisson, params, μₜ, k, kₑ, Ψ, Ψₑ, Πₑ, P₀)
+h5save(ppath, IP, poisson, params, μₜ, k, kₑ, Ψ, Ψₑ, Πₑ, P₀)
