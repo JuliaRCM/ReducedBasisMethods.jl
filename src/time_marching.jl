@@ -18,32 +18,36 @@ struct IntegratorParameters{T}
     end
 end
 
-function IntegratorParameters(fpath::AbstractString)
+function IntegratorParameters(h5::H5DataStore, path::AbstractString = "/")
+    group = h5[path]
+    IntegratorParameters(
+        read(attributes(group)["dt"]),
+        read(attributes(group)["nt"]),
+        read(attributes(group)["ns"]),
+        read(attributes(group)["nh"]),
+        read(attributes(group)["np"]),
+        0 # TODO ! FIX
+    )
+    # read(attributes(group)["nparam"]), # TODO ! FIX !
+end
+
+function IntegratorParameters(fpath::AbstractString, path::AbstractString = "/")
     h5open(fpath, "r") do file
-        IntegratorParameters(
-            read(attributes(file)["dt"]),
-            read(attributes(file)["nt"]),
-            read(attributes(file)["ns"]),
-            read(attributes(file)["nh"]),
-            read(attributes(file)["np"]),
-            read(attributes(file)["nparam"]),
-        )
+        IntegratorParameters(file, path)
     end
 end
 
 """
 save integrator parameters
 """
-function h5save(IP::VPIntegratorParameters, fpath::AbstractString)
-    h5open(fpath, "r+") do file
-        attributes(file)["dt"] = IP.dt
-        attributes(file)["nt"] = IP.nₜ
-        attributes(file)["ns"] = IP.nₛ
-        attributes(file)["nh"] = IP.nₕ
-        attributes(file)["np"] = IP.nₚ
-    end
+function h5save(h5::H5DataStore, IP::VPIntegratorParameters; path = "/")
+    g = _create_group(h5, path)
+    attributes(g)["dt"] = IP.dt
+    attributes(g)["nt"] = IP.nₜ
+    attributes(g)["ns"] = IP.nₛ
+    attributes(g)["nh"] = IP.nₕ
+    attributes(g)["np"] = IP.nₚ
 end
-
 
 mutable struct ReducedIntegratorCache{T}
     zₓ::Vector{T}

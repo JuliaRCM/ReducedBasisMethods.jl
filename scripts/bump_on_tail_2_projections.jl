@@ -20,7 +20,7 @@ ppath = "../runs/$(runid)_projections.h5"
 params = read_sampling_parameters(fpath)
 
 # read training parameters
-μₜ = h5read(fpath, "parameters/mu_train")
+μₜ = ParameterSpace(fpath, "parameterspace")
 
 # read integrator parameters
 IP = IntegratorParameters(fpath)
@@ -29,8 +29,8 @@ IP = IntegratorParameters(fpath)
 poisson = PoissonSolverPBSplines(fpath)
 
 # read snaptshot data
-X = h5read(fpath, "snapshots/X")
-V = h5read(fpath, "snapshots/V")
+# X = h5read(fpath, "snapshots/X")
+# V = h5read(fpath, "snapshots/V")
 E = h5read(fpath, "snapshots/E")
 # D = h5read(fpath, "snapshots/D")
 # Φ = h5read(fpath, "snapshots/Phi")

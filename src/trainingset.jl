@@ -41,33 +41,42 @@ Base.:(==)(ts1::TrainingSet, ts2::TrainingSet) = (
                      && ts1.M == ts2.M)
 
 
-function TrainingSet(h5::H5DataStore, path::AbstractString="/")
-    X = read(h5["$path/X"])
-    V = read(h5["$path/V"])
-    A = read(h5["$path/A"])
-    Φ = read(h5["$path/Φ"])
-    W = read(h5["$path/W"])
-    K = read(h5["$path/K"])
-    M = read(h5["$path/M"])
+function TrainingSet(h5::H5DataStore, path::AbstractString = "/")
+    group = h5[path]
 
-    pspace = ParameterSpace(h5, "$path/parameterspace")
+    X = read(group["X"])
+    V = read(group["V"])
+    A = read(group["A"])
+    Φ = read(group["Φ"])
+    W = read(group["W"])
+    K = read(group["K"])
+    M = read(group["M"])
+
+    pspace = ParameterSpace(group, "parameterspace")
 
     TrainingSet(pspace, X, V, A, Φ, W, K, M)
 end
 
-function h5save(TS::TrainingSet, h5::H5DataStore, path::AbstractString="/")
-    s = _create_group(h5, path)
-    s["X"] = TS.X
-    s["V"] = TS.V
-    s["A"] = TS.A
-    s["Φ"] = TS.Φ
-    s["W"] = TS.W
-    s["K"] = TS.K
-    s["M"] = TS.M
-
-    h5save(TS.paramspace, h5, "$path/parameterspace")
+function TrainingSet(fpath::AbstractString, path::AbstractString = "/")
+    h5open(fpath, "r") do file
+        TrainingSet(file, path)
+    end
 end
 
-function h5load(::Type{TrainingSet}, h5::H5DataStore; path::AbstractString="/")
+function h5save(h5::H5DataStore, TS::TrainingSet; path::AbstractString = "/")
+    group = _create_group(h5, path)
+
+    group["X"] = TS.X
+    group["V"] = TS.V
+    group["A"] = TS.A
+    group["Φ"] = TS.Φ
+    group["W"] = TS.W
+    group["K"] = TS.K
+    group["M"] = TS.M
+
+    h5save(group, TS.paramspace; path="parameterspace")
+end
+
+function h5load(::Type{TrainingSet}, h5::H5DataStore; path::AbstractString = "/")
     TrainingSet(h5, path)
 end

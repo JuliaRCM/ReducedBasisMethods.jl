@@ -75,8 +75,7 @@ function Base.NamedTuple(parameters::Vararg{Parameter{DT}}) where {DT}
     NamedTuple{names}(parameters)
 end
 
-
-function Parameter(h5::H5DataStore, path::AbstractString)
+function Parameter(h5::H5DataStore, path::AbstractString = "/")
     g = h5[path]
     name = _name(g)
 
@@ -87,13 +86,13 @@ function Parameter(h5::H5DataStore, path::AbstractString)
     Parameter(name, minimum, maximum, samples)
 end
 
-function h5save(param::Parameter, h5::H5DataStore, path::AbstractString=string(param.name))
+function h5save(h5::H5DataStore, param::Parameter; path::AbstractString = "/")
     g = _create_group(h5, path)
     g["minimum"] = param.minimum
     g["maximum"] = param.maximum
     g["samples"] = param.samples
 end
 
-function h5load(::Type{Parameter}, h5::H5DataStore, path::AbstractString)
+function h5load(::Type{Parameter}, h5::H5DataStore; path::AbstractString = "/")
     Parameter(h5, path)
 end

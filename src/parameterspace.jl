@@ -46,7 +46,7 @@ Base.size(ps::ParameterSpace, d) = size(ps)[d]
 @inline Base.@propagate_inbounds Base.getindex(ps::ParameterSpace, args...) = getindex(ps.samples, args...)
 
 
-function ParameterSpace(h5::H5DataStore, path::AbstractString="/")
+function ParameterSpace(h5::H5DataStore, path::AbstractString = "/")
     group = h5[path]
     samps = group["samples"]
     sinds = Symbol.(keys(samps))
@@ -54,16 +54,21 @@ function ParameterSpace(h5::H5DataStore, path::AbstractString="/")
     samples = NamedTuple{Tuple(sinds)}(Tuple(svals))
 
     pgroup = group["parameters"]
-    params = NamedTuple{Symbol.(Tuple(keys(pgroup)))}(h5load(Parameter, pgroup, key) for key in keys(pgroup))
+    params = NamedTuple{Symbol.(Tuple(keys(pgroup)))}(h5load(Parameter, pgroup, path = key) for key in keys(pgroup))
 
     ParameterSpace(params, Table(; samples...))
 end
 
+function ParameterSpace(fpath::AbstractString, path::AbstractString = "/")
+    h5open(fpath, "r") do file
+        ParameterSpace(file, path)
+    end
+end
 
 """
 save ParameterSpace
 """
-function h5save(ps::ParameterSpace, h5::H5DataStore, path::AbstractString="/")
+function h5save(h5::H5DataStore, ps::ParameterSpace; path::AbstractString = "/")
     cols = columns(ps.samples)
     g = _create_group(h5, path)
     s = _create_group(g, "samples")
@@ -73,13 +78,13 @@ function h5save(ps::ParameterSpace, h5::H5DataStore, path::AbstractString="/")
 
     p = _create_group(g, "parameters")
     for param in ps.parameters
-        h5save(param, p)
+        h5save(p, param; path = string(param.name))
     end
 end
 
 """
 Load ParameterSpace
 """
-function h5load(::Type{ParameterSpace}, h5::H5DataStore, path::AbstractString="/")
+function h5load(::Type{ParameterSpace}, h5::H5DataStore; path::AbstractString = "/")
     ParameterSpace(h5, path)
 end
