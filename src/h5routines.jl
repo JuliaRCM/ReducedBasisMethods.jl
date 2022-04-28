@@ -138,7 +138,7 @@ function h5save(fpath::String, TS::TrainingSet, IP::VPIntegratorParameters, pois
     # create file and save snapshots
     h5open(fpath, "w") do file
         h5save(file, TS; path = "snapshots")
-        h5save(file, IP, length(TS.paramspace))
+        h5save(file, IP)
         h5save(file, poisson)
         save_sampling_parameters(file, sampling_params; path = "parameters")
     end

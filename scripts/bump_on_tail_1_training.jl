@@ -93,7 +93,7 @@ function run()
     end
 
     # save results to HDF5
-    h5save(fpath, TS, IP, poisson, params)
+    h5save(fpath, TS, IntegratorParameters(IP, pspace), poisson, params)
 
     # plot
     plot(IP.t, TS.W, linewidth = 2, xlabel = L"$n_t$", yscale = :log10, legend = :none,
