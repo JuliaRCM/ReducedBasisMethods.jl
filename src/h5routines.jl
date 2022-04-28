@@ -19,30 +19,6 @@ function _create_group(h5::H5DataStore, name)
     return g
 end
 
-function save_projections(h5::H5DataStore, k, kₑ, Ψ, Ψₑ, Πₑ, P₀; path::AbstractString = "/")
-    group = _create_group(h5, path)
-
-    g = _create_group(group, "parameters")
-    g["k"] = k
-    g["k_e"] = kₑ
-        
-    f = create_group(group, "projections")
-    f["Psi"] = Ψ
-    f["Psi_e"] = Ψₑ
-    f["Pi_e"] = Πₑ
-    
-    h = create_group(group, "initial_condition")
-    h["x_0"] = P₀.x
-    h["v_0"] = P₀.v
-    h["w"] = P₀.w
-end
-
-function save_projections(fpath::String, k, kₑ, Ψ, Ψₑ, Πₑ, P₀) where {T}
-    h5open(fpath, "w") do file
-        save_projections(file, k, kₑ, Ψ, Ψₑ, Πₑ, P₀)
-    end
-end
-
 
 function save_tests(fpath::String, Rtest, Rrm, Ψ)
     h5open(fpath, "w") do file
@@ -58,39 +34,32 @@ end
 
 
 """
-save sampling parameters
+save fixed parameters
 """
-function save_sampling_parameters(h5::H5DataStore, sampling_params::NamedTuple; path::AbstractString = "/")
+function save_parameters(h5::H5DataStore, params::NamedTuple; path::AbstractString = "/")
     g = _create_group(h5, path)
-    g["κ"]  = sampling_params.κ
-    g["ε"]  = sampling_params.ε
-    g["a"]  = sampling_params.a
-    g["v₀"] = sampling_params.v₀
-    g["σ"]  = sampling_params.σ
-    g["χ"]  = sampling_params.χ
+    g["κ"] = params.κ
 end
 
-function save_sampling_parameters(fpath::AbstractString, sampling_params::NamedTuple)
+function save_parameters(fpath::AbstractString, params::NamedTuple)
     h5open(fpath, "r+") do file
-        save_sampling_parameters(file, sampling_params; path = "parameters")
+        save_parameters(file, params; path = "parameters")
     end
 end
 
-function read_sampling_parameters(h5::H5DataStore; path::AbstractString = "/")
+"""
+read fixed parameters
+"""
+function read_parameters(h5::H5DataStore, path::AbstractString = "/")
     group = h5[path]
     (
         κ = read(group["κ"]),
-        ε = read(group["ε"]),
-        a = read(group["a"]),
-        v₀= read(group["v₀"]),
-        σ = read(group["σ"]),
-        χ = read(group["χ"]),
     )
 end
 
-function read_sampling_parameters(fpath::AbstractString)
+function read_parameters(fpath::AbstractString)
     h5open(fpath, "r") do file
-        read_sampling_parameters(file; path = "parameters")
+        read_parameters(file; path = "parameters")
     end
 end
 
@@ -106,30 +75,6 @@ end
 
 
 """
-save training data
-"""
-function h5save(fpath::String, TS::TrainingSet, sampling_params::NamedTuple)
-    # create file and save snapshots
-    h5open(fpath, "w") do file
-        h5save(file, TS)
-        save_sampling_parameters(file, sampling_params; path = "parameters")
-    end
-end
-
-
-"""
-save projection data
-"""
-function h5save(fpath::String, rb::ReducedBasis, sampling_params::NamedTuple) where {T}
-    # create file and save projections
-    h5open(fpath, "w") do file
-        h5save(file, rb)
-        save_sampling_parameters(file, sampling_params; path = "parameters")
-    end
-end
-
-
-"""
 save testing data
 """
 function h5save(fpath::String, IP::IntegratorParameters, P::PoissonSolverPBSplines{T}, sampling_params::NamedTuple, μtrain::Matrix{T}, μtest::Matrix{T}, Rtest, Rrm, Ψ) where {T}
@@ -137,16 +82,15 @@ function h5save(fpath::String, IP::IntegratorParameters, P::PoissonSolverPBSplin
     save_tests(fpath, Rtest, Rrm, Ψ)
     h5save(fpath, P)
     h5save(fpath, IP)
-    save_sampling_parameters(fpath, sampling_params; path = "parameters")
-    save_training_parameters(fpath, μtrain)
+    save_parameters(fpath, sampling_params; path = "parameters")
     save_testing_parameters(fpath, μtest)
 end
 
 
 
-function h5save(data, fpath::AbstractString, args...; mode="r+", kwargs...)
+function h5save(fpath::AbstractString, data, args...; mode="w", kwargs...)
     h5open(fpath, mode) do file
-        h5save(data, file, args...; kwargs...)
+        h5save(file, data, args...; kwargs...)
     end
 end
 

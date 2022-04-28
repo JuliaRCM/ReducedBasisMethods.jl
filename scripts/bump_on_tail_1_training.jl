@@ -19,35 +19,33 @@ const np = Int(5e3)         # nb. of particles
 const nh = 16               # nb. of elements
 const p = 3                 # spline degree
 
-const nₚ₁ = 10
-const nₚ₂ = 1
-const nₚ₃ = 1
-const nₚ₄ = 1
-const nₚ₅ = 1
-const nparam = nₚ₁ * nₚ₂ * nₚ₃ * nₚ₄ * nₚ₅
-
 const vmax = +10
 const vmin = -10
 
-# reference parameters: bump-on tail instability
-params = (κ = 0.3,      # spatial perturbation wave number
-          ε = 0.03,     # amplitude of spatial perturbation
-          a = 0.1,      # fast particle share
-          v₀= 4.5,      # velocity
-          σ = 0.5,      # temperature
-          χ = 1.0)
+# fixed parameters
+params = (
+    κ = 0.3,    # spatial perturbation wave number
+)
 
 # sampling parameters
-κ = Parameter(:κ,  0.1,  0.5,  nₚ₁)
-ε = Parameter(:ε,  0.03, 0.03, nₚ₂)
-a = Parameter(:a,  0.1,  0.1,  nₚ₃)
-v₀= Parameter(:v₀, 4.5,  4.5,  nₚ₄)
-σ = Parameter(:σ,  0.5,  0.5,  nₚ₅)
+χ = Parameter(:χ,  0.1 / params.κ,  0.5 / params.κ,  10)
+ε = Parameter(:ε,  0.03, 0.03, 1 )    # amplitude of spatial perturbation
+a = Parameter(:a,  0.1,  0.1,  1 )    # fast particle share
+v₀= Parameter(:v₀, 4.5,  4.5,  1 )    # velocity
+σ = Parameter(:σ,  0.5,  0.5,  1 )    # temperature
 
+# reference parameters
+ref_params = (
+    ε = 0.03,     # amplitude of spatial perturbation
+    a = 0.1,      # fast particle share
+    v₀= 4.5,      # velocity
+    σ = 0.5,      # temperature
+    χ = 1.0,
+)
 
 function run()
     # parameter space
-    pspace = ParameterSpace(κ, ε, a, v₀, σ)
+    pspace = ParameterSpace(χ, ε, a, v₀, σ)
 
     # domain length
     L = 2π/params.κ
@@ -65,18 +63,18 @@ function run()
     Random.seed!(1234)
 
     # initial data
-    particles = BumpOnTail.draw_accept_reject(np, params)
+    particles = BumpOnTail.draw_accept_reject(np, merge(ref_params, params))
     # particles = BumpOnTail.draw_importance_sampling(np, params)
 
     # training set
-    TS = TrainingSet(particles, poisson, nt+1, pspace, IntegratorParameters(IP, pspace))
+    TS = TrainingSet(particles, poisson, nt+1, params, pspace, IntegratorParameters(IP, pspace))
     SS = TS.snapshots
 
     # loop over parameter set
     for p in eachindex(pspace)
 
         # get parameter tuple
-        lparams = merge(pspace(p), (χ = pspace[p].κ / params.κ,))
+        lparams = merge(pspace(p), params)
 
         # integrate particles for parameter
         integrate_vp!(particles, poisson, lparams, IP, IC; save=true, given_phi=false)
@@ -94,7 +92,7 @@ function run()
     end
 
     # save results to HDF5
-    h5save(fpath, TS, params)
+    h5save(fpath, TS)
 
     # plot
     plot(IP.t, SS.W, linewidth = 2, xlabel = L"$n_t$", yscale = :log10, legend = :none,

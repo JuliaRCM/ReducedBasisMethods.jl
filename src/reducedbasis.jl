@@ -8,9 +8,10 @@ struct EVD <: ReductionAlgorithm end
 # ...
 
 
-struct ReducedBasis{DT <: Number, ALG <: ReductionAlgorithm, PS <: ParameterSpace, ICS <: ParticleList{DT}, IP <: IntegratorParameters, PO <: PoissonSolver}
+struct ReducedBasis{DT <: Number, ALG <: ReductionAlgorithm, PAR <: NamedTuple, PS <: ParameterSpace, ICS <: ParticleList{DT}, IP <: IntegratorParameters, PO <: PoissonSolver}
     algorithm::ALG
 
+    parameters::PAR
     paramspace::PS
     initconds::ICS
     integrator::IP
@@ -26,10 +27,10 @@ struct ReducedBasis{DT <: Number, ALG <: ReductionAlgorithm, PS <: ParameterSpac
     kₑ::Int
     Ψₑ::Matrix{DT}
 
-    function ReducedBasis(algorithm::ALG, paramspace::PS, initconds::ICS, integrator::IP, poisson::POI,
+    function ReducedBasis(algorithm::ALG, parameters::PAR, paramspace::PS, initconds::ICS, integrator::IP, poisson::POI,
                           Λₚ::AbstractArray{DT}, Ωₚ::AbstractArray{DT}, kₚ::Int, Ψₚ::AbstractArray{DT},
-                          Λₑ::AbstractArray{DT}, Ωₑ::AbstractArray{DT}, kₑ::Int, Ψₑ::AbstractArray{DT}) where {DT,ALG,PS,ICS,IP,POI}
-        new{DT,ALG,PS,ICS,IP,POI}(algorithm, paramspace, initconds, integrator, poisson, Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
+                          Λₑ::AbstractArray{DT}, Ωₑ::AbstractArray{DT}, kₑ::Int, Ψₑ::AbstractArray{DT}) where {DT,ALG,PAR,PS,ICS,IP,POI}
+        new{DT,ALG,PAR,PS,ICS,IP,POI}(algorithm, parameters, paramspace, initconds, integrator, poisson, Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
     end
 end
 
@@ -46,12 +47,13 @@ function ReducedBasis(h5::H5DataStore, path::AbstractString = "/")
     kₑ = read(group["ke"])
     Ψₑ = read(group["Ψe"])
 
+    parameters = read_parameters(group, "parameters")
     paramspace = ParameterSpace(group, "parameterspace")
     initconds = ParticleList(group, "initial_conditions")
     integrator = IntegratorParameters(group, "integrator")
     poisson = PoissonSolverPBSplines(group)#, "poisson")
 
-    ReducedBasis(UnspecifiedAlgorithm(), paramspace, initconds, integrator, poisson, Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
+    ReducedBasis(UnspecifiedAlgorithm(), parameters, paramspace, initconds, integrator, poisson, Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
 end
 
 function ReducedBasis(fpath::AbstractString, path::AbstractString = "/")
@@ -63,16 +65,20 @@ end
 function h5save(h5::H5DataStore, rb::ReducedBasis; path::AbstractString = "/")
     group = _create_group(h5, path)
 
+    # parameters
+    group["kp"] = rb.kₚ
+    group["ke"] = rb.kₑ
+
+    # projections
     group["Λp"] = rb.Λₚ
     group["Ωp"] = rb.Ωₚ
-    group["kp"] = rb.kₚ
     group["Ψp"] = rb.Ψₚ
 
     group["Λe"] = rb.Λₑ
     group["Ωe"] = rb.Ωₑ
-    group["ke"] = rb.kₑ
     group["Ψe"] = rb.Ψₑ
 
+    save_parameters(group, rb.parameters; path = "parameters")
     h5save(group, rb.paramspace; path="parameterspace")
     Particles.h5save(group, rb.initconds; path = "initial_conditions")
     h5save(group, rb.integrator; path = "integrator")

@@ -15,9 +15,6 @@ fpath = "../runs/$(runid).h5"
 ppath = "../runs/$(runid)_projections.h5"
 
 
-# read sampling parameters
-params = read_sampling_parameters(fpath)
-
 # Create reduced basis using EVD
 rb = ReducedBasis(EVD(), TrainingSet(fpath))
 
@@ -25,7 +22,7 @@ rb = ReducedBasis(EVD(), TrainingSet(fpath))
 @time Πₑ = deim_get_Π(rb.Ψₑ)
 
 # save to HDF5
-h5save(ppath, rb, params)
+h5save(ppath, rb)
 
 
 # plot

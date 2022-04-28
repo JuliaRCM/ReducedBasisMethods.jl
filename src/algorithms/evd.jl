@@ -59,5 +59,5 @@ function ReducedBasis(alg::EVD, ts::TrainingSet)
     Λₚ, Ωₚ, kₚ, Ψₚ = get_ΛΩ_particles(X, V, IP)
     Λₑ, Ωₑ, kₑ, Ψₑ = get_ΛΩ_efield(E)
     
-    ReducedBasis(alg, ts.paramspace, ts.initconds, ts.integrator, ts.poisson, Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
+    ReducedBasis(alg, ts.parameters, ts.paramspace, ts.initconds, ts.integrator, ts.poisson, Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
 end
