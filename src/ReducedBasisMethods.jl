@@ -2,6 +2,7 @@ module ReducedBasisMethods
 
     using HDF5
     using HDF5: H5DataStore
+    using LinearAlgebra
     using Particles
     using TypedTables
 
@@ -38,7 +39,7 @@ module ReducedBasisMethods
 
     include("projection.jl")
 
-    export get_Ψ
+    export get_Ψ, get_ΛΩ_particles, get_ΛΩ_efield
 
     include("deim.jl")
     

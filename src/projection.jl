@@ -15,3 +15,32 @@ function get_Ψ(S, Λ, Ω, tol, k=0)
     end
     return k, Ψ
 end
+
+function get_ΛΩ_particles(X, V, IP; tolerance = 1e-4, k = 0)
+    XV = X
+    for p in 1:IP.nparam
+         # XV = hcat(XV, V[:,1+(p-1)*IP.nₛ])
+         XV = hcat(XV, V[:,1+(p-1)*IP.nₛ]) #, E[:,p*IP.nₛ])
+         #print(1+(p-1)*IP.nₛ, " ", p*IP.nₛ, "\n" )
+    end
+
+    # XV = hcat(X, V);
+
+    @time F = eigen(XV' * XV)
+    @time Λ, Ω = sorteigen(F.values, F.vectors)
+
+    # Projection Matrices
+    @time k, Ψ = get_Ψ(XV, Λ, Ω, tolerance, k)
+
+    return Λ, Ω, k, Ψ
+end
+
+function get_ΛΩ_efield(E; tolerance = 1e-4, k = 0)
+    @time Fₑ = eigen(E' * E)
+    @time Λₑ, Ωₑ = sorteigen(Fₑ.values, Fₑ.vectors)
+    
+    # Projection Matrices
+    @time kₑ, Ψₑ = get_Ψ(E, Λₑ, Ωₑ, tolerance, k)
+
+    return Λₑ, Ωₑ, kₑ, Ψₑ
+end

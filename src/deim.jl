@@ -1,5 +1,5 @@
 
-function deim_get_Π(Ψ)
+function deim_get_Π(Ψ::AbstractMatrix)
     N, k = size(Ψ)
     j = argmax(Ψ[:,1])
     Π = zeros(N, k)

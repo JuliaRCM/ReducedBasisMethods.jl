@@ -2,7 +2,6 @@
 using HDF5
 using FastGaussQuadrature
 using LaTeXStrings
-using LinearAlgebra
 using Particles
 using Plots
 using Random
@@ -31,7 +30,7 @@ poisson = PoissonSolverPBSplines(fpath)
 # read snaptshot data
 X = reshape(h5read(fpath, "snapshots/X"), (IP.nₚ, IP.nₛ * IP.nparam))
 V = reshape(h5read(fpath, "snapshots/V"), (IP.nₚ, IP.nₛ * IP.nparam))
-# E = h5read(fpath, "snapshots/E")
+E = reshape(h5read(fpath, "snapshots/A"), (IP.nₚ, IP.nₛ * IP.nparam))
 # D = h5read(fpath, "snapshots/D")
 # Φ = h5read(fpath, "snapshots/Phi")
 
@@ -41,70 +40,30 @@ P₀ = ParticleList(X[:,1], V[:,1], ones(IP.nₚ) .* poisson.L ./ IP.nₚ)
 
 
 # EVD
-
-function get_ΛΩ(fpath, IP; tolerance = 1e-4, k = 0)
-     X = reshape(h5read(fpath, "snapshots/X"), (IP.nₚ, IP.nₛ * IP.nparam))
-     V = reshape(h5read(fpath, "snapshots/V"), (IP.nₚ, IP.nₛ * IP.nparam))
-     
-     XV = X
-     for p in 1:IP.nparam
-          # XV = hcat(XV, V[:,1+(p-1)*IP.nₛ])
-          XV = hcat(XV, V[:,1+(p-1)*IP.nₛ]) #, E[:,p*IP.nₛ])
-          #print(1+(p-1)*IP.nₛ, " ", p*IP.nₛ, "\n" )
-     end
-
-     # XV = hcat(X, V);
-
-     @time F = eigen(XV' * XV)
-     @time Λ, Ω = sorteigen(F.values, F.vectors)
-
-     # Projection Matrices
-     @time k, Ψ = get_Ψ(XV, Λ, Ω, tolerance, k)
-
-     return Λ, Ω, k, Ψ
-end
-
-function get_ΛΩe(fpath; tolerance = 1e-4, k = 0)
-     E = reshape(h5read(fpath, "snapshots/A"), (IP.nₚ, IP.nₛ * IP.nparam))
-
-     @time Fₑ = eigen(E' * E)
-     @time Λₑ, Ωₑ = sorteigen(Fₑ.values, Fₑ.vectors)
-     
-     # Projection Matrices
-     @time kₑ, Ψₑ = get_Ψ(E, Λₑ, Ωₑ, tolerance, k)
-
-     return Λₑ, Ωₑ, kₑ, Ψₑ
-end
-
-
-Λ, Ω, k, Ψ = get_ΛΩ(fpath, IP)
-
-Λₑ, Ωₑ, kₑ, Ψₑ = get_ΛΩe(fpath)
+Λₚ, Ωₚ, kₚ, Ψₚ = get_ΛΩ_particles(X, V, IP)
+Λₑ, Ωₑ, kₑ, Ψₑ = get_ΛΩ_efield(E)
 
 # Λₑₓₜ, Ωₑₓₜ, kₑₓₜ, Ψₑₓₜ = get_ΛΩe(Xₑₓₜ)
-
-# clear
-# GC.gc()
-
-
-# plot
-plot(xlabel = L"$i$", ylabel = L"$\lambda_i$", yscale = :log10, 
-     grid = true, gridalpha = 0.5)
-plot!(abs.(Λ )[1:1000], linewidth = 2, alpha = 0.25, label = L"$X$")
-plot!(abs.(Λₑ)[1:1000], linewidth = 2, alpha = 0.5,  label = L"$F$")
-savefig("../runs/$(runid)_SVDs_BoT_1.pdf")
-
-# plot
-plot(xlabel = L"$i$", ylabel = L"$\lambda_i$", yscale = :log10, 
-     grid = true, gridalpha = 0.5, legend = :none)
-plot!(abs.(Λ ), linewidth = 2, alpha = 0.25, label = L"$X_v$")
-plot!(abs.(Λₑ), linewidth = 2, alpha = 0.5,  label = L"$E$")
-savefig("../runs/$(runid)_SVDs_BoT_2.pdf")
 
 
 # DEIM
 @time Πₑ = deim_get_Π(Ψₑ)
 
 
+# plot
+plot(xlabel = L"$i$", ylabel = L"$\lambda_i$", yscale = :log10, 
+     grid = true, gridalpha = 0.5)
+plot!(abs.(Λₚ)[1:1000], linewidth = 2, alpha = 0.25, label = L"$X$")
+plot!(abs.(Λₑ)[1:1000], linewidth = 2, alpha = 0.5,  label = L"$F$")
+savefig("../runs/$(runid)_SVDs_BoT_1.pdf")
+
+# plot
+plot(xlabel = L"$i$", ylabel = L"$\lambda_i$", yscale = :log10, 
+     grid = true, gridalpha = 0.5, legend = :none)
+plot!(abs.(Λₚ), linewidth = 2, alpha = 0.25, label = L"$X_v$")
+plot!(abs.(Λₑ), linewidth = 2, alpha = 0.5,  label = L"$E$")
+savefig("../runs/$(runid)_SVDs_BoT_2.pdf")
+
+
 # save to HDF5
-h5save(ppath, IP, poisson, params, μₜ, k, kₑ, Ψ, Ψₑ, Πₑ, P₀)
+h5save(ppath, IP, poisson, params, μₜ, kₚ, kₑ, Ψₚ, Ψₑ, Πₑ, P₀)
