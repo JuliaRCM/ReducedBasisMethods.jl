@@ -69,7 +69,7 @@ function run()
     # particles = BumpOnTail.draw_importance_sampling(np, params)
 
     # training set
-    TS = TrainingSet(poisson, particles, nt+1, pspace)
+    TS = TrainingSet(particles, poisson, nt+1, pspace, IntegratorParameters(IP, pspace))
     SS = TS.snapshots
 
     # loop over parameter set
@@ -94,7 +94,7 @@ function run()
     end
 
     # save results to HDF5
-    h5save(fpath, TS, IntegratorParameters(IP, pspace), poisson, params)
+    h5save(fpath, TS, params)
 
     # plot
     plot(IP.t, SS.W, linewidth = 2, xlabel = L"$n_t$", yscale = :log10, legend = :none,

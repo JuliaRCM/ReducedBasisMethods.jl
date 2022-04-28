@@ -106,40 +106,12 @@ end
 
 
 """
-save spline solver parameters
-"""
-function h5save(h5::H5DataStore, P::PoissonSolverPBSplines)
-    attributes(h5)["p"] = P.p
-end
-
-function h5save(fpath::String, P::PoissonSolverPBSplines)
-    h5open(fpath, "r+") do file
-        h5save(file, P)
-    end
-end
-
-function Particles.PoissonSolverPBSplines(h5::H5DataStore)
-    p = read(attributes(h5)["p"])
-    n = read(attributes(h5)["nh"])
-    κ = read(h5["parameters/κ"])
-    PoissonSolverPBSplines(p, n, 2π/κ)
-end
-
-function Particles.PoissonSolverPBSplines(fpath::AbstractString)
-    h5open(fpath, "r") do file
-        PoissonSolverPBSplines(file)
-    end
-end
-
-"""
 save training data
 """
-function h5save(fpath::String, TS::TrainingSet, IP::IntegratorParameters, poisson::PoissonSolverPBSplines, sampling_params::NamedTuple)
+function h5save(fpath::String, TS::TrainingSet, sampling_params::NamedTuple)
     # create file and save snapshots
     h5open(fpath, "w") do file
         h5save(file, TS)
-        h5save(file, IP)
-        h5save(file, poisson)
         save_sampling_parameters(file, sampling_params; path = "parameters")
     end
 end

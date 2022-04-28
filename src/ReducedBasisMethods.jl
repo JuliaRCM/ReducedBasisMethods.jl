@@ -20,6 +20,8 @@ module ReducedBasisMethods
 
     export ParameterSpace
 
+    include("poisson.jl")
+
     include("regression.jl")
 
     export get_regression_αβ

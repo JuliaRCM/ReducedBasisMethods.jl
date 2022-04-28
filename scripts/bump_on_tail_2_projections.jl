@@ -23,10 +23,10 @@ ts = TrainingSet(fpath)
 μₜ = ts.paramspace
 
 # read integrator parameters
-IP = IntegratorParameters(fpath)
+IP = ts.integrator
 
 # create spline Poisson solver
-poisson = PoissonSolverPBSplines(fpath)
+poisson = ts.poisson
 
 # read snapshot data
 X = reshape(ts.snapshots.X, (IP.nₚ, IP.nₛ * IP.nparam))
@@ -45,6 +45,9 @@ P₀ = ts.initconds
 Λₑ, Ωₑ, kₑ, Ψₑ = get_ΛΩ_efield(E)
 
 # Λₑₓₜ, Ωₑₓₜ, kₑₓₜ, Ψₑₓₜ = get_ΛΩe(Xₑₓₜ)
+
+# Reduced Basis
+rb = ReducedBasis(μₜ, EVD(), Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
 
 
 # DEIM
