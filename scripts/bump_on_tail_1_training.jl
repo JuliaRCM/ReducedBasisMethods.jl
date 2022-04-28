@@ -69,7 +69,7 @@ function run()
     # particles = BumpOnTail.draw_importance_sampling(np, params)
 
     # training set
-    TS = TrainingSet(nt+1, poisson, particles, pspace)
+    TS = TrainingSet(poisson, particles, nt+1, pspace)
 
     # loop over parameter set
     for p in eachindex(pspace)
