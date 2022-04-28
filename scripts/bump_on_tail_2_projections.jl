@@ -18,41 +18,11 @@ ppath = "../runs/$(runid)_projections.h5"
 # read sampling parameters
 params = read_sampling_parameters(fpath)
 
-# read training parameters
-ts = TrainingSet(fpath)
-μₜ = ts.paramspace
-
-# read integrator parameters
-IP = ts.integrator
-
-# create spline Poisson solver
-poisson = ts.poisson
-
-# read snapshot data
-X = reshape(ts.snapshots.X, (IP.nₚ, IP.nₛ * IP.nparam))
-V = reshape(ts.snapshots.V, (IP.nₚ, IP.nₛ * IP.nparam))
-E = reshape(ts.snapshots.A, (IP.nₚ, IP.nₛ * IP.nparam))
-# D = h5read(fpath, "snapshots/D")
-# Φ = h5read(fpath, "snapshots/Phi")
-
-
-# Reference draw
-P₀ = ts.initconds
-
-
-# EVD
-Λₚ, Ωₚ, kₚ, Ψₚ = get_ΛΩ_particles(X, V, IP)
-Λₑ, Ωₑ, kₑ, Ψₑ = get_ΛΩ_efield(E)
-
-# Λₑₓₜ, Ωₑₓₜ, kₑₓₜ, Ψₑₓₜ = get_ΛΩe(Xₑₓₜ)
-
-# Reduced Basis
-rb = ReducedBasis(EVD(), μₜ, P₀, IP, poisson, Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
-
+# Create reduced basis using EVD
+rb = ReducedBasis(EVD(), TrainingSet(fpath))
 
 # DEIM
-@time Πₑ = deim_get_Π(Ψₑ)
-
+@time Πₑ = deim_get_Π(rb.Ψₑ)
 
 # save to HDF5
 h5save(ppath, rb, params)
@@ -61,13 +31,13 @@ h5save(ppath, rb, params)
 # plot
 plot(xlabel = L"$i$", ylabel = L"$\lambda_i$", yscale = :log10, 
      grid = true, gridalpha = 0.5)
-plot!(abs.(Λₚ)[1:1000], linewidth = 2, alpha = 0.25, label = L"$X$")
-plot!(abs.(Λₑ)[1:1000], linewidth = 2, alpha = 0.5,  label = L"$F$")
+plot!(abs.(rb.Λₚ)[1:1000], linewidth = 2, alpha = 0.25, label = L"$X$")
+plot!(abs.(rb.Λₑ)[1:1000], linewidth = 2, alpha = 0.5,  label = L"$F$")
 savefig("../runs/$(runid)_SVDs_BoT_1.pdf")
 
 # plot
 plot(xlabel = L"$i$", ylabel = L"$\lambda_i$", yscale = :log10, 
      grid = true, gridalpha = 0.5, legend = :none)
-plot!(abs.(Λₚ), linewidth = 2, alpha = 0.25, label = L"$X_v$")
-plot!(abs.(Λₑ), linewidth = 2, alpha = 0.5,  label = L"$E$")
+plot!(abs.(rb.Λₚ), linewidth = 2, alpha = 0.25, label = L"$X_v$")
+plot!(abs.(rb.Λₑ), linewidth = 2, alpha = 0.5,  label = L"$E$")
 savefig("../runs/$(runid)_SVDs_BoT_2.pdf")

@@ -44,3 +44,20 @@ function get_ΛΩ_efield(E; tolerance = 1e-4, k = 0)
 
     return Λₑ, Ωₑ, kₑ, Ψₑ
 end
+
+
+function ReducedBasis(alg::EVD, ts::TrainingSet)
+    # read integrator parameters
+    IP = ts.integrator
+    
+    # read snapshot data
+    X = reshape(ts.snapshots.X, (IP.nₚ, IP.nₛ * IP.nparam))
+    V = reshape(ts.snapshots.V, (IP.nₚ, IP.nₛ * IP.nparam))
+    E = reshape(ts.snapshots.A, (IP.nₚ, IP.nₛ * IP.nparam))
+    
+    # EVD
+    Λₚ, Ωₚ, kₚ, Ψₚ = get_ΛΩ_particles(X, V, IP)
+    Λₑ, Ωₑ, kₑ, Ψₑ = get_ΛΩ_efield(E)
+    
+    ReducedBasis(alg, ts.paramspace, ts.initconds, ts.integrator, ts.poisson, Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
+end
