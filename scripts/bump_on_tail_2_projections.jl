@@ -20,7 +20,7 @@ ppath = "../runs/$(runid)_projections.h5"
 params = read_sampling_parameters(fpath)
 
 # read training parameters
-μₜ = ParameterSpace(fpath, "parameterspace")
+μₜ = ParameterSpace(fpath, "snapshots/parameterspace")
 
 # read integrator parameters
 IP = IntegratorParameters(fpath)
@@ -29,9 +29,9 @@ IP = IntegratorParameters(fpath)
 poisson = PoissonSolverPBSplines(fpath)
 
 # read snaptshot data
-# X = h5read(fpath, "snapshots/X")
-# V = h5read(fpath, "snapshots/V")
-E = h5read(fpath, "snapshots/E")
+X = reshape(h5read(fpath, "snapshots/X"), (IP.nₚ, IP.nₛ * IP.nparam))
+V = reshape(h5read(fpath, "snapshots/V"), (IP.nₚ, IP.nₛ * IP.nparam))
+# E = h5read(fpath, "snapshots/E")
 # D = h5read(fpath, "snapshots/D")
 # Φ = h5read(fpath, "snapshots/Phi")
 
@@ -43,9 +43,9 @@ P₀ = ParticleList(X[:,1], V[:,1], ones(IP.nₚ) .* poisson.L ./ IP.nₚ)
 # EVD
 
 function get_ΛΩ(fpath, IP; tolerance = 1e-4, k = 0)
-     X = h5read(fpath, "snapshots/X")
-     V = h5read(fpath, "snapshots/V")
-
+     X = reshape(h5read(fpath, "snapshots/X"), (IP.nₚ, IP.nₛ * IP.nparam))
+     V = reshape(h5read(fpath, "snapshots/V"), (IP.nₚ, IP.nₛ * IP.nparam))
+     
      XV = X
      for p in 1:IP.nparam
           # XV = hcat(XV, V[:,1+(p-1)*IP.nₛ])
@@ -64,7 +64,9 @@ function get_ΛΩ(fpath, IP; tolerance = 1e-4, k = 0)
      return Λ, Ω, k, Ψ
 end
 
-function get_ΛΩe(E; tolerance = 1e-4, k = 0)
+function get_ΛΩe(fpath; tolerance = 1e-4, k = 0)
+     E = reshape(h5read(fpath, "snapshots/A"), (IP.nₚ, IP.nₛ * IP.nparam))
+
      @time Fₑ = eigen(E' * E)
      @time Λₑ, Ωₑ = sorteigen(Fₑ.values, Fₑ.vectors)
      
@@ -77,7 +79,7 @@ end
 
 Λ, Ω, k, Ψ = get_ΛΩ(fpath, IP)
 
-Λₑ, Ωₑ, kₑ, Ψₑ = get_ΛΩe(h5read(fpath, "snapshots/E"))
+Λₑ, Ωₑ, kₑ, Ψₑ = get_ΛΩe(fpath)
 
 # Λₑₓₜ, Ωₑₓₜ, kₑₓₜ, Ψₑₓₜ = get_ΛΩe(Xₑₓₜ)
 
