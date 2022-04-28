@@ -39,7 +39,9 @@ module ReducedBasisMethods
 
     export TrainingSet
 
+    include("reducedbasis.jl")
 
+    export ReducedBasis, EVD
 
     include("eigen.jl")
 
