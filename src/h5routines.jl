@@ -134,10 +134,10 @@ end
 """
 save training data
 """
-function h5save(fpath::String, TS::TrainingSet, IP::VPIntegratorParameters, poisson::PoissonSolverPBSplines, sampling_params::NamedTuple)
+function h5save(fpath::String, TS::TrainingSet, IP::IntegratorParameters, poisson::PoissonSolverPBSplines, sampling_params::NamedTuple)
     # create file and save snapshots
     h5open(fpath, "w") do file
-        h5save(file, TS; path = "snapshots")
+        h5save(file, TS)
         h5save(file, IP)
         h5save(file, poisson)
         save_sampling_parameters(file, sampling_params; path = "parameters")
@@ -175,12 +175,11 @@ end
 
 
 
-function h5save(data, fpath::String, args...; mode="r+", kwargs...)
+function h5save(data, fpath::AbstractString, args...; mode="r+", kwargs...)
     h5open(fpath, mode) do file
         h5save(data, file, args...; kwargs...)
     end
 end
-
 
 function h5load(T::Type, fpath::AbstractString, args...; mode="r", kwargs...)
     h5open(fpath, mode) do file

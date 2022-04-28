@@ -29,7 +29,7 @@ const nparam = nₚ₁ * nₚ₂ * nₚ₃ * nₚ₄ * nₚ₅
 const vmax = +10
 const vmin = -10
 
-# bump-on tail instability - reference values: κ, ε, a, v₀, σ
+# reference parameters: bump-on tail instability
 params = (κ = 0.3,      # spatial perturbation wave number
           ε = 0.03,     # amplitude of spatial perturbation
           a = 0.1,      # fast particle share
@@ -44,15 +44,15 @@ a = Parameter(:a,  0.1,  0.1,  nₚ₃)
 v₀= Parameter(:v₀, 4.5,  4.5,  nₚ₄)
 σ = Parameter(:σ,  0.5,  0.5,  nₚ₅)
 
-const pspace = ParameterSpace(κ, ε, a, v₀, σ)
-
-const L = 2π/params.κ         # domain length
-# const h = L/nh                # element width
-
 
 function run()
+    # parameter space
+    pspace = ParameterSpace(κ, ε, a, v₀, σ)
 
-    # integrator parameters
+    # domain length
+    L = 2π/params.κ
+    
+        # integrator parameters
     IP = VPIntegratorParameters(dt, nt, nt+1, nh, np)
 
     # integrator cache
@@ -70,6 +70,7 @@ function run()
 
     # training set
     TS = TrainingSet(poisson, particles, nt+1, pspace)
+    SS = TS.snapshots
 
     # loop over parameter set
     for p in eachindex(pspace)
@@ -81,31 +82,31 @@ function run()
         integrate_vp!(particles, poisson, lparams, IP, IC; save=true, given_phi=false)
 
         # copy solution
-        TS.X[1,:,:,p] .= IC.X
-        TS.V[1,:,:,p] .= IC.V
-        TS.A[1,:,:,p] .= IC.A
-        TS.Φ[1,:,:,p] .= IC.Φ
+        SS.X[1,:,:,p] .= IC.X
+        SS.V[1,:,:,p] .= IC.V
+        SS.A[1,:,:,p] .= IC.A
+        SS.Φ[1,:,:,p] .= IC.Φ
 
         # copy diagnostics
-        TS.W[:,p] .= IC.W
-        TS.K[:,p] .= IC.K
-        TS.M[:,p] .= IC.M
+        SS.W[:,p] .= IC.W
+        SS.K[:,p] .= IC.K
+        SS.M[:,p] .= IC.M
     end
 
     # save results to HDF5
     h5save(fpath, TS, IntegratorParameters(IP, pspace), poisson, params)
 
     # plot
-    plot(IP.t, TS.W, linewidth = 2, xlabel = L"$n_t$", yscale = :log10, legend = :none,
+    plot(IP.t, SS.W, linewidth = 2, xlabel = L"$n_t$", yscale = :log10, legend = :none,
         grid = true, gridalpha = 0.5, minorgrid = true, minorgridalpha = 0.2)
     savefig("../runs/$(runid)_plot1.pdf")
     # TODO: Change filename to something meaningful!
 
     #
-    α, β = get_regression_αβ(IP.t, TS.W, 2)
+    α, β = get_regression_αβ(IP.t, SS.W, 2)
 
     #
-    Wₗᵢₙ = zero(TS.W)
+    Wₗᵢₙ = zero(SS.W)
     for i in axes(Wₗᵢₙ,2)
         Wₗᵢₙ[:,i] .= exp.(α[i] .+ β[i] .* IP.t)
     end
@@ -113,7 +114,7 @@ function run()
     # plot
     plot(xlabel = L"$n_t$", yscale = :log10, ylims = (1E-3,1E1), legend = :none,
         grid = true, gridalpha = 0.5, minorgrid = true, minorgridalpha = 0.2)
-    plot!(IP.t, TS.W[:,1:5], linewidth = 2, alpha = 0.25)
+    plot!(IP.t, SS.W[:,1:5], linewidth = 2, alpha = 0.25)
     plot!(IP.t, Wₗᵢₙ[:,1:5], linewidth = 2, alpha = 0.5)
     savefig("../runs/$(runid)_plot2.pdf")
     # TODO: Change filename to something meaningful!
@@ -121,7 +122,7 @@ function run()
     # plot
     plot(xlabel = L"$n_t$", yscale = :log10, ylims = (1E-3,1E1), legend = :none,
         grid = true, gridalpha = 0.5, minorgrid = true, minorgridalpha = 0.2)
-    plot!(IP.t, TS.W[:,6:10], linewidth = 2, alpha = 0.25)
+    plot!(IP.t, SS.W[:,6:10], linewidth = 2, alpha = 0.25)
     plot!(IP.t, Wₗᵢₙ[:,6:10], linewidth = 2, alpha = 0.5)
     savefig("../runs/$(runid)_plot3.pdf")
     # TODO: Change filename to something meaningful!

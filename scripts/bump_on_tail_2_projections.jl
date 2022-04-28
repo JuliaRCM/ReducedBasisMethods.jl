@@ -19,7 +19,8 @@ ppath = "../runs/$(runid)_projections.h5"
 params = read_sampling_parameters(fpath)
 
 # read training parameters
-μₜ = ParameterSpace(fpath, "snapshots/parameterspace")
+ts = TrainingSet(fpath)
+μₜ = ts.paramspace
 
 # read integrator parameters
 IP = IntegratorParameters(fpath)
@@ -27,16 +28,16 @@ IP = IntegratorParameters(fpath)
 # create spline Poisson solver
 poisson = PoissonSolverPBSplines(fpath)
 
-# read snaptshot data
-X = reshape(h5read(fpath, "snapshots/X"), (IP.nₚ, IP.nₛ * IP.nparam))
-V = reshape(h5read(fpath, "snapshots/V"), (IP.nₚ, IP.nₛ * IP.nparam))
-E = reshape(h5read(fpath, "snapshots/A"), (IP.nₚ, IP.nₛ * IP.nparam))
+# read snapshot data
+X = reshape(ts.snapshots.X, (IP.nₚ, IP.nₛ * IP.nparam))
+V = reshape(ts.snapshots.V, (IP.nₚ, IP.nₛ * IP.nparam))
+E = reshape(ts.snapshots.A, (IP.nₚ, IP.nₛ * IP.nparam))
 # D = h5read(fpath, "snapshots/D")
 # Φ = h5read(fpath, "snapshots/Phi")
 
 
 # Reference draw
-P₀ = ParticleList(X[:,1], V[:,1], ones(IP.nₚ) .* poisson.L ./ IP.nₚ)
+P₀ = ts.initconds
 
 
 # EVD

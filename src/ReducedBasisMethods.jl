@@ -24,14 +24,20 @@ module ReducedBasisMethods
 
     export get_regression_αβ
 
-    include("trainingset.jl")
-
-    export TrainingSet
-
     include("time_marching.jl")
 
     export IntegratorParameters, IntegratorCache, ReducedIntegratorCache
     export integrate_vp, reduced_integrate_vp
+
+    include("snapshots.jl")
+
+    export Snapshots
+
+    include("trainingset.jl")
+
+    export TrainingSet
+
+
 
     include("eigen.jl")
 
