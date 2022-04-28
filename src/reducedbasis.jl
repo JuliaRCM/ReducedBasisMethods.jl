@@ -8,9 +8,13 @@ struct EVD <: ReductionAlgorithm end
 # ...
 
 
-struct ReducedBasis{DT <: Number, ALG <: ReductionAlgorithm, PS <: ParameterSpace}
-    paramspace::PS
+struct ReducedBasis{DT <: Number, ALG <: ReductionAlgorithm, PS <: ParameterSpace, ICS <: ParticleList{DT}, IP <: IntegratorParameters, PO <: PoissonSolver}
     algorithm::ALG
+
+    paramspace::PS
+    initconds::ICS
+    integrator::IP
+    poisson::PO
 
     Λₚ::Vector{DT}
     Ωₚ::Matrix{DT}
@@ -22,10 +26,10 @@ struct ReducedBasis{DT <: Number, ALG <: ReductionAlgorithm, PS <: ParameterSpac
     kₑ::Int
     Ψₑ::Matrix{DT}
 
-    function ReducedBasis(pspace::PS, algorithm::ALG,
+    function ReducedBasis(algorithm::ALG, paramspace::PS, initconds::ICS, integrator::IP, poisson::POI,
                           Λₚ::AbstractArray{DT}, Ωₚ::AbstractArray{DT}, kₚ::Int, Ψₚ::AbstractArray{DT},
-                          Λₑ::AbstractArray{DT}, Ωₑ::AbstractArray{DT}, kₑ::Int, Ψₑ::AbstractArray{DT}) where {DT,ALG,PS}
-        new{DT,ALG,PS}(pspace, algorithm, Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
+                          Λₑ::AbstractArray{DT}, Ωₑ::AbstractArray{DT}, kₑ::Int, Ψₑ::AbstractArray{DT}) where {DT,ALG,PS,ICS,IP,POI}
+        new{DT,ALG,PS,ICS,IP,POI}(algorithm, paramspace, initconds, integrator, poisson, Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
     end
 end
 
@@ -42,9 +46,12 @@ function ReducedBasis(h5::H5DataStore, path::AbstractString = "/")
     kₑ = read(group["ke"])
     Ψₑ = read(group["Ψe"])
 
-    pspace = ParameterSpace(group, "parameterspace")
+    paramspace = ParameterSpace(group, "parameterspace")
+    initconds = ParticleList(group, "initial_conditions")
+    integrator = IntegratorParameters(group, "integrator")
+    poisson = PoissonSolverPBSplines(group)#, "poisson")
 
-    ReducedBasis(pspace, UnspecifiedAlgorithm(), Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
+    ReducedBasis(UnspecifiedAlgorithm(), paramspace, initconds, integrator, poisson, Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
 end
 
 function ReducedBasis(fpath::AbstractString, path::AbstractString = "/")
@@ -66,7 +73,10 @@ function h5save(h5::H5DataStore, rb::ReducedBasis; path::AbstractString = "/")
     group["ke"] = rb.kₑ
     group["Ψe"] = rb.Ψₑ
 
-    h5save(group, TS.paramspace; path="parameterspace")
+    h5save(group, rb.paramspace; path="parameterspace")
+    Particles.h5save(group, rb.initconds; path = "initial_conditions")
+    h5save(group, rb.integrator; path = "integrator")
+    h5save(group, rb.poisson)#; path = "poisson")
 end
 
 function h5load(::Type{ReducedBasis}, h5::H5DataStore; path::AbstractString = "/")

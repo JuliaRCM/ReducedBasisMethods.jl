@@ -47,11 +47,15 @@ P₀ = ts.initconds
 # Λₑₓₜ, Ωₑₓₜ, kₑₓₜ, Ψₑₓₜ = get_ΛΩe(Xₑₓₜ)
 
 # Reduced Basis
-rb = ReducedBasis(μₜ, EVD(), Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
+rb = ReducedBasis(EVD(), μₜ, P₀, IP, poisson, Λₚ, Ωₚ, kₚ, Ψₚ, Λₑ, Ωₑ, kₑ, Ψₑ)
 
 
 # DEIM
 @time Πₑ = deim_get_Π(Ψₑ)
+
+
+# save to HDF5
+h5save(ppath, rb, params)
 
 
 # plot
@@ -67,7 +71,3 @@ plot(xlabel = L"$i$", ylabel = L"$\lambda_i$", yscale = :log10,
 plot!(abs.(Λₚ), linewidth = 2, alpha = 0.25, label = L"$X_v$")
 plot!(abs.(Λₑ), linewidth = 2, alpha = 0.5,  label = L"$E$")
 savefig("../runs/$(runid)_SVDs_BoT_2.pdf")
-
-
-# save to HDF5
-h5save(ppath, IP, poisson, params, μₜ, kₚ, kₑ, Ψₚ, Ψₑ, Πₑ, P₀)

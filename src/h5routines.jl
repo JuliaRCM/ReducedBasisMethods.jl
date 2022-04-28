@@ -120,13 +120,10 @@ end
 """
 save projection data
 """
-function h5save(fpath::String, IP::IntegratorParameters, P::PoissonSolverPBSplines{T}, sampling_params::NamedTuple, training_params::ParameterSpace, k, kₑ, Ψ, Ψₑ, Πₑ, P₀) where {T}
-        # create file and save projections
+function h5save(fpath::String, rb::ReducedBasis, sampling_params::NamedTuple) where {T}
+    # create file and save projections
     h5open(fpath, "w") do file
-        save_projections(file, k, kₑ, Ψ, Ψₑ, Πₑ, P₀)
-        h5save(file, P)
-        h5save(file, IP)
-        h5save(file, training_params; path = "parameterspace")
+        h5save(file, rb)
         save_sampling_parameters(file, sampling_params; path = "parameters")
     end
 end
