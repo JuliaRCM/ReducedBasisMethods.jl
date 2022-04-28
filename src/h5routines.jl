@@ -137,26 +137,24 @@ save training data
 function h5save(fpath::String, TS::TrainingSet, IP::VPIntegratorParameters, poisson::PoissonSolverPBSplines, sampling_params::NamedTuple)
     # create file and save snapshots
     h5open(fpath, "w") do file
-        h5save(file, TS)
-        h5save(file, IP)
+        h5save(file, TS; path = "snapshots")
+        h5save(file, IP, length(TS.paramspace))
         h5save(file, poisson)
         save_sampling_parameters(file, sampling_params; path = "parameters")
     end
-
-    # TODO pspace and sampling_params save to the same HDF5 group ! FIX
 end
 
 
 """
 save projection data
 """
-function h5save(fpath::String, IP::IntegratorParameters, P::PoissonSolverPBSplines{T}, sampling_params::NamedTuple, μtrain::ParameterSpace, k, kₑ, Ψ, Ψₑ, Πₑ, P₀) where {T}
-    # create file and save projections
+function h5save(fpath::String, IP::IntegratorParameters, P::PoissonSolverPBSplines{T}, sampling_params::NamedTuple, training_params::ParameterSpace, k, kₑ, Ψ, Ψₑ, Πₑ, P₀) where {T}
+        # create file and save projections
     h5open(fpath, "w") do file
         save_projections(file, k, kₑ, Ψ, Ψₑ, Πₑ, P₀)
         h5save(file, P)
         h5save(file, IP)
-        h5save(file, μtrain)
+        h5save(file, training_params; path = "parameterspace")
         save_sampling_parameters(file, sampling_params; path = "parameters")
     end
 end

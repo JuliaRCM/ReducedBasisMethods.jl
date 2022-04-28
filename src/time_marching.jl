@@ -26,9 +26,8 @@ function IntegratorParameters(h5::H5DataStore, path::AbstractString = "/")
         read(attributes(group)["ns"]),
         read(attributes(group)["nh"]),
         read(attributes(group)["np"]),
-        0 # TODO ! FIX
+        read(attributes(group)["nparam"]),
     )
-    # read(attributes(group)["nparam"]), # TODO ! FIX !
 end
 
 function IntegratorParameters(fpath::AbstractString, path::AbstractString = "/")
@@ -40,13 +39,24 @@ end
 """
 save integrator parameters
 """
-function h5save(h5::H5DataStore, IP::VPIntegratorParameters; path = "/")
+function h5save(h5::H5DataStore, IP::IntegratorParameters; path = "/")
     g = _create_group(h5, path)
     attributes(g)["dt"] = IP.dt
     attributes(g)["nt"] = IP.nₜ
     attributes(g)["ns"] = IP.nₛ
     attributes(g)["nh"] = IP.nₕ
     attributes(g)["np"] = IP.nₚ
+    attributes(g)["nparam"] = IP.nparam
+end
+
+function h5save(h5::H5DataStore, IP::VPIntegratorParameters, nparam; path = "/")
+    g = _create_group(h5, path)
+    attributes(g)["dt"] = IP.dt
+    attributes(g)["nt"] = IP.nₜ
+    attributes(g)["ns"] = IP.nₛ
+    attributes(g)["nh"] = IP.nₕ
+    attributes(g)["np"] = IP.nₚ
+    attributes(g)["nparam"] = nparam
 end
 
 mutable struct ReducedIntegratorCache{T}
