@@ -37,11 +37,11 @@ module ReducedBasisMethods
 
     export sorteigen
 
-    include("projection.jl")
+    include("algorithms/evd.jl")
 
     export get_Ψ, get_ΛΩ_particles, get_ΛΩ_efield
 
-    include("deim.jl")
+    include("algorithms/deim.jl")
     
     export deim_get_Π
 
