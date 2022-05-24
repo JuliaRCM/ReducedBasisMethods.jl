@@ -20,18 +20,20 @@ module ReducedBasisMethods
 
     export ParameterSpace
 
-    include("poisson.jl")
-
     include("regression.jl")
 
     export get_regression_αβ
 
-    include("time_marching.jl")
+
+
+    include("particles/poisson.jl")
+
+    include("particles/time_marching.jl")
 
     export IntegratorParameters, IntegratorCache, ReducedIntegratorCache
     export integrate_vp, reduced_integrate_vp
 
-    include("snapshots.jl")
+    include("particles/snapshots.jl")
 
     export Snapshots
 
