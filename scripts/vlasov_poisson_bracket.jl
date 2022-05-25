@@ -93,7 +93,7 @@ function Base.getindex(po::PoissonOperator{DT}, i::Int, j::Int) where {DT}
 
     local x = zero(DT)
 
-    @inbounds for k in eachindex(po.hamiltonian[k])
+    @inbounds for k in eachindex(po.hamiltonian)
         x += po.tensor[i,j,k] * po.hamiltonian[k]
     end
 
