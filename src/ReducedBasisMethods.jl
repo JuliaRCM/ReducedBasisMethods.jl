@@ -5,6 +5,7 @@ module ReducedBasisMethods
     using LinearAlgebra
     using Particles
     using TypedTables
+    using LazyArrays
 
     include("utils.jl")
 
@@ -51,11 +52,11 @@ module ReducedBasisMethods
 
     include("algorithms/evd.jl")
 
-    export get_Ψ, get_ΛΩ_particles, get_ΛΩ_efield
+    export get_PODBasis_EVD, get_PODBasis_cotangentLiftEVD
 
     include("algorithms/deim.jl")
     
-    export deim_get_Π
+    export get_DEIM_interpolation_matrix
 
     include("h5routines.jl")
 
