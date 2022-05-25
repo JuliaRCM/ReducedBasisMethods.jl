@@ -2,6 +2,7 @@
 using OffsetArrays
 using ReducedBasisMethods
 using Test
+using LinearAlgebra
 
 
 struct PoissonTensor{DT,FT}
@@ -25,7 +26,7 @@ function Base.getindex(pt::PoissonTensor, I::CartesianIndex, J::CartesianIndex, 
     pt.f(I, J, K)
 end
 
-function getindex(pt::PoissonTensor, i::Int, j::Int, k::Int)
+function Base.getindex(pt::PoissonTensor, i::Int, j::Int, k::Int)
     I = multiindex(i, pt.nx, pt.nv)
     J = multiindex(j, pt.nx, pt.nv)
     K = multiindex(k, pt.nx, pt.nv)
@@ -219,7 +220,12 @@ end
 @test_throws AssertionError multiindex(nx*nv+1, nx, nv)
 @test_throws AssertionError linearindex(CartesianIndex(2nx, div(nv,2)), nx, nv)
 
+f = rand(nx*nv)
+g = rand(nx*nv)
+H = rand(nx*nv)
 
+P_tens = PoissonTensor( Float64, nx, nv, Arakawa(nx, nv, hx, hv) )
 
+P_tens_op = PoissonOperator( P_tens, H )
 
-arakawa = Arakawa(nx, nv, hx, hv)
+print( dot(f, P_tens_op, g ) )
