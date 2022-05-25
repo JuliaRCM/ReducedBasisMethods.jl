@@ -1,31 +1,10 @@
 
 using OffsetArrays
+using ReducedBasisMethods
 using Test
 
 
-const MultiIndex = NamedTuple{(:i,:j), Tuple{Int,Int}}
-
-function isvalid(I::MultiIndex, nx, nv)
-    I.i ≥ 1 && I.i ≤ nx &&
-    I.j ≥ 1 && I.j ≤ nv
-end
-
-function linearindex(I::MultiIndex, nx, nv)
-    @assert isvalid(I, nx, nv)
-    (I.j - 1) * nx + I.i
-end
-
-function multiindex(i, nx, nv)
-    @assert i ≥ 1 && i ≤ nx*nv
-    MultiIndex((mod(i, nx), div(i, nx) + 1))
-end
-
-
-abstract type MultiIndexTensor{DT} <: AbstractArray{DT,3} end
-
-
-
-struct PoissonTensor{DT,FT} <: MultiIndexTensor{DT}
+struct PoissonTensor{DT,FT}
     nx::Int
     nv::Int
     f::FT
@@ -38,7 +17,7 @@ end
 Base.size(pt::PoissonTensor) = tuple(pt.nx * pt.nv * ones(Int,3)...)
 Base.size(pt::PoissonTensor, i) = i ≥ 1 && i ≤ 3 ? pt.nx * pt.nv : 1
 
-function Base.getindex(pt::PoissonTensor, I::MultiIndex, J::MultiIndex, K::MultiIndex)
+function Base.getindex(pt::PoissonTensor, I::CartesianIndex, J::CartesianIndex, K::CartesianIndex)
     @assert isvalid(I, pt.nx, pt.nv)
     @assert isvalid(J, pt.nx, pt.nv)
     @assert isvalid(K, pt.nx, pt.nv)
@@ -238,7 +217,7 @@ for i in (5, 23, 45, 63)
 end
 
 @test_throws AssertionError multiindex(nx*nv+1, nx, nv)
-@test_throws AssertionError linearindex(MultiIndex((2nx, div(nv,2))), nx, nv)
+@test_throws AssertionError linearindex(CartesianIndex(2nx, div(nv,2)), nx, nv)
 
 
 
