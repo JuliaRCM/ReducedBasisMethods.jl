@@ -33,6 +33,10 @@ function getindex(pt::PoissonTensor, i::Int, j::Int, k::Int)
     pt[I,J,K]
 end
 
+function Base.materialize(rt::PoissonTensor)
+    [ rt[i,j,k] for i in 1:size(rt,1), j in 1:size(rt,2), k in 1:size(rt,3) ]
+end
+
 
 
 struct ReducedTensor{DT, PT <: PoissonTensor{DT}, PM1, PM2} <: AbstractArray{DT,3}
@@ -98,6 +102,10 @@ function Base.getindex(po::PoissonOperator{DT}, i::Int, j::Int) where {DT}
     end
 
     return x
+end
+
+function Base.materialize(rt::PoissonOperator)
+    [ rt[i,j] for i in 1:size(rt,1), j in 1:size(rt,2) ]
 end
 
 
