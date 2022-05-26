@@ -182,14 +182,14 @@ struct Arakawa{DT}
         JPC[+1,  0, +1, -1] = -1
         JPC[+1,  0, +1, +1] = +1
     
-        JPP[-1, -1, -1,  0] = -1
-        JPP[-1, -1,  0, -1] = +1
-        JPP[-1, +1, -1,  0] = +1
-        JPP[-1, +1,  0, +1] = -1
-        JPP[+1, -1,  0, -1] = -1
-        JPP[+1, -1, +1,  0] = +1
-        JPP[+1, +1,  0, +1] = +1
-        JPP[+1, +1, +1,  0] = -1
+        JCP[-1, -1, -1,  0] = -1
+        JCP[-1, -1,  0, -1] = +1
+        JCP[-1, +1, -1,  0] = +1
+        JCP[-1, +1,  0, +1] = -1
+        JCP[+1, -1,  0, -1] = -1
+        JCP[+1, -1, +1,  0] = +1
+        JCP[+1, +1,  0, +1] = +1
+        JCP[+1, +1, +1,  0] = -1
     
         factor = inv(hx) * inv(hv) / 12
 
@@ -208,7 +208,7 @@ function (arakawa::Arakawa{DT})(I, J, K) where {DT}
 
     ( arakawa.JPP[fi..., hi...] +
       arakawa.JPC[fi..., hi...] +
-      arakawa.JCP[fi..., hi...] ) / arakawa.factor
+      arakawa.JCP[fi..., hi...] ) * arakawa.factor
 end
 
 
