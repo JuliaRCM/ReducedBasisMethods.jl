@@ -86,7 +86,7 @@ function Parameter(h5::H5DataStore, path::AbstractString = "/")
     Parameter(name, minimum, maximum, samples)
 end
 
-function h5save(h5::H5DataStore, param::Parameter; path::AbstractString = "/")
+function h5save(h5::H5DataStore, param::Parameter; path::AbstractString = string(param.name))
     g = _create_group(h5, path)
     g["minimum"] = param.minimum
     g["maximum"] = param.maximum
