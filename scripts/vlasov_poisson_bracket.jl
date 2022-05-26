@@ -197,10 +197,12 @@ struct Arakawa{DT}
     end
 end
 
+mymod(i, n, w=1) = abs(i) ≥ n - w ? i - sign(i) * n : i
+
 
 function (arakawa::Arakawa{DT})(I, J, K) where {DT}
-    fi = mod1.(Tuple(J - I), (nx,nv))
-    hi = mod1.(Tuple(K - I), (nx,nv))
+    fi = mymod.(Tuple(J - I), (arakawa.nx, arakawa.nv))
+    hi = mymod.(Tuple(K - I), (arakawa.nx, arakawa.nv))
 
     if any(fi .< -1) || any(fi .> +1) || any(hi .< -1) || any(hi .> +1)
         return zero(DT)
