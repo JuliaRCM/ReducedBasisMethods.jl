@@ -25,7 +25,7 @@ function Base.getindex(pt::PoissonTensor, I::CartesianIndex, J::CartesianIndex, 
     pt.f(I, J, K)
 end
 
-function getindex(pt::PoissonTensor, i::Int, j::Int, k::Int)
+function Base.getindex(pt::PoissonTensor, i::Int, j::Int, k::Int)
     I = multiindex(i, pt.nx, pt.nv)
     J = multiindex(j, pt.nx, pt.nv)
     K = multiindex(k, pt.nx, pt.nv)
