@@ -23,25 +23,26 @@ h5file  = "temp.h5"
     M = rand(ns, length(ps))
 
 
-    ts1 = TrainingSet(ps, X, V, A, Φ, W, K, M)
+    # ts1 = TrainingSet(ps, X, V, A, Φ, W, K, M)
 
-    @test ts1.paramspace == ps
+
+    # @test ts1.paramspace == ps
     
-    @test ts1.X == X
-    @test ts1.V == V
-    @test ts1.A == A
-    @test ts1.Φ == Φ
-    @test ts1.W == W
-    @test ts1.K == K
-    @test ts1.M == M
+    # @test ts1.X == X
+    # @test ts1.V == V
+    # @test ts1.A == A
+    # @test ts1.Φ == Φ
+    # @test ts1.W == W
+    # @test ts1.K == K
+    # @test ts1.M == M
 
 
     
-    h5save(ts1, h5file; mode="w")
-    @test isfile(h5file)
+    # h5save(h5file, ts1; mode="w")
+    # @test isfile(h5file)
 
-    ts2 = h5load(TrainingSet, h5file)
-    rm(h5file)
-    @test ts1 == ts2
+    # ts2 = h5load(TrainingSet, h5file)
+    # rm(h5file)
+    # @test ts1 == ts2
 
 end

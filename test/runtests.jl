@@ -1,3 +1,4 @@
+using LinearAlgebra
 using ReducedBasisMethods
 using Test
 
