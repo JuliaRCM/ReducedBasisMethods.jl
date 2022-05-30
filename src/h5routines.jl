@@ -1,7 +1,7 @@
 
 using HDF5
 
-import Particles.PoissonSolverPBSplines
+import ParticleMethods.PoissonSolverPBSplines
 
 
 function _name(h5::H5DataStore)

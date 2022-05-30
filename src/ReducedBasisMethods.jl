@@ -3,7 +3,7 @@ module ReducedBasisMethods
     using HDF5
     using HDF5: H5DataStore
     using LinearAlgebra
-    using Particles
+    using ParticleMethods
     using TypedTables
     using LazyArrays
 

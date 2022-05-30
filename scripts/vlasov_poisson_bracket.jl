@@ -25,12 +25,16 @@ function Base.getindex(pt::PoissonTensor, I::CartesianIndex, J::CartesianIndex, 
     pt.f(I, J, K)
 end
 
-function getindex(pt::PoissonTensor, i::Int, j::Int, k::Int)
+function Base.getindex(pt::PoissonTensor, i::Int, j::Int, k::Int)
     I = multiindex(i, pt.nx, pt.nv)
     J = multiindex(j, pt.nx, pt.nv)
     K = multiindex(k, pt.nx, pt.nv)
 
     pt[I,J,K]
+end
+
+function Base.materialize(rt::PoissonTensor)
+    [ rt[i,j,k] for i in 1:size(rt,1), j in 1:size(rt,2), k in 1:size(rt,3) ]
 end
 
 
@@ -98,6 +102,10 @@ function Base.getindex(po::PoissonOperator{DT}, i::Int, j::Int) where {DT}
     end
 
     return x
+end
+
+function Base.materialize(rt::PoissonOperator)
+    [ rt[i,j] for i in 1:size(rt,1), j in 1:size(rt,2) ]
 end
 
 
@@ -174,14 +182,14 @@ struct Arakawa{DT}
         JPC[+1,  0, +1, -1] = -1
         JPC[+1,  0, +1, +1] = +1
     
-        JPP[-1, -1, -1,  0] = -1
-        JPP[-1, -1,  0, -1] = +1
-        JPP[-1, +1, -1,  0] = +1
-        JPP[-1, +1,  0, +1] = -1
-        JPP[+1, -1,  0, -1] = -1
-        JPP[+1, -1, +1,  0] = +1
-        JPP[+1, +1,  0, +1] = +1
-        JPP[+1, +1, +1,  0] = -1
+        JCP[-1, -1, -1,  0] = -1
+        JCP[-1, -1,  0, -1] = +1
+        JCP[-1, +1, -1,  0] = +1
+        JCP[-1, +1,  0, +1] = -1
+        JCP[+1, -1,  0, -1] = -1
+        JCP[+1, -1, +1,  0] = +1
+        JCP[+1, +1,  0, +1] = +1
+        JCP[+1, +1, +1,  0] = -1
     
         factor = inv(hx) * inv(hv) / 12
 
@@ -189,10 +197,12 @@ struct Arakawa{DT}
     end
 end
 
+mymod(i, n, w=1) = abs(i) ≥ n - w ? i - sign(i) * n : i
+
 
 function (arakawa::Arakawa{DT})(I, J, K) where {DT}
-    fi = mod1.(Tuple(J - I), (nx,nv))
-    hi = mod1.(Tuple(K - I), (nx,nv))
+    fi = mymod.(Tuple(J - I), (arakawa.nx, arakawa.nv))
+    hi = mymod.(Tuple(K - I), (arakawa.nx, arakawa.nv))
 
     if any(fi .< -1) || any(fi .> +1) || any(hi .< -1) || any(hi .> +1)
         return zero(DT)
@@ -200,7 +210,7 @@ function (arakawa::Arakawa{DT})(I, J, K) where {DT}
 
     ( arakawa.JPP[fi..., hi...] +
       arakawa.JPC[fi..., hi...] +
-      arakawa.JCP[fi..., hi...] ) / arakawa.factor
+      arakawa.JCP[fi..., hi...] ) * arakawa.factor
 end
 
 

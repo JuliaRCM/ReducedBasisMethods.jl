@@ -7,7 +7,7 @@ function h5save(h5::H5DataStore, P::PoissonSolverPBSplines; path::AbstractString
     attributes(group)["p"] = P.p
 end
 
-function Particles.PoissonSolverPBSplines(h5::H5DataStore, path::AbstractString = "/")
+function ParticleMethods.PoissonSolverPBSplines(h5::H5DataStore, path::AbstractString = "/")
     group = h5[path]
     p = read(attributes(group)["p"])
     κ = read(group["parameters/κ"])
@@ -18,7 +18,7 @@ function Particles.PoissonSolverPBSplines(h5::H5DataStore, path::AbstractString 
     PoissonSolverPBSplines(p, n, 2π/κ)
 end
 
-function Particles.PoissonSolverPBSplines(fpath::AbstractString, path::AbstractString = "/")
+function ParticleMethods.PoissonSolverPBSplines(fpath::AbstractString, path::AbstractString = "/")
     h5open(fpath, "r") do file
         PoissonSolverPBSplines(file, path)
     end
