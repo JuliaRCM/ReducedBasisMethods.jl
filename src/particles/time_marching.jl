@@ -1,6 +1,6 @@
 
 using LinearAlgebra: lu, ldiv!
-using Particles: PBSpline, stiffnessmatrix, eval_deriv_PBSBasis, rhs_particles_PBSBasis
+using ParticleMethods: PBSpline, stiffnessmatrix, eval_deriv_PBSBasis, rhs_particles_PBSBasis
 
 struct IntegratorParameters{T}
     dt::T          # time step
