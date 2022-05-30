@@ -54,7 +54,7 @@ function h5save(h5::H5DataStore, TS::TrainingSet; path::AbstractString = "/")
 
     save_parameters(group, TS.parameters; path = "parameters")
     h5save(group, TS.paramspace; path = "parameterspace")
-    Particles.h5save(group, TS.initconds; path = "initial_conditions")
+    ParticleMethods.h5save(group, TS.initconds; path = "initial_conditions")
     h5save(group, TS.snapshots; path = "snapshots")
     h5save(group, TS.integrator; path = "integrator")
     h5save(group, TS.poisson)#; path = "poisson")

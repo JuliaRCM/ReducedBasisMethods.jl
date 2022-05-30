@@ -77,7 +77,7 @@ function h5save(h5::H5DataStore, rb::ReducedBasis; path::AbstractString = "/")
 
     save_parameters(group, rb.parameters; path = "parameters")
     h5save(group, rb.paramspace; path="parameterspace")
-    Particles.h5save(group, rb.initconds; path = "initial_conditions")
+    ParticleMethods.h5save(group, rb.initconds; path = "initial_conditions")
     h5save(group, rb.integrator; path = "integrator")
     h5save(group, rb.poisson)#; path = "poisson")
 end

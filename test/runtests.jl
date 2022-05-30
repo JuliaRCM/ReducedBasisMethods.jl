@@ -1,4 +1,5 @@
-using ReducedBasisMethods, LinearAlgebra
+using LinearAlgebra
+using ReducedBasisMethods
 using Test
 
 @testset "ReducedBasisMethods.jl" begin
