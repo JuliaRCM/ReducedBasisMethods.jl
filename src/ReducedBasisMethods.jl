@@ -62,5 +62,14 @@ module ReducedBasisMethods
 
     export h5save, h5load, read_sampling_parameters
 
+    
+
+    include("gridbased/poisson.jl")
+
+    export _apply_Δₓ!, _apply_Δₓ₄!, _apply_Rₓ!, _apply_∫dv!
+
+    include("gridbased/bracket_operators.jl")
+
+    export _apply_P_ϕ!, _apply_P_h!
 
 end
