@@ -68,10 +68,10 @@ h5file  = "temp.h5"
     @test NamedTuple(p1, p2, p3) == NamedTuple{(:μ, :ν, :σ)}((p1, p2, p3))
 
 
-    h5save(p1, h5file; mode="w")
+    h5save(h5file, p1; mode="w")
     @test isfile(h5file)
 
-    p2 = h5load(Parameter, h5file, "μ")
+    p2 = h5load(Parameter, h5file; path="μ")
     rm(h5file)
     @test p1 == p2
 

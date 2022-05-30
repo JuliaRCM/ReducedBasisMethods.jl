@@ -3,8 +3,9 @@ module ReducedBasisMethods
     using HDF5
     using HDF5: H5DataStore
     using LinearAlgebra
-    using Particles
+    using ParticleMethods
     using TypedTables
+    using LazyArrays
 
     include("utils.jl")
 
@@ -20,18 +21,20 @@ module ReducedBasisMethods
 
     export ParameterSpace
 
-    include("poisson.jl")
-
     include("regression.jl")
 
     export get_regression_αβ
 
-    include("time_marching.jl")
+
+
+    include("particles/poisson.jl")
+
+    include("particles/time_marching.jl")
 
     export IntegratorParameters, IntegratorCache, ReducedIntegratorCache
     export integrate_vp, reduced_integrate_vp
 
-    include("snapshots.jl")
+    include("particles/snapshots.jl")
 
     export Snapshots
 
@@ -49,11 +52,11 @@ module ReducedBasisMethods
 
     include("algorithms/evd.jl")
 
-    export get_Ψ, get_ΛΩ_particles, get_ΛΩ_efield
+    export get_PODBasis_EVD, get_PODBasis_cotangentLiftEVD
 
     include("algorithms/deim.jl")
     
-    export deim_get_Π
+    export get_DEIM_interpolation_matrix
 
     include("h5routines.jl")
 

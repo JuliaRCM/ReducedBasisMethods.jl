@@ -33,7 +33,7 @@ h5file  = "temp.h5"
     @test p1.samples.σ == p2.samples.σ == p3.samples.σ == grid[:,3]
 
     
-    h5save(p1, h5file; mode="w")
+    h5save(h5file, p1; mode="w")
     @test isfile(h5file)
 
     p2 = h5load(ParameterSpace, h5file)
