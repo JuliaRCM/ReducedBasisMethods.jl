@@ -17,6 +17,17 @@ end
 
 Base.size(pt::PoissonTensor) = tuple(pt.nx * pt.nv * ones(Int,3)...)
 Base.size(pt::PoissonTensor, i) = i ≥ 1 && i ≤ 3 ? pt.nx * pt.nv : 1
+Base.axes(pt::PoissonTensor, i) = Base.OneTo(size(pt, i))
+
+function Base.isvalid(I::CartesianIndex, nx, nv)
+    I[1] ≥ 1 && I[1] ≤ nx &&
+    I[2] ≥ 1 && I[2] ≤ nv
+end
+
+function multiindex(i, nx, nv)
+    @assert i ≥ 1 && i ≤ nx*nv
+    CartesianIndex(mod1(i, nx), div(i-1, nx) + 1)
+end
 
 function Base.getindex(pt::PoissonTensor, I::CartesianIndex, J::CartesianIndex, K::CartesianIndex)
     @assert isvalid(I, pt.nx, pt.nv)
@@ -54,7 +65,7 @@ end
 
 Base.size(rt::ReducedTensor) = (size(rt.projection_i, 1), size(rt.projection_j, 2), size(rt.tensor, 3))
 Base.size(rt::ReducedTensor, i) = size(rt)[i]
-Base.axes(rt::ReducedTensor, i) = OneTo(size(rt, i))
+Base.axes(rt::ReducedTensor, i) = Base.OneTo(size(rt, i))
 
 function Base.getindex(rt::ReducedTensor{DT}, i::Int, j::Int, k::Int) where {DT}
     @assert i ≥ 1 && i ≤ size(rt, 1)
@@ -202,6 +213,10 @@ mymod(i, n, w=1) = abs(i) ≥ n - w ? i - sign(i) * n : i
 
 
 function (arakawa::Arakawa{DT})(I, J, K) where {DT}
+    @assert isvalid(I, arakawa.nx, arakawa.nv)
+    @assert isvalid(J, arakawa.nx, arakawa.nv)
+    @assert isvalid(K, arakawa.nx, arakawa.nv)
+
     fi = mymod.(Tuple(J - I), (arakawa.nx, arakawa.nv))
     hi = mymod.(Tuple(K - I), (arakawa.nx, arakawa.nv))
 
