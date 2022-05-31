@@ -25,7 +25,9 @@ module ReducedBasisMethods
 
     export get_regression_αβ
 
+    include("meshbased/multi_index_axis.jl")
 
+    export MultiIndexAxis
 
     include("particles/poisson.jl")
 

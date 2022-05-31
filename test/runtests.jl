@@ -3,6 +3,7 @@ using ReducedBasisMethods
 using Test
 
 @testset "ReducedBasisMethods.jl" begin
+    include("multi_index_axis_tests.jl")
     include("parameter_tests.jl")
     include("parameterspace_tests.jl")
     include("trainingset_tests.jl")
