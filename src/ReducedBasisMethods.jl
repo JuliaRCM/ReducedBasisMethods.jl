@@ -25,7 +25,7 @@ module ReducedBasisMethods
 
     export get_regression_αβ
 
-    include("meshbased/multi_index_axis.jl")
+    include("gridbased/multi_index_axis.jl")
 
     export MultiIndexAxis
 
