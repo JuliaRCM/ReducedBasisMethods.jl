@@ -9,6 +9,9 @@
 
 mi = MultiIndexAxis(1:10, 1:100)
 
+@test length(mi) == 1000
+@test size(mi) == (10,100)
+
 @test mi[1] == CartesianIndex(1,1)
 @test mi[495] == CartesianIndex(5,50)
 @test mi[991] == CartesianIndex(1,100)

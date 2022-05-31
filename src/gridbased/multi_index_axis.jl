@@ -15,6 +15,9 @@ MultiIndexAxis(sizes::Vararg{Int}) = MultiIndexAxis([UnitRange(1,s) for s in siz
 Base.axes(ax::MultiIndexAxis) = ax.cartes_indices.indices
 Base.axes(ax::MultiIndexAxis, i) = ax.cartes_indices.indices[i]
 
+Base.length(ax::MultiIndexAxis) = length(ax.cartes_indices)
+Base.size(ax::MultiIndexAxis) = size(ax.linear_indices)
+
 Base.getindex(ax::MultiIndexAxis, i::Int) = ax.cartes_indices[i]
 Base.getindex(ax::MultiIndexAxis, ind::CartesianIndex) = ax.linear_indices[ind]
 Base.getindex(ax::MultiIndexAxis, indices::Vararg{Int}) = ax[CartesianIndex(indices)]
