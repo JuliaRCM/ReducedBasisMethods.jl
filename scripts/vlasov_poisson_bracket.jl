@@ -1,5 +1,7 @@
 
+using LinearAlgebra
 using OffsetArrays
+using Random
 using ReducedBasisMethods
 using Test
 using LinearAlgebra
@@ -230,27 +232,76 @@ function (arakawa::Arakawa{DT})(I, J, K) where {DT}
 end
 
 
-
 ### Tests ###
 
-const nx = 10
-const nv = 24
-const hx = 0.1
-const hv = 0.2
+# const nx = 10
+# const nv = 24
+# const hx = 0.1
+# const hv = 0.2
 
-for i in (5, 23, 45, 63)
-    @test linearindex(multiindex(i, nx, nv), nx, nv) == i
+# for i in (5, 23, 45, 63)
+#     @test linearindex(multiindex(i, nx, nv), nx, nv) == i
+# end
+
+# @test_throws AssertionError multiindex(nx*nv+1, nx, nv)
+# @test_throws AssertionError linearindex(CartesianIndex(2nx, div(nv,2)), nx, nv)
+
+
+function test_indices(It, Jt, n)
+    I = CartesianIndex(It)
+    J = CartesianIndex(Jt)
+
+    fi = mymod.(Tuple(J - I), (n, n))
+
+    if any(fi .< -1) || any(fi .> +1)
+        return 0
+    end
+
+    return 1
 end
 
-@test_throws AssertionError multiindex(nx*nv+1, nx, nv)
-@test_throws AssertionError linearindex(CartesianIndex(2nx, div(nv,2)), nx, nv)
 
-f = rand(nx*nv)
-g = rand(nx*nv)
-H = rand(nx*nv)
+function test_arakawa()
 
-P_tens = PoissonTensor( Float64, nx, nv, Arakawa(nx, nv, hx, hv) )
+    nx = 25
+    nv = 33
+    hx = 1 / (nx-1)
+    hv = 1 / (nv-1)
+    n = nx * nv
 
-P_tens_op = PoissonOperator( P_tens, H )
+    arakawa = Arakawa(nx, nv, hx, hv)
 
-print( dot(f, P_tens_op, g ) )
+    Random.seed!(1234)
+
+    f = rand(n)
+    g = rand(n)
+    h = rand(n)
+
+    # fm = rand(nx,nv); fm[:,1] .= 0; fm[1,:] .= 0; fm[:,end] .= 0; fm[end,:] .= 0; f = vec(fm)
+    # gm = rand(nx,nv); gm[:,1] .= 0; gm[1,:] .= 0; gm[:,end] .= 0; gm[end,:] .= 0; g = vec(gm)
+    # hm = rand(nx,nv); hm[:,1] .= 0; hm[1,:] .= 0; hm[:,end] .= 0; hm[end,:] .= 0; h = vec(hm)
+
+    P_tens = PoissonTensor( Float64, nx, nv, arakawa )
+
+    P_tens_op = PoissonOperator( P_tens, h )
+
+    # P_tens_dot = zero(Float64)
+
+    # for i in 1:n, j in 1:n
+    #     P_tens_dot += g[i] * P_tens_op[i,j] * f[j]
+    # end
+
+    # println(P_tens_dot)
+
+    println( dot(g, P_tens_op, f) )
+
+end
+
+test_arakawa()
+
+
+# Pₕ = LinearMap(_closure_apply_P!, _closure_apply_Pᵀ!, n₁*n₂ ;ismutating=true, issymmetric=false)
+# Random.seed!(1234); f .= rand(n); h .= rand(n); g .= rand(n); # n = 32 × 32
+# println(dot(g, Pₕ * f)) # -446.516856698935
+# println(dot(f, Pₕ * f)) # -1.2505552149377763e-12 
+# println(dot(f, Pₕ * h)) # 1.8898117411378635e-15
