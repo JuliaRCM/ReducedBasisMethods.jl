@@ -9,8 +9,8 @@ struct MultiIndexAxis{N, CI <: CartesianIndices{N}, LI <: LinearIndices{N}} <: A
     end
 end
 
-MultiIndexAxis(inds::Vararg{AbstractUnitRange}) = MultiIndexAxis(CartesianIndices(inds))
-MultiIndexAxis(sizes::Vararg{Int}) = MultiIndexAxis([UnitRange(1,s) for s in sizes]...)
+MultiIndexAxis(inds::Vararg{<:AbstractUnitRange}) = MultiIndexAxis(CartesianIndices(inds))
+MultiIndexAxis(sizes::Vararg{<:Integer}) = MultiIndexAxis([UnitRange(1,s) for s in sizes]...)
 
 Base.axes(ax::MultiIndexAxis) = ax.cartes_indices.indices
 Base.axes(ax::MultiIndexAxis, i) = ax.cartes_indices.indices[i]
@@ -18,8 +18,8 @@ Base.axes(ax::MultiIndexAxis, i) = ax.cartes_indices.indices[i]
 Base.length(ax::MultiIndexAxis) = length(ax.cartes_indices)
 Base.size(ax::MultiIndexAxis) = size(ax.linear_indices)
 
-Base.getindex(ax::MultiIndexAxis, i::Int) = ax.cartes_indices[i]
+Base.getindex(ax::MultiIndexAxis, i::Integer) = ax.cartes_indices[i]
 Base.getindex(ax::MultiIndexAxis, ind::CartesianIndex) = ax.linear_indices[ind]
-Base.getindex(ax::MultiIndexAxis, indices::Vararg{Int}) = ax[CartesianIndex(indices)]
+Base.getindex(ax::MultiIndexAxis, indices::Vararg{<:Integer}) = ax[CartesianIndex(indices)]
 
 Base.:(==)(ax1::MultiIndexAxis, ax2::MultiIndexAxis) = ax1.cartes_indices == ax2.cartes_indices
