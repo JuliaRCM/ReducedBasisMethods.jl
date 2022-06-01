@@ -9,8 +9,6 @@ struct MultiIndexArray{T, N, AT <: AbstractArray{T,N}, AX <: NTuple{N, <: MultiI
     end
 end
 
-_to_multi_index_axes(axs) = MultiIndexAxis(axs...)
-
 MultiIndexArray(parent::AbstractArray{T,N}, axs::Vararg{MultiIndexAxis,N}) where {T,N} = MultiIndexArray(parent, axs)
 MultiIndexArray(parent::AbstractArray{T,N}, axs::Vararg{NTuple{M,Int},N}) where {T,N,M} = MultiIndexArray(parent, _to_multi_index_axes.(axs))
 MultiIndexArray(parent::AbstractArray{T,N}, axs::Vararg{NTuple{M,AbstractUnitRange},N}) where {T,N,M} = MultiIndexArray(parent, _to_multi_index_axes.(axs))

@@ -24,3 +24,5 @@ Base.size(ax::MultiIndexAxis, i) = size(ax.linear_indices, i)
 Base.getindex(ax::MultiIndexAxis, i::Integer) = ax.cartes_indices[i]
 Base.getindex(ax::MultiIndexAxis, ind::CartesianIndex) = ax.linear_indices[ind]
 Base.getindex(ax::MultiIndexAxis, indices::Vararg{Integer}) = ax[CartesianIndex(indices)]
+
+_to_multi_index_axes(axs::Tuple) = MultiIndexAxis(axs...)
