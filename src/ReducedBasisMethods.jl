@@ -26,8 +26,10 @@ module ReducedBasisMethods
     export get_regression_αβ
 
     include("gridbased/multi_index_axis.jl")
+    include("gridbased/multi_index_array.jl")
 
     export MultiIndexAxis
+    export MultiIndexArray
 
     include("particles/poisson.jl")
 
