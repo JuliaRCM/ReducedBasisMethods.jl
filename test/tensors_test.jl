@@ -55,4 +55,6 @@
     end
     @test abs( g̃P̃ϕf̃ - g̃P̃ₕf̃ ) / abs(g̃P̃ϕf̃) < 1e-14
 
+    @time P̃₂[1,1]
+    @time P̃₁[1,1,1]
 end
