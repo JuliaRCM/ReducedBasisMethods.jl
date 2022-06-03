@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-
 using LinearAlgebra
 using OffsetArrays
 #using ReducedBasisMethods
@@ -65,6 +63,7 @@ function multiindex(i, nx, nv)
     @assert i ≥ 1 && i ≤ nx*nv
     CartesianIndex(mod1(i, nx), div(i-1, nx) + 1)
 end
+
 
 
 function Base.getindex(pt::PoissonTensor, I::CartesianIndex, J::CartesianIndex, K::CartesianIndex)
@@ -396,37 +395,3 @@ end
 #function Base.materialize(rt::VelocityReducedMatrix)
 #    [ rt[i,j] for i in 1:size(rt,1), j in 1:size(rt,2) ]
 #end
-=======
-using Random, ReducedBasisMethods
-
-Random.seed!(123)
-    n₁ = 8
-    n₂ = 12
-    n = n₁*n₂
-    x = range(0,1,length=n₁)
-    v = range(-1,1,length=n₂)
-    h₁ = x[2]-x[1]
-    h₂ = v[2]-v[1]
-
-    m = 8
-    m₁ = 3
-
-    ϕ̃ = rand(m₁)
-    f̃ = rand(m)
-    g̃ = rand(m)
-
-    Ψf = rand(n,m)
-    Ψϕ = rand(n₁,m₁)
-
-    ϕ = Ψϕ * ϕ̃
-    f = Ψf * f̃
-    g = Ψf * g̃
-    h = vec([ _ϕ + _v^2/2 for _ϕ in ϕ, _v in v ])
-
-    P = PoissonTensor( Float64, n₁, n₂, Arakawa(n₁, n₂, h₁, h₂) )
-    P̃ = ReducedTensor( P, Ψf, Ψf )
-    Ph = PoissonOperator(P, h)
-
-    P̃₁ = PotentialReducedTensor(P, Ψf, Ψf, Ψϕ)
-    P̃₂ = VelocityReducedMatrix(P, Ψf, Ψf, v)
->>>>>>> 8e72e70 (update notebook)
