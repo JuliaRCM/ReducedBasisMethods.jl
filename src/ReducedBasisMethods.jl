@@ -74,6 +74,6 @@ module ReducedBasisMethods
 
     include("gridbased/bracket_tensors.jl")
 
-    export PoissonTensor, PoissonOperator, PotentialReducedTensor, VelocityReducedTensor, ReducedTensor, Arakawa
+    export PoissonTensor, PoissonOperator, PotentialReducedTensor, VelocityReducedMatrix, ReducedTensor, Arakawa
 
 end

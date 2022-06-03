@@ -1,6 +1,7 @@
 using LinearAlgebra
 using ReducedBasisMethods
 using Test
+using Random
 
 @testset "ReducedBasisMethods.jl" begin
     include("parameter_tests.jl")
