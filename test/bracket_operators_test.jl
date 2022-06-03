@@ -11,9 +11,8 @@
     h₁ = x[2] - x[1]
     h₂ = v[2] - v[1]
 
-    f = rand(n₁ * n₂)
-    g = rand(n₁ * n₂)
-    ϕ = rand(n₁)
+    f = vec([ sin(_x * 2π) * exp(- 16 * _v^2) for _x in x, _v in v])
+    ϕ = [ sin(_x * 2π) * cos(_x * 2π) for _x in x ]
     h = vec( [ _ϕ + 0.5*_v^2 for _ϕ in ϕ, _v in v] )
 
     function _closure_apply_P_h!(Pf::AbstractVector, f::AbstractVector)
@@ -49,24 +48,24 @@ end
 
 @testset "Bracket Tests - analytical solution" begin
 
-    n₁ = 256
-    n₂ = 256
+    n₁ = 512
+    n₂ = 512
     n = n₁*n₂
 
     h₁ = 1/n₁
-    h₂ = 1/n₂
+    h₂ = 2/n₂
 
     x = range(0,1-h₁,length=n₁)
-    v = range(0,1-h₂,length=n₂)
+    v = range(-1,1-h₂,length=n₂)
 
     ci = CartesianIndices(zeros(n₁,n₂));
     li = LinearIndices(ci);
 
-    f = vec([ cos(_x * 2π) * cos(_v * 2π) for _x in x, _v in v])
-    h = vec([ sin(_x * 2π) * sin(_v * 2π) for _x in x, _v in v])
+    f = vec([ 1 / (2π) * cos(_x * 2π) * ( cos(_v * 2π) - 1) for _x in x, _v in v])
+    h = vec([ sin(_x * 2π) * exp(- 16 * _v^2) for _x in x, _v in v])
 
-    fh = vec( [ 4π^2 * ( - sin(_x * 2π)^2 * cos(_v * 2π )^2 
-                + cos(_x * 2π )^2 * sin(_v * 2π )^2) for _x in x, _v in v])
+    fh = vec( [ 32 * _v * sin(_x * 2π )^2 * ( cos(_v * 2π) - 1) * exp(- 16 * _v^2) + 2π * cos(_x * 2π)^2 * sin(_v * 2π) * exp(- 16 * _v^2) for _x in x, _v in v])
+
 
     function _closure_apply_P_h!(Pf::AbstractVector, f::AbstractVector)
         _apply_P_h!(Pf, f, h, ci, li, h₁, h₂)

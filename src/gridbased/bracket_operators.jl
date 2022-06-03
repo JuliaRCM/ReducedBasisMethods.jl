@@ -1,3 +1,11 @@
+@inline function inc(j,n)
+       j + 1 > n ? j - 1 : j + 1
+end
+
+@inline function dec(j,n)
+       j - 1 < 1 ? j + 1 : j - 1
+end
+
 ### 2D Poisson Bracket in operator form: f ↦ [f,h]
 # ci and li are cartesian / linear indices for f. h₁ and h₂ are grid size in x and v
 function _apply_P_h!(Pf::AbstractVector, f::AbstractVector, h::AbstractVector, ci, li, h₁, h₂) 
