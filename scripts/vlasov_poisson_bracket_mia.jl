@@ -203,20 +203,6 @@ end
 
 ### Tests ###
 
-function test_indices(It, Jt, n)
-    I = CartesianIndex(It)
-    J = CartesianIndex(Jt)
-
-    fi = mymod.(Tuple(J - I), (n, n))
-
-    if any(fi .< -1) || any(fi .> +1)
-        return 0
-    end
-
-    return 1
-end
-
-
 function test_arakawa()
 
     nx = 25
@@ -245,7 +231,6 @@ end
 
 @time test_arakawa()
 @time test_arakawa()
-
 
 
 function test_reduction()
