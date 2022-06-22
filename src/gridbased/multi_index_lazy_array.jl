@@ -48,10 +48,6 @@ end
 
 
 
-# Base.size(mila::MultiIndexLazyArray) = size(mila.linearsizes)
-# Base.size(mila::MultiIndexLazyArray{DT,N}, i) where {DT,N} = i ≥ 1 && i ≤ N ? size(mila)[i] : 1
-# Base.axes(mila::MultiIndexLazyArray, i) = OneTo(size(mila,i))
-
 # function Base.getindex(mila::MultiIndexLazyArray{DT,N}, indices::Vararg{CartesianIndex,N}) where {DT,N}
 #     @boundscheck checkbounds(mila, indices)
 #     # for i in eachindex(indices)
