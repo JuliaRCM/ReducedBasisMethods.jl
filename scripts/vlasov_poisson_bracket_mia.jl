@@ -7,6 +7,14 @@ using Test
 using LinearAlgebra
 
 
+function _cartesian(ax::MultiIndexAxis, ind::CartesianIndex, i, j)
+    CartesianIndex(mod1(ind[1]+i, size(ax,1)), mod1(ind[2]+j, size(ax,2)))
+end
+
+function eachstencilindex(ax::MultiIndexAxis, ind::Int, width::Int)
+    cind = ax[ind]
+    ( ax[_cartesian(ax, cind, i, j)] for i in -width:+width, j in -width:+width )
+end
 
 struct ReducedTensor{DT, PT <: AbstractMultiIndexArray{DT,3}, PM1, PM2} <: AbstractArray{DT,3}
     tensor::PT
@@ -33,13 +41,9 @@ function Base.getindex(rt::ReducedTensor{DT}, i::Int, j::Int, k::Int) where {DT}
     local x = zero(DT)
     local w = rt.stencil_width
     
-    # TODO: Account for stencil size and loop only over nonzero entries
-    # @inbounds for m in axes(rt.projection_i, 2)
-    #     for n in axes(rt.projection_j, 1)
-    for _m in k-w:k+w
-        m = mod1(_m, size(rt.tensor, 1))
-        for _n in k-w:k+w
-            n = mod1(_n, size(rt.tensor, 2))
+    # Account for stencil size and loop only over nonzero entries
+    for m in eachstencilindex(axes(rt.tensor, 1), k, w)
+        for n in eachstencilindex(axes(rt.tensor, 2), k, w)
             x += rt.projection_i[i,m] * rt.tensor[m,n,k] * rt.projection_j[n,j]
         end
     end
