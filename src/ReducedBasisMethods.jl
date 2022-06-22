@@ -27,9 +27,11 @@ module ReducedBasisMethods
 
     include("gridbased/multi_index_axis.jl")
     include("gridbased/multi_index_array.jl")
+    include("gridbased/multi_index_lazy_array.jl")
 
     export MultiIndexAxis
     export MultiIndexArray
+    export MultiIndexLazyArray
 
     include("particles/poisson.jl")
 
