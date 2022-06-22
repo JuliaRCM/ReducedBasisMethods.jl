@@ -43,6 +43,22 @@ mia = Base.materialize(mila)
 @test parent(mia) == _parent
 
 
+_f = (ind) -> _parent[Tuple(ind)...]
+
+mila = MultiIndexLazyArray(T, _f, (nx,nv))
+
+@test mila[(1,1)] == _parent[1,1]
+@test mila[(1,nv)] == _parent[1,nv]
+@test mila[(nx,1)] == _parent[nx,1]
+@test mila[(nx,nv)] == _parent[nx,nv]
+
+@test length(mila) == nx*nv
+
+@test size(mila) == (nx*nv,)
+@test size(mila,1) == nx*nv
+
+
+
 # __parent = vec(_parent)
 
 # g = i -> __parent[i]
