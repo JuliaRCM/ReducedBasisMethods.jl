@@ -33,6 +33,13 @@ mila = MultiIndexLazyArray(T, f, (nx,), (nv,))
 @test size(mila,2) == nv
 
 
+mia = Base.materialize(mila)
+
+@test mila[1,1] == mia[1,1]
+@test mila[1,nv] == mia[1,nv]
+@test mila[nx,1] == mia[nx,1]
+@test mila[nx,nv] == mia[nx,nv]
+
 
 # __parent = vec(_parent)
 

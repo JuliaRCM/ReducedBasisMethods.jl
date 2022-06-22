@@ -36,6 +36,17 @@ function Base.getindex(mila::MultiIndexLazyArray{T,N}, inds::Vararg{Integer,N}) 
     mila[(axes(mila, i)[inds[i]] for i in eachindex(inds))...]   
 end
 
+function Base.materialize(mila::MultiIndexLazyArray{T,N}) where {T,N}
+    mia = zeros(T, size(mila)...)
+
+    for ind in CartesianIndices(mia)
+        mia[ind] = mila[Tuple(ind)...]
+    end
+
+    MultiIndexArray(mia, axes(mila))
+end
+
+
 
 # Base.size(mila::MultiIndexLazyArray) = size(mila.linearsizes)
 # Base.size(mila::MultiIndexLazyArray{DT,N}, i) where {DT,N} = i ≥ 1 && i ≤ N ? size(mila)[i] : 1
