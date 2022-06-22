@@ -1,6 +1,6 @@
 
 
-struct MultiIndexLazyArray{DT, N, FT <: Base.Callable, AX <: NTuple{N, <: MultiIndexAxis}} <: AbstractArray{DT,N}
+struct MultiIndexLazyArray{DT, N, FT <: Base.Callable, AX <: NTuple{N, <: MultiIndexAxis}} <: AbstractMultiIndexArray{DT,N}
     f::FT
     axes::AX
 

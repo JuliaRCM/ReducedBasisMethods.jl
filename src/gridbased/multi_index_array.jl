@@ -1,5 +1,7 @@
 
-struct MultiIndexArray{T, N, AT <: AbstractArray{T,N}, AX <: NTuple{N, <: MultiIndexAxis}} <: AbstractArray{T,N}
+abstract type AbstractMultiIndexArray{T,N} <: AbstractArray{T,N} end
+
+struct MultiIndexArray{T, N, AT <: AbstractArray{T,N}, AX <: NTuple{N, <: MultiIndexAxis}} <: AbstractMultiIndexArray{T,N}
     parent::AT
     axes::AX
 
