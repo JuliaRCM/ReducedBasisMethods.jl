@@ -40,6 +40,8 @@ mia = Base.materialize(mila)
 @test mila[nx,1] == mia[nx,1]
 @test mila[nx,nv] == mia[nx,nv]
 
+@test parent(mia) == _parent
+
 
 # __parent = vec(_parent)
 
