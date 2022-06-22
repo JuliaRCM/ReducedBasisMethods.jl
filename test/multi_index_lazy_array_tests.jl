@@ -26,6 +26,13 @@ mila = MultiIndexLazyArray(T, f, (nx,), (nv,))
 @test mila[nx,1] == _parent[nx,1]
 @test mila[nx,nv] == _parent[nx,nv]
 
+@test length(mila) == nx*nv
+
+@test size(mila) == (nx,nv)
+@test size(mila,1) == nx
+@test size(mila,2) == nv
+
+
 
 # __parent = vec(_parent)
 

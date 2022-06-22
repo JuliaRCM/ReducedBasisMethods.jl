@@ -20,7 +20,8 @@ Base.:(==)(mila1::MultiIndexLazyArray, mila2::MultiIndexLazyArray) =
 Base.axes(mila::MultiIndexLazyArray) = mila.axes
 Base.axes(mila::MultiIndexLazyArray, i) = mila.axes[i]
 
-Base.size(mila::MultiIndexLazyArray, args...) = size(mila.parent, args...)
+Base.size(mila::MultiIndexLazyArray) = Tuple(length(ax) for ax in mila.axes)
+Base.size(mila::MultiIndexLazyArray, i) = length(mila.axes[i])
 
 
 function Base.getindex(mila::MultiIndexLazyArray{T,N}, inds::Vararg{CartesianIndex,N}) where {T,N}
