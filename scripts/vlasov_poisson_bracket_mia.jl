@@ -71,6 +71,8 @@ end
 Base.size(po::PoissonOperator) = (size(po.tensor, 1), size(po.tensor, 2))
 Base.size(po::PoissonOperator, i) = size(po)[i]
 
+Base.axes(po::PoissonOperator, i) = Base.OneTo(size(po.tensor, i))
+
 function Base.getindex(po::PoissonOperator{DT}, i::Int, j::Int) where {DT}
     @assert i ≥ 1 && i ≤ size(po, 1)
     @assert j ≥ 1 && j ≤ size(po, 2)
@@ -84,10 +86,9 @@ function Base.getindex(po::PoissonOperator{DT}, i::Int, j::Int) where {DT}
     return x
 end
 
-function Base.materialize(rt::PoissonOperator)
-    [ rt[i,j] for i in 1:size(rt,1), j in 1:size(rt,2) ]
+function Base.materialize(rt::PoissonOperator{DT}) where {DT}
+    [ rt[i,j] for i in axes(rt,1), j in axes(rt,2) ]
 end
-
 
 
 
