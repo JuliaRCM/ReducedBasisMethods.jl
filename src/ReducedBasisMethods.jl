@@ -25,8 +25,6 @@ module ReducedBasisMethods
 
     export get_regression_αβ
 
-
-
     include("particles/poisson.jl")
 
     include("particles/time_marching.jl")
