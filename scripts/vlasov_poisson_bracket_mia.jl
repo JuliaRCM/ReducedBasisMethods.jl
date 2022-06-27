@@ -58,7 +58,6 @@ end
 
 
 
-
 struct PoissonOperator{DT, PT, HT} <: AbstractMatrix{DT}
     tensor::PT
     hamiltonian::HT
@@ -231,8 +230,7 @@ function test_arakawa()
 
 end
 
-@time test_arakawa()
-@time test_arakawa()
+# test_arakawa()
 
 
 function test_reduction()
@@ -252,9 +250,9 @@ function test_reduction()
 
     P_tens_red = ReducedTensor( P_tens, projection', projection )
 
-    P_tens_red_arr = Base.materialize(P_tens_red)
+    @time Base.materialize(P_tens_red)
+    @time Base.materialize(P_tens_red)
 
 end
 
-@time test_reduction()
-@time test_reduction()
+test_reduction()
