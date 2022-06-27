@@ -1,5 +1,6 @@
 
 using LinearAlgebra
+using MultiIndexArrays
 using OffsetArrays
 using Random
 using ReducedBasisMethods

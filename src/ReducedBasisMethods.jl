@@ -25,15 +25,6 @@ module ReducedBasisMethods
 
     export get_regression_αβ
 
-    include("gridbased/multi_index_axis.jl")
-    include("gridbased/multi_index_array.jl")
-    include("gridbased/multi_index_lazy_array.jl")
-
-    export AbstractMultiIndexArray
-    export MultiIndexAxis
-    export MultiIndexArray
-    export MultiIndexLazyArray
-
     include("particles/poisson.jl")
 
     include("particles/time_marching.jl")
