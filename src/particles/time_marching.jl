@@ -1,6 +1,6 @@
 
 using LinearAlgebra: lu, ldiv!
-using ParticleMethods: PBSpline, stiffnessmatrix, eval_deriv_PBSBasis, rhs_particles_PBSBasis
+using PoissonSolvers: PBSpline, stiffnessmatrix, eval_deriv_PBSBasis, rhs_particles_PBSBasis
 
 struct IntegratorParameters{T}
     dt::T          # time step
@@ -18,9 +18,9 @@ struct IntegratorParameters{T}
     end
 end
 
-function IntegratorParameters(ip::VPIntegratorParameters, pspace::ParameterSpace)
-    IntegratorParameters(ip.dt, ip.nₜ, ip.nₛ, ip.nₕ, ip.nₚ, length(pspace))
-end
+# function IntegratorParameters(ip::VPIntegratorParameters, pspace::ParameterSpace)
+#     IntegratorParameters(ip.dt, ip.nₜ, ip.nₛ, ip.nₕ, ip.nₚ, length(pspace))
+# end
 
 function IntegratorParameters(h5::H5DataStore, path::AbstractString = "/")
     group = h5[path]
