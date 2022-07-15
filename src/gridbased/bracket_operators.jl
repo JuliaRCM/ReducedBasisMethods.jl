@@ -60,3 +60,60 @@ function _apply_P_ϕ!(Pf::AbstractVector, f::AbstractVector, v::AbstractVector, 
        end
    end
    
+### Collision Operator
+function _apply_C!(Cf::AbstractVector, f::AbstractVector, v::AbstractVector, u::AbstractVector, ε::AbstractVector, ci, li, h₁, h₂) 
+       nx, nv = size(ci)
+       length(Cf) == length(f) == nx*nv || throw(DimensionMismatch())
+       length(v) == nv || throw(DimensionMismatch())
+       length(u) == length(ε) == nx || throw(DimensionMismatch())
+       @inbounds for ij in li
+              i,j = Tuple(ci[ij])
+              i₋ = mod1(i-1,nx); j₋ = mod1(j-1,nv); 
+              i₊ = mod1(i+1,nx); j₊ = mod1(j+1,nv)
+       
+              Cf[ij] = (ε[i] - u[i]^2) * (f[ li[i,j₋] ] - 2f[ij] + f[ li[i,j₊] ]) / h₂^2
+              Cf[ij] += ( (v[j₊] - u[i]) * f[ li[i,j₊] ] - (v[j₋] - u[i]) * f[ li[i,j₋] ] ) / (2h₂)
+       end
+   end
+
+
+function _apply_Cρ!(Cf::AbstractVector, f::AbstractVector, v::AbstractVector, ρu::AbstractVector, ρε::AbstractVector, ρ::AbstractVector, ci, li, h₁, h₂) 
+       nx, nv = size(ci)
+       length(Cf) == length(f) == nx*nv || throw(DimensionMismatch())
+       length(v) == nv || throw(DimensionMismatch())
+       length(ρu) == length(ρε) == length(ρ) == nx || throw(DimensionMismatch())
+       @inbounds for ij in li
+              i,j = Tuple(ci[ij])
+              i₋ = mod1(i-1,nx); j₋ = mod1(j-1,nv); 
+              i₊ = mod1(i+1,nx); j₊ = mod1(j+1,nv)
+       
+              Cf[ij] = (ρε[i] - ρu[i]^2 / ρ[i] ) * (f[ li[i,j₋] ] - 2f[ij] + f[ li[i,j₊] ]) / h₂^2
+              Cf[ij] += ( (ρ[i] * v[j₊] - ρu[i]) * f[ li[i,j₊] ] - (ρ[i] * v[j₋] - ρu[i]) * f[ li[i,j₋] ] ) / (2h₂)
+       end
+end
+
+function _apply_Cρ²!(Cf::AbstractVector, f::AbstractVector, v::AbstractVector, ρu::AbstractVector, ρε::AbstractVector, ρ::AbstractVector, ci, li, h₁, h₂) 
+       nx, nv = size(ci)
+       length(Cf) == length(f) == nx*nv || throw(DimensionMismatch())
+       length(v) == nv || throw(DimensionMismatch())
+       length(ρu) == length(ρε) == length(ρ) == nx || throw(DimensionMismatch())
+       @inbounds for ij in li
+              i,j = Tuple(ci[ij])
+              i₋ = mod1(i-1,nx); j₋ = mod1(j-1,nv); 
+              i₊ = mod1(i+1,nx); j₊ = mod1(j+1,nv)
+       
+              Cf[ij] = (ρ[i] * ρε[i] - ρu[i]^2) * (f[ li[i,j₋] ] - 2f[ij] + f[ li[i,j₊] ]) / h₂^2
+              Cf[ij] += ρ[i] * ( (ρ[i] * v[j₊] - ρu[i]) * f[ li[i,j₊] ] - (ρ[i] * v[j₋] - ρu[i]) * f[ li[i,j₋] ] ) / (2h₂)
+       end
+end
+
+function _apply_Δᵥ!(Cf::AbstractVector, f::AbstractVector, ci, li, h₁, h₂) 
+       nx, nv = size(ci)
+       length(Cf) == length(f) == nx*nv || throw(DimensionMismatch())
+       @inbounds for ij in li
+              i,j = Tuple(ci[ij])
+              i₋ = mod1(i-1,nx); j₋ = mod1(j-1,nv); 
+              i₊ = mod1(i+1,nx); j₊ = mod1(j+1,nv)
+              Cf[ij] = (f[ li[i,j₋] ] - 2f[ij] + f[ li[i,j₊] ]) / h₂^2
+       end
+end
