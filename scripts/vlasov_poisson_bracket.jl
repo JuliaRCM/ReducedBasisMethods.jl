@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-
 using LinearAlgebra
 using OffsetArrays
 #using ReducedBasisMethods
@@ -65,6 +63,7 @@ function multiindex(i, nx, nv)
     @assert i ≥ 1 && i ≤ nx*nv
     CartesianIndex(mod1(i, nx), div(i-1, nx) + 1)
 end
+
 
 
 function Base.getindex(pt::PoissonTensor, I::CartesianIndex, J::CartesianIndex, K::CartesianIndex)
@@ -395,8 +394,6 @@ end
 
 #function Base.materialize(rt::VelocityReducedMatrix)
 #    [ rt[i,j] for i in 1:size(rt,1), j in 1:size(rt,2) ]
-#end
-=======
 using Random, ReducedBasisMethods
 
 Random.seed!(123)
@@ -429,4 +426,4 @@ Random.seed!(123)
 
     P̃₁ = PotentialReducedTensor(P, Ψf, Ψf, Ψϕ)
     P̃₂ = VelocityReducedMatrix(P, Ψf, Ψf, v)
->>>>>>> 8e72e70 (update notebook)
+#end
