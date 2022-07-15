@@ -12,5 +12,5 @@ using Random
 
     include("poisson_test.jl")
     include("bracket_operators_test.jl")
-    include("tensors_test.jl")
+    #include("tensors_test.jl")
 end
