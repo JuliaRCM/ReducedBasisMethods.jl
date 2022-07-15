@@ -1,4 +1,4 @@
-using LinearAlgebra
+
 using OffsetArrays
 #using ReducedBasisMethods
 #using Test
@@ -39,6 +39,7 @@ function _stencil_indices(i::Int, w::Int, nx, nv)
 end
 
 ### Poisson Tensor (used with h)
+# A N × N × N tensor that discretizes the weak form of the Arakawa bracket g[f,h]
 
 struct PoissonTensor{DT,FT}
     nx::Int
@@ -52,18 +53,6 @@ end
 
 Base.size(pt::PoissonTensor) = tuple(pt.nx * pt.nv * ones(Int,3)...)
 Base.size(pt::PoissonTensor, i) = i ≥ 1 && i ≤ 3 ? pt.nx * pt.nv : 1
-Base.axes(pt::PoissonTensor, i) = Base.OneTo(size(pt, i))
-
-function Base.isvalid(I::CartesianIndex, nx, nv)
-    I[1] ≥ 1 && I[1] ≤ nx &&
-    I[2] ≥ 1 && I[2] ≤ nv
-end
-
-function multiindex(i, nx, nv)
-    @assert i ≥ 1 && i ≤ nx*nv
-    CartesianIndex(mod1(i, nx), div(i-1, nx) + 1)
-end
-
 
 
 function Base.getindex(pt::PoissonTensor, I::CartesianIndex, J::CartesianIndex, K::CartesianIndex)
@@ -87,6 +76,7 @@ function Base.materialize(rt::PoissonTensor)
 end
 
 ### Reduced Tensor (using with full h)
+# A m × m × N tensor where the first two indices are reduced with projection matrices
 
 struct ReducedTensor{DT, PT <: PoissonTensor{DT}, PM1, PM2} <: AbstractArray{DT,3}
     tensor::PT
@@ -111,7 +101,7 @@ function Base.getindex(rt::ReducedTensor{DT}, i::Int, j::Int, k::Int) where {DT}
 
     local x = zero(DT)
 
-    nk = _stencil_indices(k, 1, rt.tensor.nx, rt.tensor.nv)
+    nk = _stencil_indices(k, 1, _nx(rt), _nv(rt))
     
     for m in nk
         for n in nk
@@ -122,53 +112,14 @@ function Base.getindex(rt::ReducedTensor{DT}, i::Int, j::Int, k::Int) where {DT}
     return x
 end
 
-### Fully reduced Tensor (used with reduced h)
-#=
-struct FullyReducedTensor{DT, PT <: PoissonTensor{DT}, PM1, PM2, PM3} <: AbstractArray{DT,3}
-    tensor::PT
-    projection_i::PM1
-    projection_j::PM2
-    projection_k::PM2
-
-    function FullyReducedTensor(tensor::PoissonTensor{DT}, Pi::PM1, Pj::PM2, Pk::PM3) where {DT, PM1, PM2, PM3}
-        @assert size(Pi, 1) == size(tensor, 1)
-        @assert size(Pj, 1) == size(tensor, 2)
-        @assert size(Pk, 1) == size(tensor, 3)
-        new{DT, typeof(tensor), PM1, PM2, PM3}(tensor, Pi, Pj, Pk)
-    end
-end
-
-Base.size(rt::FullyReducedTensor) = (size(rt.projection_i, 2), size(rt.projection_j, 2), size(rt.projection_k, 2))
-Base.size(rt::FullyReducedTensor, i) = size(rt)[i]
-Base.axes(rt::FullyReducedTensor, i) = OneTo(size(rt, i))
-
-function Base.getindex(rt::FullyReducedTensor{DT}, i::Int, j::Int, k::Int) where {DT}
-    @assert i ≥ 1 && i ≤ size(rt, 1)
-    @assert j ≥ 1 && j ≤ size(rt, 2)
-    @assert k ≥ 1 && k ≤ size(rt, 3)
-
-    local x = zero(DT)
-    
-    for l in 1:size(rt.tensor, 3)
-        nl = _stencil_indices(l, 1, rt.tensor.nx, rt.tensor.nv)
-        for n in nl
-            for m in nl
-                x += rt.tensor[m,n,l] * rt.projection_i[m,i] * rt.projection_j[n,j] * rt.projection_k[l,k]
-            end
-        end
-    end
-    
-    return x
-end
-=#
-
 ### Poisson Operator
+# weak form of the Operator f ↦ [f,h]
 
 struct PoissonOperator{DT, PT, HT} <: AbstractMatrix{DT}
     tensor::PT
     hamiltonian::HT
 
-    function PoissonOperator(tensor::Union{PoissonTensor{DT},ReducedTensor{DT}}, h::HT) where {DT, HT}
+    function PoissonOperator(tensor::PoissonTensor{DT}, h::HT) where {DT, HT}
         new{DT, typeof(tensor), HT}(tensor, h)
     end
 end
@@ -176,13 +127,22 @@ end
 Base.size(po::PoissonOperator) = (size(po.tensor, 1), size(po.tensor, 2))
 Base.size(po::PoissonOperator, i) = size(po)[i]
 
+_nx(t::PoissonTensor) = t.nx
+_nv(t::PoissonTensor) = t.nv
+
+_nx(t::PoissonOperator) = _nx(t.tensor)
+_nv(t::PoissonOperator) = _nv(t.tensor)
+
+_nx(t::ReducedTensor) = _nx(t.tensor)
+_nv(t::ReducedTensor) = _nv(t.tensor)
+
 function Base.getindex(po::PoissonOperator{DT}, i::Int, j::Int) where {DT}
     @assert i ≥ 1 && i ≤ size(po, 1)
     @assert j ≥ 1 && j ≤ size(po, 2)
 
     local x = zero(DT)
 
-    ni = _stencil_indices(i, 1, po.tensor.nx, po.tensor.nv) # neighboring indices of i
+    ni = _stencil_indices(i, 1, _nx(po), _nv(po)) # neighboring indices of i
     #nj = _stencil_indices(j, 1, po.tensor.nx, po.tensor.nv) # neighboring indices of j
 
     @inbounds for k in ni
@@ -195,7 +155,6 @@ end
 function Base.materialize(rt::PoissonOperator)
     [ rt[i,j] for i in 1:size(rt,1), j in 1:size(rt,2) ]
 end
-
 
 ### Arakawa ###
 
@@ -286,10 +245,6 @@ end
 mymod(i, n, w=1) = abs(i) ≥ n - w ? i - n * sign(i) : i
 
 function (arakawa::Arakawa{DT})(I, J, K) where {DT}
-    @assert isvalid(I, arakawa.nx, arakawa.nv)
-    @assert isvalid(J, arakawa.nx, arakawa.nv)
-    @assert isvalid(K, arakawa.nx, arakawa.nv)
-
     fi = mymod.(Tuple(J - I), (arakawa.nx, arakawa.nv))
     hi = mymod.(Tuple(K - I), (arakawa.nx, arakawa.nv))
 
@@ -302,44 +257,48 @@ function (arakawa::Arakawa{DT})(I, J, K) where {DT}
       arakawa.JCP[fi..., hi...] ) * arakawa.factor
 end
 
-### Reduced Tensor (used with full ϕ)
+### Potential Reduced Tensor
+# A m × m × m₁ tensor:
+# P̃[i,j,k] = ∑(l,m,n) P[l,m,n] Π¹[l,i] Π²[m,j] Π³[n,k]  
 
 struct PotentialReducedTensor{DT, PT <: PoissonTensor{DT}, PM1, PM2, PM3} <: AbstractArray{DT,3}
     tensor::PT
     projection_i::PM1
     projection_j::PM2
-    projection_α::PM3
+    projection_k::PM3
 
-    function PotentialReducedTensor(tensor::PoissonTensor{DT}, Pi::PM1, Pj::PM2, Pα::PM3) where {DT, PM1, PM2, PM3}
+    function PotentialReducedTensor(tensor::PoissonTensor{DT}, Pi::PM1, Pj::PM2, Pk::PM3) where {DT, PM1, PM2, PM3}
         @assert size(Pi, 1) == size(tensor, 1)
         @assert size(Pj, 1) == size(tensor, 2)
-        @assert size(Pα, 1) == tensor.nx
-        new{DT, typeof(tensor), PM1, PM2, PM3}(tensor, Pi, Pj, Pα)
+        @assert size(Pk, 1) == size(tensor, 3)
+        new{DT, typeof(tensor), PM1, PM2, PM3}(tensor, Pi, Pj, Pk)
     end
 end
 
-Base.size(rt::PotentialReducedTensor) = (size(rt.projection_i, 2), size(rt.projection_j, 2), size(rt.projection_α, 2))
+Base.size(rt::PotentialReducedTensor) = (size(rt.projection_i, 2), size(rt.projection_j, 2), size(rt.projection_k, 2))
 Base.size(rt::PotentialReducedTensor, i) = size(rt)[i]
 Base.axes(rt::PotentialReducedTensor, i) = Base.OneTo(size(rt, i))
 
-function Base.getindex(rt::PotentialReducedTensor{DT}, i::Int, j::Int, α::Int) where {DT}
+_nx(t::PotentialReducedTensor) = _nx(t.tensor)
+_nv(t::PotentialReducedTensor) = _nv(t.tensor)
+
+function Base.getindex(rt::PotentialReducedTensor{DT}, i::Int, j::Int, k::Int) where {DT}
     @assert i ≥ 1 && i ≤ size(rt, 1)
     @assert j ≥ 1 && j ≤ size(rt, 2)
-    @assert α ≥ 1 && α ≤ size(rt, 3)
+    @assert k ≥ 1 && k ≤ size(rt, 3)
 
-    local nx = rt.tensor.nx
-    local nv = rt.tensor.nv
+    local nx = _nx(rt)
+    local nv = _nv(rt)
 
     local r = zero(DT)
 
     # k1 here is the first index of the CartesianIndex K that describes the x,v space
 
-    for k in 1:nx*nv
-        nk = _stencil_indices(k, 1, nx, nv)
-        k1 = Tuple(multiindex(k, nx, nv))[1]
-        for m in nk
-            for n in nk
-                r += rt.tensor[m,n,k] * rt.projection_i[m,i] * rt.projection_j[n,j] * rt.projection_α[k1,α]
+    for l in 1:nx*nv
+        nl = _stencil_indices(l, 1, nx, nv)
+        for m in nl
+            for n in nl
+                r += rt.tensor[m,n,l] * rt.projection_i[m,i] * rt.projection_j[n,j] * rt.projection_k[l,k]
             end
         end
     end
@@ -352,17 +311,19 @@ end
 #end
 
 ### Velocity Reduced Matrix
+# A m × m matrix where the first two indices are reduced using a projection on the phase space modes of f and the third dimension was contarcted with v²/2
+# P̃[i,j] = ∑(l,m,(n₁,n₂)) P[l,m,n] Π¹[l,i] Π²[m,j] 1/2 v²[n₂(n)]
 
 struct VelocityReducedMatrix{DT, PT <: PoissonTensor{DT}, PM1, PM2, PV <: AbstractVector{DT}} <: AbstractArray{DT,2}
     tensor::PT
     projection_i::PM1
     projection_j::PM2
-    v::PV
+    v²::PV
 
-    function VelocityReducedMatrix(tensor::PoissonTensor{DT}, Pi::PM1, Pj::PM2, v::PV) where {DT, PM1, PM2, PV}
+    function VelocityReducedMatrix(tensor::PoissonTensor{DT}, Pi::PM1, Pj::PM2, v²::PV) where {DT, PM1, PM2, PV}
         @assert size(Pi, 1) == size(tensor, 1)
         @assert size(Pj, 1) == size(tensor, 2)
-        new{DT, typeof(tensor), PM1, PM2, PV}(tensor, Pi, Pj, v)
+        new{DT, typeof(tensor), PM1, PM2, PV}(tensor, Pi, Pj, v²)
     end
 end
 
@@ -374,17 +335,15 @@ function Base.getindex(rt::VelocityReducedMatrix{DT}, i::Int, j::Int) where {DT}
     @assert i ≥ 1 && i ≤ size(rt, 1)
     @assert j ≥ 1 && j ≤ size(rt, 2)
 
-    local nx = rt.tensor.nx
-    local nv = rt.tensor.nv
-
+    local nx = _nx(rt)
+    local nv = _nv(rt)
     local r = zero(DT)
 
     for k in 1:nx*nv
         nk = _stencil_indices(k, 1, nx, nv)
-        k2 = Tuple(multiindex(k, nx, nv))[2]
         for m in nk
             for n in nk
-                r += rt.tensor[m,n,k] * rt.projection_i[m,i] * rt.projection_j[n,j] * 0.5 * rt.v[k2]^2
+                r += rt.tensor[m,n,k] * rt.projection_i[m,i] * rt.projection_j[n,j] * rt.v²[k]
             end
         end
     end
@@ -392,38 +351,57 @@ function Base.getindex(rt::VelocityReducedMatrix{DT}, i::Int, j::Int) where {DT}
     return r
 end
 
-#function Base.materialize(rt::VelocityReducedMatrix)
-#    [ rt[i,j] for i in 1:size(rt,1), j in 1:size(rt,2) ]
-using Random, ReducedBasisMethods
+_nx(t::VelocityReducedMatrix) = _nx(t.tensor)
+_nv(t::VelocityReducedMatrix) = _nv(t.tensor)
 
-Random.seed!(123)
-    n₁ = 8
-    n₂ = 12
-    n = n₁*n₂
-    x = range(0,1,length=n₁)
-    v = range(-1,1,length=n₂)
-    h₁ = x[2]-x[1]
-    h₂ = v[2]-v[1]
 
-    m = 8
-    m₁ = 3
+### Fully Reduced Tensor
+# A m × m × m₁ tensor where the first two indices are reduced using a projection on the phase space modes of f and the third on the modes of ϕ
+# P̃[i,j,k] = ∑(l,m,(n₁,n₂)) P[l,m,n] Π¹[l,i] Π²[m,j] Π³[n₁(n),k]  
 
-    ϕ̃ = rand(m₁)
-    f̃ = rand(m)
-    g̃ = rand(m)
+struct FullyReducedTensor{DT, PT <: PoissonTensor{DT}, PM1, PM2, PM3} <: AbstractArray{DT,3}
+    tensor::PT
+    projection_i::PM1
+    projection_j::PM2
+    projection_k::PM3
+    v::AbstractVector
 
-    Ψf = rand(n,m)
-    Ψϕ = rand(n₁,m₁)
+    function FullyReducedTensor(tensor::PoissonTensor{DT}, Pi::PM1, Pj::PM2, Pα::PM3, v) where {DT, PM1, PM2, PM3}
+        @assert size(Pi, 1) == size(tensor, 1)
+        @assert size(Pj, 1) == size(tensor, 2)
+        @assert size(Pk, 1) == size(tensor, 3)
+        new{DT, typeof(tensor), PM1, PM2, PM3}(tensor, Pi, Pj, Pα, v)
+    end
+end
 
-    ϕ = Ψϕ * ϕ̃
-    f = Ψf * f̃
-    g = Ψf * g̃
-    h = vec([ _ϕ + _v^2/2 for _ϕ in ϕ, _v in v ])
+Base.size(rt::FullyReducedTensor) = (size(rt.projection_i, 2), size(rt.projection_j, 2), size(rt.projection_k, 2))
+Base.size(rt::FullyReducedTensor, i) = size(rt)[i]
+Base.axes(rt::FullyReducedTensor, i) = Base.OneTo(size(rt, i))
 
-    P = PoissonTensor( Float64, n₁, n₂, Arakawa(n₁, n₂, h₁, h₂) )
-    P̃ = ReducedTensor( P, Ψf, Ψf )
-    Ph = PoissonOperator(P, h)
+_nx(t::FullyReducedTensor) = _nx(t.tensor)
+_nv(t::FullyReducedTensor) = _nv(t.tensor)
 
-    P̃₁ = PotentialReducedTensor(P, Ψf, Ψf, Ψϕ)
-    P̃₂ = VelocityReducedMatrix(P, Ψf, Ψf, v)
-#end
+function Base.getindex(rt::FullyReducedTensor{DT}, i::Int, j::Int, k::Int) where {DT}
+    @assert i ≥ 1 && i ≤ size(rt, 1)
+    @assert j ≥ 1 && j ≤ size(rt, 2)
+    @assert k ≥ 1 && k ≤ size(rt, 3)
+
+    local nx = _nx(rt)
+    local nv = _nv(rt)
+
+    local r = zero(DT)
+
+    # k1 here is the first index of the CartesianIndex K that describes the x,v space
+
+    for k in 1:nx*nv
+        nk = _stencil_indices(k, 1, nx, nv)
+        k1 = Tuple(multiindex(k, nx, nv))[1]
+        for m in nk
+            for n in nk
+                r += rt.tensor[m,n,k] * rt.projection_i[m,i] * rt.projection_j[n,j] * rt.projection_k[k,α]
+            end
+        end
+    end
+
+    return r
+end

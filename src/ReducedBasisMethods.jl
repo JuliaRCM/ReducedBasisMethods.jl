@@ -7,6 +7,7 @@ module ReducedBasisMethods
     using PoissonSolvers
     using TypedTables
     using LazyArrays
+    using OffsetArrays
 
     include("utils.jl")
 
@@ -70,5 +71,9 @@ module ReducedBasisMethods
     include("gridbased/bracket_operators.jl")
 
     export _apply_P_ϕ!, _apply_P_h!
+
+    include("gridbased/bracket_tensors.jl")
+
+    export PoissonTensor, PoissonOperator, PotentialReducedTensor, VelocityReducedMatrix, ReducedTensor, Arakawa
 
 end

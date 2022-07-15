@@ -1,6 +1,7 @@
 using LinearAlgebra
 using ReducedBasisMethods
 using Test
+using Random
 
 @testset "ReducedBasisMethods.jl" begin
     include("parameter_tests.jl")
@@ -10,5 +11,6 @@ using Test
     include("deim_test.jl")
 
     include("poisson_test.jl")
-    include("bracket_test.jl")
+    include("bracket_operators_test.jl")
+    #include("tensors_test.jl")
 end
