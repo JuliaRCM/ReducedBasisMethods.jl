@@ -1,103 +1,143 @@
 
 using HDF5
-using FastGaussQuadrature
 using LaTeXStrings
 using LinearAlgebra
-using Particles
+using PoissonSolvers
+using ParticleMethods
+using Plots
 using Random
 using ReducedBasisMethods
 using SparseArrays
 using Statistics
+using VlasovMethods
+
+using ReducedBasisMethods: read_parameters
 
 
-fpath = "../runs/BoT_Np5e4_k_010_050_np_10_T25_projections.h5"
-
-params = read_sampling_parameters(fpath)
-
-μₜᵣₐᵢₙ = h5read(fpath, "parameters/mu_train")
-
-IP = IntegratorParameters(fpath)
-
-poisson = PoissonSolverPBSplines(fpath)
-
-Ψ = h5read(fpath, "projections/Psi")
-Ψₑ = h5read(fpath, "projections/Psi_e")
-Πₑ = sparse(h5read(fpath, "projections/Pi_e"))
+function ReducedBasisMethods.IntegratorParameters(ip::VPIntegratorParameters, pspace::ParameterSpace)
+    IntegratorParameters(ip.dt, ip.nₜ, ip.nₛ, ip.nₕ, ip.nₚ, length(pspace))
+end
+# TODO: Clean up (this does not belong here!)
 
 
-# Reference draw
-P₀ = ParticleList(h5read(fpath, "initial_condition/x_0"),
-                  h5read(fpath, "initial_condition/v_0"),
-                  h5read(fpath, "initial_condition/w") )
+# HDF5 file to store training data
+runid = "BoT_Np5e4_k_010_050_np_10_T25"
+fpath = "../runs/$(runid)_projections.h5"
+fpath_test = "../runs/$(runid)_test.h5"
+fpath_out = "../runs/$(runid)_reduced.h5"
 
 
+h5open(fpath, "r") do file
+    global paramspace = ParameterSpace(file, "parameterspace")
+
+    global params = read_parameters(file, "parameters")
+
+    global integrator = IntegratorParameters(file, "integrator")
+    
+    global poisson = PoissonSolverPBSplines(file)
+
+    global rbasis = ReducedBasis(file)
+    
+    global particles = ParticleList(file, "initial_conditions")
+end
+
+# sampling parameters
 nₜₑₛₜ = 10
+# κₜₑₛₜ_ₘᵢₙ = 0.05
+# κₜₑₛₜ_ₘₐₓ = 0.35
 κₜₑₛₜ_ₘᵢₙ = 0.1
 κₜₑₛₜ_ₘₐₓ = 0.5
 
-μₜₑₛₜ = zeros(nₜₑₛₜ, 5)
-for i in 1:nₜₑₛₜ
-    μₜₑₛₜ[i,:] = [κₜₑₛₜ_ₘᵢₙ, params.ε, params.a, params.v₀, params.σ]
+# set random generator seed
+Random.seed!(1234)
+
+κₜₑₛₜ = rand(nₜₑₛₜ) .* (κₜₑₛₜ_ₘₐₓ - κₜₑₛₜ_ₘᵢₙ) .+ κₜₑₛₜ_ₘᵢₙ
+κₜₑₛₜ = κₜₑₛₜ[sortperm(κₜₑₛₜ)]
+
+χ = Parameter(:χ,  κₜₑₛₜ_ₘᵢₙ / params.κ,  κₜₑₛₜ_ₘₐₓ / params.κ,  κₜₑₛₜ ./ params.κ)
+ε = Parameter(:ε,  0.03, 0.03, 1 )    # amplitude of spatial perturbation
+a = Parameter(:a,  0.1,  0.1,  1 )    # fast particle share
+v₀= Parameter(:v₀, 4.5,  4.5,  1 )    # velocity
+σ = Parameter(:σ,  0.5,  0.5,  1 )    # temperature
+
+# parameter space
+pspace = ParameterSpace(χ, ε, a, v₀, σ)
+
+# full model integrator
+IP = VPIntegratorParameters(integrator.dt, integrator.nₜ, integrator.nₛ, integrator.nₕ, integrator.nₚ)
+IC = VPIntegratorCache(IP)
+
+# test set
+TS = TrainingSet(particles, poisson, integrator.nₜ+1, params, pspace, IntegratorParameters(IP, pspace))
+SS = TS.snapshots
+
+# loop over parameter set
+for p in eachindex(pspace)
+
+    # get parameter tuple
+    lparams = merge(pspace(p), params)
+
+    # integrate particles for parameter
+    integrate_vp!(particles, poisson, lparams, IP, IC; save=true, given_phi=false)
+
+    # copy solution
+    SS.X[1,:,:,p] .= IC.X
+    SS.V[1,:,:,p] .= IC.V
+    SS.A[1,:,:,p] .= IC.A
+    SS.Φ[1,:,:,p] .= IC.Φ
+
+    # copy diagnostics
+    SS.W[:,p] .= IC.W
+    SS.K[:,p] .= IC.K
+    SS.M[:,p] .= IC.M
 end
 
-λ = 0
-for i in 1:nₜₑₛₜ
-    if nₜₑₛₜ > 1
-        μₜₑₛₜ[i,1] = rand(1)[1]*(κₜₑₛₜ_ₘₐₓ - κₜₑₛₜ_ₘᵢₙ) + κₜₑₛₜ_ₘᵢₙ
-#         μₜₑₛₜ[i,1] = (1-λ)*κₜₑₛₜ_ₘᵢₙ + λ*κₜₑₛₜ_ₘₐₓ
-#         λ += 1/(nₜₑₛₜ-1)
-    end
-end  
 
-μₜₑₛₜ = μₜₑₛₜ[sortperm(μₜₑₛₜ[:, 1]), :]
-
-
-GC.gc()
-
-
-IPₜₑₛₜ = IntegratorParameters(IP.dt, IP.nₜ, IP.nₜ+1, IP.nₕ, IP.nₚ, nₜₑₛₜ)
-ICₜₑₛₜ = IntegratorCache(IPₜₑₛₜ)
-
-
-@time Rₜₑₛₜ = ReducedBasisMethods.integrate_vp(P₀, μₜₑₛₜ, params, poisson, IPₜₑₛₜ, ICₜₑₛₜ;
-                                              given_phi = false, save = true)
-# Xₜₑₛₜ = Rₜₑₛₜ.X
-# Vₜₑₛₜ = Rₜₑₛₜ.V
-# Φₜₑₛₜ = Rₜₑₛₜ.Φ;
-
-
-Φₜₑₛₜ = copy(Rₜₑₛₜ.Φ)
-
-
-# no saving
-@time ReducedBasisMethods.integrate_vp(P₀, μₜₑₛₜ, params, poisson, IPₜₑₛₜ, ICₜₑₛₜ;
-                                        given_phi = false, save = false)
+# save testset results to HDF5
+h5open(fpath_test, "w") do file
+    h5save(file, TS)
+end
 
 
 # Reduced Model
-k = size(Ψ)[2]
+Ψₚ = rbasis.Ψₚ
+Ψₑ = rbasis.Ψₑ
+Πₑ = sparse(rbasis.Πₑ)
+kₚ = size(Ψₚ)[2]
 kₑ = size(Ψₑ)[2]
 
-RIC = ReducedIntegratorCache(IPₜₑₛₜ, k, kₑ)
+RIC = ReducedIntegratorCache(IntegratorParameters(IP, pspace), kₚ, kₑ)
+RTS = TrainingSet(particles, poisson, integrator.nₜ+1, params, pspace, IntegratorParameters(IP, pspace))
+RSS = RTS.snapshots
 
-ΨᵀPₑ = Ψ' * Ψₑ * inv(Πₑ' * Ψₑ)
-ΠₑᵀΨ = Πₑ' * Ψ
+ΨₚᵀPₑ = Ψₚ' * Ψₑ * inv(Πₑ' * Ψₑ)
+ΠₑᵀΨₚ = Πₑ' * Ψₚ
 
-@time Rᵣₘ = reduced_integrate_vp(P₀, Ψ, ΨᵀPₑ, ΠₑᵀΨ, μₜₑₛₜ, params, poisson, IPₜₑₛₜ, RIC;
+@time Rᵣₘ = reduced_integrate_vp(particles, Ψₚ, ΨₚᵀPₑ, ΠₑᵀΨₚ, pspace, params, poisson, RSS, IntegratorParameters(IP, pspace), RIC;
                                    DEIM=true, given_phi = false, save = true)
-# Xᵣₘ = Ψ * Rᵣₘ.Zₓ
-# Vᵣₘ = Ψ * Rᵣₘ.Zᵥ
-# Φᵣₘ = Rᵣₘ.Φ;
+
+# save reduced basis results to HDF5
+h5open(fpath_out, "w") do file
+    h5save(file, RTS)
+end
 
 
-# no saving
-@time reduced_integrate_vp(P₀, Ψ, ΨᵀPₑ, ΠₑᵀΨ, μₜₑₛₜ, params, poisson, IPₜₑₛₜ, RIC;
-                            DEIM=true, given_phi = false, save=false)
+# plot
+plot(xlabel = L"$n_t$", yscale = :log10, legend = :none,
+    grid = true, gridalpha = 0.5, minorgrid = true, minorgridalpha = 0.2)
+plot!(IP.t, RSS.W[:,1:5], linewidth = 2, alpha = 1)
+plot!(IP.t,  SS.W[:,1:5], linewidth = 2, alpha = 0.25)
+savefig("../runs/$(runid)_reduced_plot2.pdf")
+# TODO: Change filename to something meaningful!
+
+# plot
+plot(xlabel = L"$n_t$", yscale = :log10, legend = :none,
+    grid = true, gridalpha = 0.5, minorgrid = true, minorgridalpha = 0.2)
+plot!(IP.t, RSS.W[:,6:10], linewidth = 2, alpha = 1)
+plot!(IP.t,  SS.W[:,6:10], linewidth = 2, alpha = 0.25)
+savefig("../runs/$(runid)_reduced_plot3.pdf")
+# TODO: Change filename to something meaningful!
 
 
-# Saving
-h5save("../runs/BoT_Np5e4_k_010_050_np_10_T25_DEIM.h5", IPₜₑₛₜ, poisson, params, μₜᵣₐᵢₙ, μₜₑₛₜ, Rₜₑₛₜ, Rᵣₘ, Ψ);
-
-
-println(norm(Rᵣₘ.Φ - Φₜₑₛₜ))
-println(norm(Rₜₑₛₜ.Φ - Φₜₑₛₜ))
+# println(norm(RSS.Φ - SS.Φ))
+# println(norm(Rₜₑₛₜ.Φ - Φₜₑₛₜ))

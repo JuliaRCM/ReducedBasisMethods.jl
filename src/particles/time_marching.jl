@@ -1,6 +1,8 @@
 
-using LinearAlgebra: lu, ldiv!
+using LinearAlgebra: lu, ldiv!, norm
 using PoissonSolvers: PBSpline, stiffnessmatrix, eval_deriv_PBSBasis, rhs_particles_PBSBasis
+using ParticleMethods: ParticleList
+
 
 struct IntegratorParameters{T}
     dt::T          # time step
@@ -17,10 +19,6 @@ struct IntegratorParameters{T}
         new{T}(dt,nₜ,nₛ,nₕ,nₚ,nparam,t)
     end
 end
-
-# function IntegratorParameters(ip::VPIntegratorParameters, pspace::ParameterSpace)
-#     IntegratorParameters(ip.dt, ip.nₜ, ip.nₛ, ip.nₕ, ip.nₚ, length(pspace))
-# end
 
 function IntegratorParameters(h5::H5DataStore, path::AbstractString = "/")
     group = h5[path]
@@ -39,6 +37,18 @@ function IntegratorParameters(fpath::AbstractString, path::AbstractString = "/")
         IntegratorParameters(file, path)
     end
 end
+
+function Base.:(==)(ip1::IntegratorParameters{T1}, ip2::IntegratorParameters{T2}) where {T1,T2}
+    T1 == T2 &&
+    ip1.dt == ip2.dt &&
+    ip1.nₜ == ip2.nₜ &&
+    ip1.nₛ == ip2.nₛ &&
+    ip1.nₕ == ip2.nₕ &&
+    ip1.nₚ == ip2.nₚ &&
+    ip1.nparam == ip2.nparam &&
+    ip1.t == ip2.t
+end
+
 
 """
 save integrator parameters
@@ -87,9 +97,10 @@ function reduced_integrate_vp(P₀::ParticleList{T},
                               Ψ::Array{T},
                               ΨᵀPₑ::Array{T},      # Ψ' * Ψₑ * inv(Πₑ' * Ψₑ)
                               ΠₑᵀΨ::Array{T},    # Πₑ' * Ψ
-                              μ::Array{T},
+                              pspace::ParameterSpace,
                               params::NamedTuple,
-                              P::PoissonSolverPBSplines{T},
+                              poisson::PoissonSolverPBSplines{T},
+                              SS,
                               IP::IntegratorParameters{T},
                               IC::ReducedIntegratorCache{T} = ReducedIntegratorCache(IP,size(Pₑ)[1],size(Pₑ)[2]);
                               DEIM = true,
@@ -99,20 +110,24 @@ function reduced_integrate_vp(P₀::ParticleList{T},
 
     # K needs to already be augmented for boundary conditions
     nₜₛ = div(IP.nₜ,IP.nₛ-1)
-    nₕᵣₐₙ = 1:P.bspl.nₕ
+    nₕᵣₐₙ = 1:poisson.bspl.nₕ
 
     if given_phi
         @assert IP.nₛ == IP.nₜ + 1
     end
 
-    for p in 1:IP.nparam
-
-        χ = μ[p,1]/params.κ
-        print("running parameter nb. ", p, " with chi = ", χ, "\n")
-
+    for p in eachindex(pspace)
+    
         # initial conditions
-        IC.zₓ .= Ψ' * P₀.x;  IC.zᵥ .= Ψ' * P₀.v
-        IC.ρ₀ .= P.bspl.h
+        IC.zₓ .= Ψ' * vec(P₀.x)
+        IC.zᵥ .= Ψ' * vec(P₀.v)
+        IC.ρ₀ .= poisson.bspl.h
+        w = vec(P₀.w)
+
+        tₛ = 1
+
+        χ = pspace(p).χ
+        println("running parameter nb. ", p, " with chi = ", χ, ", and ic error = ", norm(P₀.x .- Ψ * IC.zₓ))
 
         # save initial conditions
         if save
@@ -121,17 +136,27 @@ function reduced_integrate_vp(P₀::ParticleList{T},
                 IC.ϕ .= Φₑₓₜ[:,1 + (p-1)*IP.nₛ]
             else
                 IC.x .= Ψ * IC.zₓ
-                solve!(P, IC.x, P₀.w)
-                IC.ϕ .= P.ϕ ./ χ^2
+                solve!(poisson, IC.x, w)
+                IC.ϕ .= poisson.ϕ ./ χ^2
             end
 
-            IC.Zₓ[:,1 + (p-1)*IP.nₛ] .= IC.zₓ
-            IC.Zᵥ[:,1 + (p-1)*IP.nₛ] .= IC.zᵥ
-            IC.Φ[:,1 + (p-1)*IP.nₛ] .= IC.ϕ
+            x = Ψ * IC.zₓ
+            v = Ψ * IC.zᵥ
+
+            # copy solution
+            SS.X[1,:,tₛ,p] .= x
+            SS.V[1,:,tₛ,p] .= v
+            SS.Φ[1,:,tₛ,p] .= IC.ϕ
+
+            # copy diagnostics
+            SS.W[tₛ,p] = dot(IC.ϕ, poisson.S, IC.ϕ) / 2 * χ^2
+            SS.K[tₛ,p] = dot(w .* v, v) / 2
+            SS.M[tₛ,p] = dot(w, v)
+
+            tₛ += 1            
 
         end
 
-        tₛ = 1
         for t = 1:IP.nₜ
             if save || t == 1
                 # half an advection step
@@ -143,19 +168,19 @@ function reduced_integrate_vp(P₀::ParticleList{T},
                 IC.ϕ = Φₑₓₜ[:,t + 1 + (p-1)*IP.nₛ]
             else
                 IC.x .= Ψ * IC.zₓ
-                solve!(P, IC.x, P₀.w)
-                IC.ϕ .= P.ϕ ./ χ^2
+                solve!(poisson, IC.x, w)
+                IC.ϕ .= poisson.ϕ ./ χ^2
             end
 
             # acceleration step
             if DEIM
                 IC.xₑ .= ΠₑᵀΨ * IC.zₓ
-                IC.zᵥ .+= IP.dt .* ΨᵀPₑ * eval_deriv_PBSBasis(IC.ϕ,P.bspl,IC.xₑ) .* χ
+                IC.zᵥ .+= IP.dt .* ΨᵀPₑ * eval_deriv_PBSBasis(IC.ϕ,poisson.bspl,IC.xₑ) .* χ
             else
                 if given_phi
                     IC.x .= Ψ * IC.zₓ
                 end
-                IC.zᵥ .+= IP.dt .* Ψ' * eval_deriv_PBSBasis(IC.ϕ,P.bspl,IC.x) .* χ
+                IC.zᵥ .+= IP.dt .* Ψ' * eval_deriv_PBSBasis(IC.ϕ,poisson.bspl,IC.x) .* χ
             end
 
             if save || t == IP.nₜ
@@ -167,7 +192,6 @@ function reduced_integrate_vp(P₀::ParticleList{T},
             end
 
             if save
-
                 # solve for potential
                 # if given_phi
                 #     IC.ϕ = Φₑₓₜ[:,t+1]
@@ -178,13 +202,22 @@ function reduced_integrate_vp(P₀::ParticleList{T},
                 #     IC.ϕ = K\IC.rhs ./ χ^2
                 # end
 
+                # if t%nₜₛ == 0
+                    x = Ψ * IC.zₓ
+                    v = Ψ * IC.zᵥ
+    
+                    # copy solution
+                    SS.X[1,:,tₛ,p] .= x
+                    SS.V[1,:,tₛ,p] .= v
+                    SS.Φ[1,:,tₛ,p] .= IC.ϕ
 
-                if t%nₜₛ == 0
-                    IC.Zₓ[:,tₛ + 1 + (p-1)*IP.nₛ] .= IC.zₓ
-                    IC.Zᵥ[:,tₛ + 1 + (p-1)*IP.nₛ] .= IC.zᵥ
-                    IC.Φ[:,tₛ + 1 + (p-1)*IP.nₛ] .= IC.ϕ
+                    # copy diagnostics
+                    SS.W[tₛ,p] = dot(IC.ϕ, poisson.S, IC.ϕ) / 2 * χ^2
+                    SS.K[tₛ,p] = dot(w .* v, v) / 2
+                    SS.M[tₛ,p] = dot(w, v)
+
                     tₛ += 1
-                end
+                # end
 
             end
         end

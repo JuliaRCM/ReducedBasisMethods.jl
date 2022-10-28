@@ -11,13 +11,12 @@ function find_maxima(w, n)
     return maxima
 end
 
-function get_regression_αβ(t, W, n)
+function get_regression_αβ(t, W, n, inds)
     α = zeros(axes(W,2))
     β = zeros(axes(W,2))
     for i in axes(W,2)
         m = find_maxima(W[:,i], n)
-        #!! bump on tail
-        m = m[2:5]
+        m = m[inds]
         β[i] = cov(t[m], log.(W[m,i]), corrected=false) / var(t[m], corrected=false) 
         α[i] = mean(log.(W[m,i])) - β[i]*mean(t[m])
     end

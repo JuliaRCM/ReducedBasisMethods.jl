@@ -44,7 +44,7 @@ module ReducedBasisMethods
 
     include("reducedbasis.jl")
 
-    export ReducedBasis, EVD
+    export ReducedBasis, CotangentLiftEVD, CotangentLiftSVD
 
     include("eigen.jl")
 

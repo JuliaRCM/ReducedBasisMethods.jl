@@ -1,7 +1,7 @@
 
 using HDF5
 
-import ParticleMethods.PoissonSolverPBSplines
+import PoissonSolvers.PoissonSolverPBSplines
 
 
 function _name(h5::H5DataStore)
@@ -38,7 +38,10 @@ save fixed parameters
 """
 function save_parameters(h5::H5DataStore, params::NamedTuple; path::AbstractString = "/")
     g = _create_group(h5, path)
-    g["κ"] = params.κ
+
+    for key in keys(params)
+        g[string(key)] = params[key]
+    end
 end
 
 function save_parameters(fpath::AbstractString, params::NamedTuple)
@@ -52,9 +55,11 @@ read fixed parameters
 """
 function read_parameters(h5::H5DataStore, path::AbstractString = "/")
     group = h5[path]
-    (
-        κ = read(group["κ"]),
-    )
+
+    paramkeys = Tuple(Symbol.(keys(group)))
+    paramvals = Tuple(read(group[key]) for key in keys(group))
+
+    NamedTuple{paramkeys}(paramvals)
 end
 
 function read_parameters(fpath::AbstractString)

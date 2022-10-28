@@ -23,9 +23,10 @@ The size of the basis is set as k.
 If k = 0 is given, the size is determined by the tolerance parameter as 1 - tol < (E(k) + Λ[k+1])/E(N) where E(k) is the sum of the largest k eigenvalues of the snapshot matrix.
 Returns the k largest left eigenvectors in the N × k matrix Ψ and the corresponding eigenvalues in Λ
 """
-function get_PODBasis_cotangentLiftEVD(X, V; k = 0, tolerance = 1e-4)
+function get_PODBasis_cotangentLiftEVD(X, V; k = 0, tolerance = 1e-8)
+    @assert size(X) == size(V)
+
     N, m = size(X)
-    @assert N, m == size(V)
     XVᵀXV = zeros(2m, 2m)
 
     XV = ApplyArray(hcat, X, V)
@@ -38,19 +39,19 @@ function get_PODBasis_cotangentLiftEVD(X, V; k = 0, tolerance = 1e-4)
     Eᵣ = 0
     if k == 0   # use tolerance based on ∑ᵢλᵢ
         k = 1
-        while 1 - tol > (Eᵣ + Λ[k])/E
+        while 1 - tolerance > (Eᵣ + Λ[k])/E
             Eᵣ += Λ[k]
             k+=1
         end
     end
 
     # Ψ contains the left eigenvectors of XV, which can be recovered from Σ⁻¹ XV Ω
-    Ψ = XV * Ω[:,1:k]
-    for i in 1:k
-        Ψ[:,i] ./= sqrt(abs.(Λ[i]))
-    end
+    Ψ = XV * Ω[:,1:k] * diagm( inv.(sqrt.(abs.(Λ[1:k]))) )
+    # for i in 1:k
+    #     Ψ[:,i] ./= sqrt(abs.(Λ[i]))
+    # end
 
-    return Ψ, Λ[1:k]
+    return Ψ, Λ
 end
 
 """
@@ -70,19 +71,19 @@ function get_PODBasis_EVD(S; k = 0, tolerance = 1e-4)
     Eᵣ = 0
     if k == 0   # use tolerance based on ∑ᵢλᵢ
         k = 1
-        while 1 - tol > (Eᵣ + Λ[k])/E
+        while 1 - tolerance > (Eᵣ + Λ[k])/E
             Eᵣ += Λ[k]
             k+=1
         end
     end
 
     # Ψ contains the left eigenvectors of XV, which can be recovered from Σ⁻¹ XV Ω
-    Ψ = S * Ω[:,1:k]
-    for i in 1:k
-        Ψ[:,i] ./= sqrt(abs.(Λ[i]))
-    end
+    Ψ = S * Ω[:,1:k] * diagm( inv.(sqrt.(abs.(Λ[1:k]))) )
+    # for i in 1:k
+    #     Ψ[:,i] ./= sqrt(abs.(Λ[i]))
+    # end
 
-    return Ψ, Λ[1:k]
+    return Ψ, Λ
 end
 
 #=function get_ΛΩ_particles(X, V, IP; tolerance = 1e-4, k = 0)
@@ -126,14 +127,11 @@ function ReducedBasis(alg::CotangentLiftEVD, ts::TrainingSet)
     
     # EVD
     Ψₚ, Λₚ = get_PODBasis_cotangentLiftEVD(X, V)
-    kₚ = length(Λₚ)
     Ψₑ, Λₑ = get_PODBasis_EVD(E)
-    kₑ = length(Λₑ)
     Πₑ = get_DEIM_interpolation_matrix(Ψₑ)
 
     #Λₚ, Ωₚ, kₚ, Ψₚ = get_ΛΩ_particles(X, V, IP)
     #Λₑ, Ωₑ, kₑ, Ψₑ = get_ΛΩ_efield(E)
     
-    ReducedBasis(alg, ts.parameters, ts.paramspace, ts.initconds, ts.integrator, ts.poisson, Λₚ, kₚ, Ψₚ, Λₑ, kₑ, Ψₑ, Πₑ)
+    ReducedBasis(alg, ts.parameters, ts.paramspace, ts.initconds, ts.integrator, ts.poisson, Λₚ, Ψₚ, Λₑ, Ψₑ, Πₑ)
 end
-

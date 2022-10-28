@@ -3,46 +3,67 @@ h5file  = "temp.h5"
 
 @testset "TrainingSet" begin
 
+    using ParticleMethods
+    using PoissonSolvers
+
+    dt = 1e-1
     nd = 2
-    np = 10
-    nh = 5
-    ns = 11
+    np = 100
+    nh = 10
+    nt = 10
+    p = 3
+    L = 2π
+
+    x = rand(nd, np)
+    v = rand(nd, np)
+    w = rand(1, np)
+
+    particles = ParticleList(x,v,w)
+    poisson = PoissonSolverPBSplines(p, nh, L)
 
     μ = Parameter(:μ, 0.0, 1.0, 3)
     ν = Parameter(:ν, 1.0, 1.0, 1)
     σ = Parameter(:σ, 0.0, 4.0, 2)
 
-    ps = ParameterSpace(μ, ν, σ)
+    pspace = ParameterSpace(μ, ν, σ)
 
-    X = rand(nd, np, ns, length(ps))
-    V = rand(nd, np, ns, length(ps))
-    A = rand(nd, np, ns, length(ps))
-    Φ = rand(nd, nh, ns, length(ps))
-    W = rand(ns, length(ps))
-    K = rand(ns, length(ps))
-    M = rand(ns, length(ps))
+    parameters = NamedTuple()
 
+    integrator = IntegratorParameters(dt, nt, nt+1, nh, np, length(pspace))
 
-    # ts1 = TrainingSet(ps, X, V, A, Φ, W, K, M)
+    ts1 = TrainingSet(particles, poisson, nd, nt+1, parameters, pspace, integrator)
 
+    for p in eachindex(pspace)
+        # copy solution
+        ts1.snapshots.X[:,:,:,p] .= rand(nd, np, nt+1)
+        ts1.snapshots.V[:,:,:,p] .= rand(nd, np, nt+1)
+        ts1.snapshots.A[:,:,:,p] .= rand(nd, np, nt+1)
+        ts1.snapshots.Φ[:,:,:,p] .= rand(nd, nh, nt+1)
 
-    # @test ts1.paramspace == ps
+        # copy diagnostics
+        ts1.snapshots.W[:,p] .= rand(nt+1)
+        ts1.snapshots.K[:,p] .= rand(nt+1)
+        ts1.snapshots.M[:,p] .= rand(nt+1)
+    end    
+
+    @test ts1.parameters == parameters
+    @test ts1.paramspace == pspace
+    @test ts1.initconds == particles
+    @test ts1.integrator == integrator
+    @test ts1.poisson == poisson
     
-    # @test ts1.X == X
-    # @test ts1.V == V
-    # @test ts1.A == A
-    # @test ts1.Φ == Φ
-    # @test ts1.W == W
-    # @test ts1.K == K
-    # @test ts1.M == M
-
-
     
-    # h5save(h5file, ts1; mode="w")
-    # @test isfile(h5file)
+    h5save(h5file, ts1; mode="w")
+    @test isfile(h5file)
 
-    # ts2 = h5load(TrainingSet, h5file)
-    # rm(h5file)
-    # @test ts1 == ts2
+    ts2 = h5load(TrainingSet, h5file)
+
+    @test ts1.parameters == ts2.parameters
+    @test ts1.paramspace == ts2.paramspace
+    @test ts1.initconds.list == ts2.initconds.list
+    @test ts1.snapshots == ts2.snapshots
+    @test ts1.integrator == ts2.integrator
+
+    rm(h5file)
 
 end

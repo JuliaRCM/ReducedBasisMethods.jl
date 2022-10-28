@@ -1,10 +1,21 @@
 module BumpOnTailSimulation
 
+using HDF5
 using Plots, LaTeXStrings
 using ReducedBasisMethods
-using Particles
-using Particles.BumpOnTail
+using PoissonSolvers
+using VlasovMethods
+using VlasovMethods.BumpOnTail
 using Random
+
+using ReducedBasisMethods: IntegratorParameters, ParameterSpace
+
+
+function ReducedBasisMethods.IntegratorParameters(ip::VPIntegratorParameters, pspace::ParameterSpace)
+    IntegratorParameters(ip.dt, ip.nₜ, ip.nₛ, ip.nₕ, ip.nₚ, length(pspace))
+end
+# TODO: Clean up (this does not belong here!)
+
 
 
 # HDF5 file to store training data
@@ -15,7 +26,7 @@ fpath = "../runs/$runid.h5"
 const dt = 1e-1             # timestep
 const T = 25                # final time
 const nt = Int(div(T, dt))  # nb. of timesteps
-const np = Int(5e3)         # nb. of particles
+const np = Int(1e4)         # nb. of particles
 const nh = 16               # nb. of elements
 const p = 3                 # spline degree
 
@@ -24,10 +35,12 @@ const vmin = -10
 
 # fixed parameters
 params = (
+    # κ = 0.2,    # spatial perturbation wave number
     κ = 0.3,    # spatial perturbation wave number
 )
 
 # sampling parameters
+# χ = Parameter(:χ,  0.05 / params.κ,  0.35 / params.κ,  10)
 χ = Parameter(:χ,  0.1 / params.κ,  0.5 / params.κ,  10)
 ε = Parameter(:ε,  0.03, 0.03, 1 )    # amplitude of spatial perturbation
 a = Parameter(:a,  0.1,  0.1,  1 )    # fast particle share
@@ -50,7 +63,7 @@ function run()
     # domain length
     L = 2π/params.κ
     
-        # integrator parameters
+    # integrator parameters
     IP = VPIntegratorParameters(dt, nt, nt+1, nh, np)
 
     # integrator cache
@@ -92,7 +105,9 @@ function run()
     end
 
     # save results to HDF5
-    h5save(fpath, TS)
+    h5open(fpath, "w") do file
+        h5save(file, TS)
+    end
 
     # plot
     plot(IP.t, SS.W, linewidth = 2, xlabel = L"$n_t$", yscale = :log10, legend = :none,
@@ -101,7 +116,7 @@ function run()
     # TODO: Change filename to something meaningful!
 
     #
-    α, β = get_regression_αβ(IP.t, SS.W, 2)
+    α, β = get_regression_αβ(IP.t, SS.W, 2, 2:5)
 
     #
     Wₗᵢₙ = zero(SS.W)

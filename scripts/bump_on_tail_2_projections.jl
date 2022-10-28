@@ -1,8 +1,7 @@
 
 using HDF5
-using FastGaussQuadrature
 using LaTeXStrings
-using Particles
+using LinearAlgebra
 using Plots
 using Random
 using ReducedBasisMethods
@@ -16,25 +15,34 @@ ppath = "../runs/$(runid)_projections.h5"
 
 
 # Create reduced basis using EVD
-rb = ReducedBasis(EVD(), TrainingSet(fpath))
+ts = TrainingSet(fpath)
+rb = ReducedBasis(CotangentLiftEVD(), ts)
 
-# DEIM
-@time Πₑ = deim_get_Π(rb.Ψₑ)
+println(" kₚ = ", rb.kₚ)
+println(" kₑ = ", rb.kₑ)
+println()
+
+for p in eachindex(ts.paramspace)
+    x = ts.snapshots.X[:,:,begin,p]
+    x̃ = rb.Ψₚ * (rb.Ψₚ' * vec(x))
+
+    println("$p ic error = $(norm(x .- x̃))")
+end
+
 
 # save to HDF5
 h5save(ppath, rb)
 
-
 # plot
 plot(xlabel = L"$i$", ylabel = L"$\lambda_i$", yscale = :log10, 
-     grid = true, gridalpha = 0.5)
-plot!(abs.(rb.Λₚ)[1:1000], linewidth = 2, alpha = 0.25, label = L"$X$")
-plot!(abs.(rb.Λₑ)[1:1000], linewidth = 2, alpha = 0.5,  label = L"$F$")
+     grid = true, gridalpha = 0.5, xlim = (0,Inf))
+plot!(abs.(rb.Λₚ ./ rb.Λₚ[begin])[1:minimum((100, length(rb.Λₚ)))], linewidth = 2, alpha = 0.25, label = L"$X$")
+plot!(abs.(rb.Λₑ ./ rb.Λₑ[begin])[1:minimum((100, length(rb.Λₑ)))], linewidth = 2, alpha = 0.5,  label = L"$F$")
 savefig("../runs/$(runid)_SVDs_BoT_1.pdf")
 
 # plot
-plot(xlabel = L"$i$", ylabel = L"$\lambda_i$", yscale = :log10, 
+plot(xlabel = L"$i$", ylabel = L"$\lambda_i$",# yscale = :log10, 
      grid = true, gridalpha = 0.5, legend = :none)
-plot!(abs.(rb.Λₚ), linewidth = 2, alpha = 0.25, label = L"$X_v$")
-plot!(abs.(rb.Λₑ), linewidth = 2, alpha = 0.5,  label = L"$E$")
+plot!(abs.(rb.Λₚ ./ rb.Λₚ[begin]), linewidth = 2, alpha = 0.25, label = L"$X_v$")
+plot!(abs.(rb.Λₑ ./ rb.Λₑ[begin]), linewidth = 2, alpha = 0.5,  label = L"$E$")
 savefig("../runs/$(runid)_SVDs_BoT_2.pdf")

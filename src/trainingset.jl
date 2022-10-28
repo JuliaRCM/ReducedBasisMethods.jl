@@ -17,8 +17,12 @@ function TrainingSet(DT, nd, np, nh, nt, parameters::NamedTuple, pspace::Paramet
     TrainingSet(parameters, pspace, particles, snapshots, ip, poisson)
 end
 
+function TrainingSet(particles::ParticleList{DT}, poisson::PoissonSolver{DT}, nd::Int, nt::Int, parameters::NamedTuple, pspace::ParameterSpace, ip::IntegratorParameters) where {DT}
+    TrainingSet(DT, nd, length(particles), length(poisson), nt, parameters, pspace, particles, ip, poisson)
+end
+
 function TrainingSet(particles::ParticleList{DT}, poisson::PoissonSolver{DT}, nt::Int, parameters::NamedTuple, pspace::ParameterSpace, ip::IntegratorParameters) where {DT}
-    TrainingSet(DT, 1, length(particles), length(poisson), nt, parameters, pspace, particles, ip, poisson)
+    TrainingSet(particles, poisson, 1, nt, parameters, pspace, ip)
 end
 
 Base.:(==)(ts1::TrainingSet, ts2::TrainingSet) = (
