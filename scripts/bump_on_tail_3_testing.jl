@@ -73,12 +73,16 @@ SS = TS.snapshots
 
 # loop over parameter set
 for p in eachindex(pspace)
-
-    # get parameter tuple
+    # merge parameters
     lparams = merge(pspace(p), params)
 
+    println("running high fidelity simulation for parameter nb. $p with chi = ", lparams.χ)
+
+    # create scaled Poisson solver
+    efield = ScaledPoissonField(poisson, lparams.χ)
+
     # integrate particles for parameter
-    integrate_vp!(particles, poisson, lparams, IP, IC; save=true, given_phi=false)
+    integrate_vp!(particles, efield, lparams, IP, IC; save=true)
 
     # copy solution
     SS.X[1,:,:,p] .= IC.X
@@ -92,11 +96,12 @@ for p in eachindex(pspace)
     SS.M[:,p] .= IC.M
 end
 
-
 # save testset results to HDF5
 h5open(fpath_test, "w") do file
     h5save(file, TS)
 end
+
+println()
 
 
 # Reduced Model
@@ -105,16 +110,30 @@ end
 Πₑ = sparse(rbasis.Πₑ)
 kₚ = size(Ψₚ)[2]
 kₑ = size(Ψₑ)[2]
+X₀ = Ψₚ' * vec(particles.x)
 
 RIC = ReducedIntegratorCache(IntegratorParameters(IP, pspace), kₚ, kₑ)
 RTS = TrainingSet(particles, poisson, integrator.nₜ+1, params, pspace, IntegratorParameters(IP, pspace))
 RSS = RTS.snapshots
 
-ΨₚᵀPₑ = Ψₚ' * Ψₑ * inv(Πₑ' * Ψₑ)
-ΠₑᵀΨₚ = Πₑ' * Ψₚ
+@time for p in eachindex(pspace)
+    # merge parameters
+    lparams = merge(pspace(p), params)
+    
+    println("running reduced basis simulation for parameter nb. ", p, " with chi = ", lparams.χ)
 
-@time Rᵣₘ = reduced_integrate_vp(particles, Ψₚ, ΨₚᵀPₑ, ΠₑᵀΨₚ, pspace, params, poisson, RSS, IntegratorParameters(IP, pspace), RIC;
-                                   DEIM=true, given_phi = false, save = true)
+    # create scaled Poisson solver
+    efield = ScaledPoissonField(poisson, lparams.χ)
+
+    # full Poisson solver
+    # rfield = ReducedElectricField(efield, Ψₚ, X₀)
+
+    # Poisson solver with DEIM
+    rfield = DEIMElectricField(efield, Ψₚ, Ψₑ, Πₑ, X₀)
+
+    # integrate for parameter
+    reduced_integrate_vp(particles, Ψₚ, lparams, rfield, RSS, IntegratorParameters(IP, pspace), RIC, p; save = true)
+end
 
 # save reduced basis results to HDF5
 h5open(fpath_out, "w") do file

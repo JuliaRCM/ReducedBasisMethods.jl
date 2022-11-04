@@ -85,12 +85,16 @@ function run()
 
     # loop over parameter set
     for p in eachindex(pspace)
-
         # get parameter tuple
         lparams = merge(pspace(p), params)
 
+        println("running parameter nb. $p with chi = ", lparams.χ)
+
+        # create scaled Poisson solver
+        efield = ScaledPoissonField(poisson, lparams.χ)
+
         # integrate particles for parameter
-        integrate_vp!(particles, poisson, lparams, IP, IC; save=true, given_phi=false)
+        integrate_vp!(particles, efield, lparams, IP, IC; save=true)
 
         # copy solution
         SS.X[1,:,:,p] .= IC.X

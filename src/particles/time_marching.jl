@@ -1,5 +1,5 @@
 
-using LinearAlgebra: lu, ldiv!, norm
+using LinearAlgebra: lu, ldiv!, norm, Diagonal
 using PoissonSolvers: PBSpline, stiffnessmatrix, eval_deriv_PBSBasis, rhs_particles_PBSBasis
 using ParticleMethods: ParticleList
 
@@ -66,6 +66,8 @@ end
 mutable struct ReducedIntegratorCache{T}
     zₓ::Vector{T}
     zᵥ::Vector{T}
+    zₐ::Vector{T}
+    w::Vector{T}
 
     x::Vector{T}
     xₑ::Vector{T}
@@ -82,6 +84,8 @@ end
 
 ReducedIntegratorCache(IP::IntegratorParameters{T},k::Int,kₑ::Int) where {T} = ReducedIntegratorCache(zeros(T,k), # zₓ
                                                                                 zeros(T,k), # zᵥ
+                                                                                zeros(T,k), # zₐ
+                                                                                zeros(T,IP.nₚ), # w
                                                                                 zeros(T,IP.nₚ), # x
                                                                                 zeros(T,kₑ), # xₑ
                                                                                 zeros(T,IP.nₕ), # ρ
@@ -93,135 +97,74 @@ ReducedIntegratorCache(IP::IntegratorParameters{T},k::Int,kₑ::Int) where {T} =
                                                                                 zeros(T,IP.nₕ,IP.nparam*IP.nₛ) # Φ
                                                                                 )
 
+
+function save_solution(SS, IC, Ψ, efield, w, p, t, ts, nsave, save = true)
+    if save && ts % nsave == 0
+        # advance time step index
+        ts = ts+1
+
+        # create views
+        x = @view SS.X[1,:,ts,p]
+        v = @view SS.V[1,:,ts,p]
+
+        # reconstruct high fidelity solution
+        mul!(x, Ψ, IC.zₓ)
+        mul!(v, Ψ, IC.zᵥ)
+        
+        # solve for potential and copy efield coefficients
+        update!(efield, IC.zₓ, w, t)
+        SS.Φ[1,:,ts,p] .= coefficients(efield)
+
+        # diagnostics
+        SS.W[ts,p] = energy(efield)
+        SS.K[ts,p] = dot(v, Diagonal(w), v) / 2
+        SS.M[ts,p] = dot(w, v)
+    end
+
+    return ts
+end
+
+                                                                                
 function reduced_integrate_vp(P₀::ParticleList{T},
                               Ψ::Array{T},
-                              ΨᵀPₑ::Array{T},      # Ψ' * Ψₑ * inv(Πₑ' * Ψₑ)
-                              ΠₑᵀΨ::Array{T},    # Πₑ' * Ψ
-                              pspace::ParameterSpace,
                               params::NamedTuple,
-                              poisson::PoissonSolverPBSplines{T},
-                              SS,
+                              efield::ReducedElectricField,
+                              SS, #::Snapshots,
                               IP::IntegratorParameters{T},
-                              IC::ReducedIntegratorCache{T} = ReducedIntegratorCache(IP,size(Pₑ)[1],size(Pₑ)[2]);
-                              DEIM = true,
-                              given_phi = false,
-                              Φₑₓₜ::Array{T} = zeros(T,IP.nₕ,IP.nparam*IP.nₛ),
+                              IC::ReducedIntegratorCache{T},
+                              p;
                               save = true) where {T}
 
     # K needs to already be augmented for boundary conditions
-    nₜₛ = div(IP.nₜ,IP.nₛ-1)
-    nₕᵣₐₙ = 1:poisson.bspl.nₕ
+    nsave = div(IP.nₜ,IP.nₛ-1)
 
-    if given_phi
-        @assert IP.nₛ == IP.nₜ + 1
+    # initial conditions
+    IC.zₓ .= Ψ' * vec(P₀.x)
+    IC.zᵥ .= Ψ' * vec(P₀.v)
+    IC.w .= vec(P₀.w)
+
+    # effective timestep
+    Δt = IP.dt * params.χ
+
+    # save initial conditions
+    ts = save_solution(SS, IC, Ψ, efield, IC.w, p, 0.0, 0, nsave, save)
+
+    for it in 1:IP.nₜ
+        # compute time
+        t = it * IP.dt
+        
+        # half an advection step
+        IC.zₓ .+= 0.5 .* Δt .* IC.zᵥ
+
+        # evaluate electric field
+        efield(IC.zₐ, IC.zₓ, IC.w, t)
+
+        # acceleration step
+        IC.zᵥ .+= Δt .* IC.zₐ
+
+        # half an advection step
+        IC.zₓ .+= 0.5 .* Δt .* IC.zᵥ
+
+        ts = save_solution(SS, IC, Ψ, efield, IC.w, p, t, ts, nsave, save)
     end
-
-    for p in eachindex(pspace)
-    
-        # initial conditions
-        IC.zₓ .= Ψ' * vec(P₀.x)
-        IC.zᵥ .= Ψ' * vec(P₀.v)
-        IC.ρ₀ .= poisson.bspl.h
-        w = vec(P₀.w)
-
-        tₛ = 1
-
-        χ = pspace(p).χ
-        println("running parameter nb. ", p, " with chi = ", χ, ", and ic error = ", norm(P₀.x .- Ψ * IC.zₓ))
-
-        # save initial conditions
-        if save
-            # solve for potential
-            if given_phi
-                IC.ϕ .= Φₑₓₜ[:,1 + (p-1)*IP.nₛ]
-            else
-                IC.x .= Ψ * IC.zₓ
-                solve!(poisson, IC.x, w)
-                IC.ϕ .= poisson.ϕ ./ χ^2
-            end
-
-            x = Ψ * IC.zₓ
-            v = Ψ * IC.zᵥ
-
-            # copy solution
-            SS.X[1,:,tₛ,p] .= x
-            SS.V[1,:,tₛ,p] .= v
-            SS.Φ[1,:,tₛ,p] .= IC.ϕ
-
-            # copy diagnostics
-            SS.W[tₛ,p] = dot(IC.ϕ, poisson.S, IC.ϕ) / 2 * χ^2
-            SS.K[tₛ,p] = dot(w .* v, v) / 2
-            SS.M[tₛ,p] = dot(w, v)
-
-            tₛ += 1            
-
-        end
-
-        for t = 1:IP.nₜ
-            if save || t == 1
-                # half an advection step
-                IC.zₓ .+= 0.5 * IP.dt * IC.zᵥ * χ
-            end
-
-            # solve for potential
-            if given_phi
-                IC.ϕ = Φₑₓₜ[:,t + 1 + (p-1)*IP.nₛ]
-            else
-                IC.x .= Ψ * IC.zₓ
-                solve!(poisson, IC.x, w)
-                IC.ϕ .= poisson.ϕ ./ χ^2
-            end
-
-            # acceleration step
-            if DEIM
-                IC.xₑ .= ΠₑᵀΨ * IC.zₓ
-                IC.zᵥ .+= IP.dt .* ΨᵀPₑ * eval_deriv_PBSBasis(IC.ϕ,poisson.bspl,IC.xₑ) .* χ
-            else
-                if given_phi
-                    IC.x .= Ψ * IC.zₓ
-                end
-                IC.zᵥ .+= IP.dt .* Ψ' * eval_deriv_PBSBasis(IC.ϕ,poisson.bspl,IC.x) .* χ
-            end
-
-            if save || t == IP.nₜ
-                # half an advection step
-                IC.zₓ .+= 0.5 .* IP.dt .* IC.zᵥ .* χ
-            else
-                # full advection step
-                IC.zₓ .+= IP.dt .* IC.zᵥ .* χ
-            end
-
-            if save
-                # solve for potential
-                # if given_phi
-                #     IC.ϕ = Φₑₓₜ[:,t+1]
-                # else
-                #     IC.x .= Ψ * IC.zₓ
-                #     IC.rhs .= IC.ρ₀ .- rhs_particles_PBSBasis(IC.x,P₀.w,P.bspl,IC.rhs)
-                #     IC.rhs[S.nₕ] = 0.0
-                #     IC.ϕ = K\IC.rhs ./ χ^2
-                # end
-
-                # if t%nₜₛ == 0
-                    x = Ψ * IC.zₓ
-                    v = Ψ * IC.zᵥ
-    
-                    # copy solution
-                    SS.X[1,:,tₛ,p] .= x
-                    SS.V[1,:,tₛ,p] .= v
-                    SS.Φ[1,:,tₛ,p] .= IC.ϕ
-
-                    # copy diagnostics
-                    SS.W[tₛ,p] = dot(IC.ϕ, poisson.S, IC.ϕ) / 2 * χ^2
-                    SS.K[tₛ,p] = dot(w .* v, v) / 2
-                    SS.M[tₛ,p] = dot(w, v)
-
-                    tₛ += 1
-                # end
-
-            end
-        end
-    end
-
-    return IC
 end

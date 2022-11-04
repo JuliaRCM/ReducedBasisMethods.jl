@@ -23,10 +23,10 @@ println(" kₑ = ", rb.kₑ)
 println()
 
 for p in eachindex(ts.paramspace)
+    println("running parameter nb. $p with chi = ", ts.paramspace(p).χ)
+
     x = ts.snapshots.X[:,:,begin,p]
     x̃ = rb.Ψₚ * (rb.Ψₚ' * vec(x))
-
-    println("$p ic error = $(norm(x .- x̃))")
 end
 
 

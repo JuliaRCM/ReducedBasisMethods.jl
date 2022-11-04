@@ -3,11 +3,13 @@ module ReducedBasisMethods
     using HDF5
     using HDF5: H5DataStore
     using LinearAlgebra
+    using LazyArrays
+    using OffsetArrays
     using ParticleMethods
     using PoissonSolvers
     using TypedTables
-    using LazyArrays
-    using OffsetArrays
+    using VlasovMethods
+    using VlasovMethods: efield!, update!, energy, coefficients
 
     include("utils.jl")
 
@@ -28,6 +30,10 @@ module ReducedBasisMethods
     export get_regression_αβ
 
     include("particles/poisson.jl")
+
+    include("particles/electric_field.jl")
+
+    export ReducedElectricField, DEIMElectricField
 
     include("particles/time_marching.jl")
 
