@@ -112,7 +112,7 @@ kₚ = size(Ψₚ)[2]
 kₑ = size(Ψₑ)[2]
 X₀ = Ψₚ' * vec(particles.x)
 
-RIC = ReducedIntegratorCache(IntegratorParameters(IP, pspace), kₚ, kₑ)
+RIC = ReducedIntegratorCache(IntegratorParameters(IP, pspace), kₚ)
 RTS = TrainingSet(particles, poisson, integrator.nₜ+1, params, pspace, IntegratorParameters(IP, pspace))
 RSS = RTS.snapshots
 

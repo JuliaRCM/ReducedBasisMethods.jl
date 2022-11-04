@@ -68,35 +68,15 @@ mutable struct ReducedIntegratorCache{T}
     zᵥ::Vector{T}
     zₐ::Vector{T}
     w::Vector{T}
-
-    x::Vector{T}
-    xₑ::Vector{T}
-
-    ρ::Vector{T}
-    ρ₀::Vector{T}
-    ϕ::Vector{T}
-    rhs::Vector{T}
-
-    Zₓ::Matrix{T}
-    Zᵥ::Matrix{T}
-    Φ::Matrix{T}
 end
 
-ReducedIntegratorCache(IP::IntegratorParameters{T},k::Int,kₑ::Int) where {T} = ReducedIntegratorCache(zeros(T,k), # zₓ
-                                                                                zeros(T,k), # zᵥ
-                                                                                zeros(T,k), # zₐ
-                                                                                zeros(T,IP.nₚ), # w
-                                                                                zeros(T,IP.nₚ), # x
-                                                                                zeros(T,kₑ), # xₑ
-                                                                                zeros(T,IP.nₕ), # ρ
-                                                                                zeros(T,IP.nₕ), # ρ₀
-                                                                                zeros(T,IP.nₕ), # ϕ
-                                                                                zeros(T,IP.nₕ), # rhs
-                                                                                zeros(T,k,IP.nparam*IP.nₛ), # Zₓ
-                                                                                zeros(T,k,IP.nparam*IP.nₛ), # Zᵥ
-                                                                                zeros(T,IP.nₕ,IP.nparam*IP.nₛ) # Φ
-                                                                                )
-
+function ReducedIntegratorCache(IP::IntegratorParameters{T}, k::Int) where {T}
+    ReducedIntegratorCache(zeros(T,k), # zₓ
+                           zeros(T,k), # zᵥ
+                           zeros(T,k), # zₐ
+                           zeros(T,IP.nₚ) # w
+                          )
+end
 
 function save_solution(SS, IC, Ψ, efield, w, p, t, ts, nsave, save = true)
     if save && ts % nsave == 0
