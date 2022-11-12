@@ -27,6 +27,7 @@ VlasovMethods = "4a954452-39e6-424b-ae51-38fc4bbc42ef"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
+Distances = "0.10"
 HDF5 = "0.16"
 LaTeXStrings = "1"
 LazyArrays = "0.22"
