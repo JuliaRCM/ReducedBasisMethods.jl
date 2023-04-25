@@ -11,11 +11,11 @@ using Weave
 makedocs(;
     modules=[ReducedBasisMethods],
     authors="Tobias M. Blickhan, Michael Kraus, Tomasz M. Tyranoski",
-    repo="https://github.com/JuliaGNI/ReducedBasisMethods.jl/blob/{commit}{path}#L{line}",
+    repo="https://github.com/JuliaRCM/ReducedBasisMethods.jl/blob/{commit}{path}#L{line}",
     sitename="ReducedBasisMethods.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://juliagni.github.io/ReducedBasisMethods.jl",
+        canonical="https://juliarcm.github.io/ReducedBasisMethods.jl",
         assets=String[],
     ),
     pages=[
@@ -25,5 +25,5 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/JuliaGNI/ReducedBasisMethods.jl",
+    repo="github.com/JuliaRCM/ReducedBasisMethods.jl",
 )
