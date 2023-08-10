@@ -25,5 +25,7 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/JuliaRCM/ReducedBasisMethods.jl",
+    repo   = "github.com/JuliaRCM/ReducedBasisMethods.jl",
+    devurl = "latest",
+    devbranch = "main",
 )
