@@ -1,75 +1,74 @@
 module ReducedBasisMethods
 
-    using HDF5
-    using HDF5: H5DataStore
-    using LinearAlgebra
-    using LazyArrays
-    using OffsetArrays
-    using ParticleMethods
-    using PoissonSolvers
-    using ReducedComplexityModeling
-    using TypedTables
-    using VlasovMethods
-    
-    import VlasovMethods: efield!, update!, energy, coefficients
+using HDF5
+using HDF5: H5DataStore
+using LinearAlgebra
+using LazyArrays
+using OffsetArrays
+using ParticleMethods
+using PoissonSolvers
+using ReducedComplexityModeling
+using TypedTables
+using VlasovMethods
 
-    include("utils.jl")
+import VlasovMethods: efield!, update!, energy, coefficients
 
-    include("regression.jl")
+include("utils.jl")
 
-    export get_regression_αβ
+include("regression.jl")
 
-    include("particles/poisson.jl")
+export get_regression_αβ
 
-    include("particles/electric_field.jl")
+include("particles/poisson.jl")
 
-    export ReducedElectricField, DEIMElectricField
+include("particles/electric_field.jl")
 
-    include("particles/time_marching.jl")
+export ReducedElectricField, DEIMElectricField
 
-    export IntegratorParameters, IntegratorCache, ReducedIntegratorCache
-    export integrate_vp, reduced_integrate_vp
+include("particles/time_marching.jl")
 
-    include("particles/snapshots.jl")
+export IntegratorParameters, IntegratorCache, ReducedIntegratorCache
+export integrate_vp, reduced_integrate_vp
 
-    export Snapshots
+include("particles/snapshots.jl")
 
-    include("trainingset.jl")
+export Snapshots
 
-    export TrainingSet
+include("trainingset.jl")
 
-    include("reducedbasis.jl")
+export TrainingSet
 
-    export ReducedBasis, CotangentLiftEVD, CotangentLiftSVD
+include("reducedbasis.jl")
 
-    include("eigen.jl")
+export ReducedBasis, CotangentLiftEVD, CotangentLiftSVD
 
-    export sorteigen
+include("eigen.jl")
 
-    include("algorithms/evd.jl")
+export sorteigen
 
-    export get_PODBasis_EVD, get_PODBasis_cotangentLiftEVD
+include("algorithms/evd.jl")
 
-    include("algorithms/deim.jl")
-    
-    export get_DEIM_interpolation_matrix
+export get_PODBasis_EVD, get_PODBasis_cotangentLiftEVD
 
-    include("h5routines.jl")
+include("algorithms/deim.jl")
 
-    export h5save, h5load, read_sampling_parameters
+export get_DEIM_interpolation_matrix
 
-    
+include("h5routines.jl")
 
-    include("gridbased/poisson.jl")
+export h5save, h5load, read_sampling_parameters
 
-    export _apply_Δₓ!, _apply_Δₓ₄!, _apply_Rₓ!, _apply_∫dv!
+include("gridbased/poisson.jl")
 
-    include("gridbased/bracket_operators.jl")
+export _apply_Δₓ!, _apply_Δₓ₄!, _apply_Rₓ!, _apply_∫dv!
 
-    export _apply_P_ϕ!, _apply_P_h!
+include("gridbased/bracket_operators.jl")
 
-    include("gridbased/bracket_tensors.jl")
+export _apply_P_ϕ!, _apply_P_h!
 
-    export PoissonTensor, PoissonOperator, PotentialReducedTensor, VelocityReducedMatrix, ReducedTensor, Arakawa
+include("gridbased/bracket_tensors.jl")
+
+export PoissonTensor, PoissonOperator, PotentialReducedTensor, VelocityReducedMatrix,
+       ReducedTensor, Arakawa
 
 end

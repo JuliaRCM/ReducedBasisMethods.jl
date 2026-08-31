@@ -1,14 +1,16 @@
 
 struct Snapshots{T <: Number}
-    X::Array{T,4}
-    V::Array{T,4}
-    A::Array{T,4}
-    Φ::Array{T,4}
-    W::Array{T,2}
-    K::Array{T,2}
-    M::Array{T,2}
+    X::Array{T, 4}
+    V::Array{T, 4}
+    A::Array{T, 4}
+    Φ::Array{T, 4}
+    W::Array{T, 2}
+    K::Array{T, 2}
+    M::Array{T, 2}
 
-    function Snapshots(X::AbstractArray{T}, V::AbstractArray{T}, A::AbstractArray{T}, Φ::AbstractArray{T}, W::AbstractArray{T}, K::AbstractArray{T}, M::AbstractArray{T}) where {T}
+    function Snapshots(X::AbstractArray{T}, V::AbstractArray{T}, A::AbstractArray{T},
+            Φ::AbstractArray{T}, W::AbstractArray{T},
+            K::AbstractArray{T}, M::AbstractArray{T}) where {T}
         new{T}(X, V, A, Φ, W, K, M)
     end
 end
@@ -32,15 +34,16 @@ function Snapshots(particles::ParticleList{T}, poisson::PoissonSolver{T}, nt, ps
     Snapshots(T, 1, length(particles), length(poisson), nt, length(pspace))
 end
 
-Base.:(==)(s1::Snapshots, s2::Snapshots) = (
-                        s1.X == s2.X
-                     && s1.V == s2.V
-                     && s1.A == s2.A
-                     && s1.Φ == s2.Φ
-                     && s1.W == s2.W
-                     && s1.K == s2.K
-                     && s1.M == s2.M)
-
+function Base.:(==)(s1::Snapshots, s2::Snapshots)
+    (
+        s1.X == s2.X
+        && s1.V == s2.V
+        && s1.A == s2.A
+        && s1.Φ == s2.Φ
+        && s1.W == s2.W
+        && s1.K == s2.K
+        && s1.M == s2.M)
+end
 
 function Snapshots(h5::H5DataStore, path::AbstractString = "/")
     group = h5[path]

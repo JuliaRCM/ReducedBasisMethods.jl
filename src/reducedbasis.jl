@@ -8,8 +8,9 @@ struct CotangentLiftSVD <: ReductionAlgorithm end
 # ...
 # add parameters (e.g., k, tolerance) to structs
 
-
-struct ReducedBasis{DT <: Number, ALG <: ReductionAlgorithm, PAR <: NamedTuple, PS <: ParameterSpace, ICS <: ParticleList{DT}, IP <: IntegratorParameters, PO <: PoissonSolver}
+struct ReducedBasis{
+    DT <: Number, ALG <: ReductionAlgorithm, PAR <: NamedTuple, PS <: ParameterSpace,
+    ICS <: ParticleList{DT}, IP <: IntegratorParameters, PO <: PoissonSolver}
     algorithm::ALG
 
     parameters::PAR
@@ -28,15 +29,16 @@ struct ReducedBasis{DT <: Number, ALG <: ReductionAlgorithm, PAR <: NamedTuple, 
 
     Πₑ::Matrix{DT}
 
-    function ReducedBasis(algorithm::ALG, parameters::PAR, paramspace::PS, initconds::ICS, integrator::IP, poisson::POI,
-                          Λₚ::AbstractArray{DT}, Ψₚ::AbstractArray{DT},
-                          Λₑ::AbstractArray{DT}, Ψₑ::AbstractArray{DT},
-                          Πₑ::AbstractArray{DT}) where {DT,ALG,PAR,PS,ICS,IP,POI}
-        
-        kₚ = length(axes(Ψₚ,2))
-        kₑ = length(axes(Ψₑ,2))
+    function ReducedBasis(algorithm::ALG, parameters::PAR, paramspace::PS,
+            initconds::ICS, integrator::IP, poisson::POI,
+            Λₚ::AbstractArray{DT}, Ψₚ::AbstractArray{DT},
+            Λₑ::AbstractArray{DT}, Ψₑ::AbstractArray{DT},
+            Πₑ::AbstractArray{DT}) where {DT, ALG, PAR, PS, ICS, IP, POI}
+        kₚ = length(axes(Ψₚ, 2))
+        kₑ = length(axes(Ψₑ, 2))
 
-        new{DT,ALG,PAR,PS,ICS,IP,POI}(algorithm, parameters, paramspace, initconds, integrator, poisson, Λₚ, kₚ, Ψₚ, Λₑ, kₑ, Ψₑ, Πₑ)
+        new{DT, ALG, PAR, PS, ICS, IP, POI}(algorithm, parameters, paramspace, initconds,
+            integrator, poisson, Λₚ, kₚ, Ψₚ, Λₑ, kₑ, Ψₑ, Πₑ)
     end
 end
 
@@ -56,7 +58,8 @@ function ReducedBasis(h5::H5DataStore, path::AbstractString = "/")
     integrator = IntegratorParameters(group, "integrator")
     poisson = PoissonSolverPBSplines(group)#, "poisson")
 
-    ReducedBasis(UnspecifiedAlgorithm(), parameters, paramspace, initconds, integrator, poisson, Λₚ, Ψₚ, Λₑ, Ψₑ, Πₑ)
+    ReducedBasis(UnspecifiedAlgorithm(), parameters, paramspace,
+        initconds, integrator, poisson, Λₚ, Ψₚ, Λₑ, Ψₑ, Πₑ)
 end
 
 function ReducedBasis(fpath::AbstractString, path::AbstractString = "/")

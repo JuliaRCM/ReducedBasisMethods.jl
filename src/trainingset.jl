@@ -1,5 +1,7 @@
 
-struct TrainingSet{DT <: Number, PAR <: NamedTuple, PS <: ParameterSpace, ICS <: ParticleList{DT}, SS <: Snapshots{DT}, IP <: IntegratorParameters, PO <: PoissonSolver}
+struct TrainingSet{
+    DT <: Number, PAR <: NamedTuple, PS <: ParameterSpace, ICS <: ParticleList{DT},
+    SS <: Snapshots{DT}, IP <: IntegratorParameters, PO <: PoissonSolver}
     parameters::PAR
     paramspace::PS
     initconds::ICS
@@ -7,32 +9,46 @@ struct TrainingSet{DT <: Number, PAR <: NamedTuple, PS <: ParameterSpace, ICS <:
     integrator::IP
     poisson::PO
 
-    function TrainingSet(parameters::PAR, paramspace::PS, initconds::ICS, snapshots::SS, integrator::IP, poisson::POI) where {DT, PAR, PS, ICS <: ParticleList{DT}, SS <: Snapshots{DT}, IP, POI}
-        new{DT,PAR,PS,ICS,SS,IP,POI}(parameters, paramspace, initconds, snapshots, integrator, poisson)
+    function TrainingSet(parameters::PAR,
+            paramspace::PS,
+            initconds::ICS,
+            snapshots::SS,
+            integrator::IP,
+            poisson::POI) where {
+            DT, PAR, PS, ICS <: ParticleList{DT}, SS <: Snapshots{DT}, IP, POI}
+        new{DT, PAR, PS, ICS, SS, IP, POI}(
+            parameters, paramspace, initconds, snapshots, integrator, poisson)
     end
 end
 
-function TrainingSet(DT, nd, np, nh, nt, parameters::NamedTuple, pspace::ParameterSpace, particles::ParticleList, ip::IntegratorParameters, poisson::PoissonSolver)
+function TrainingSet(DT, nd, np, nh, nt, parameters::NamedTuple, pspace::ParameterSpace,
+        particles::ParticleList, ip::IntegratorParameters, poisson::PoissonSolver)
     snapshots = Snapshots(DT, nd, np, nh, nt, length(pspace))
     TrainingSet(parameters, pspace, particles, snapshots, ip, poisson)
 end
 
-function TrainingSet(particles::ParticleList{DT}, poisson::PoissonSolver{DT}, nd::Int, nt::Int, parameters::NamedTuple, pspace::ParameterSpace, ip::IntegratorParameters) where {DT}
-    TrainingSet(DT, nd, length(particles), length(poisson), nt, parameters, pspace, particles, ip, poisson)
+function TrainingSet(particles::ParticleList{DT}, poisson::PoissonSolver{DT},
+        nd::Int, nt::Int, parameters::NamedTuple,
+        pspace::ParameterSpace, ip::IntegratorParameters) where {DT}
+    TrainingSet(DT, nd, length(particles), length(poisson), nt,
+        parameters, pspace, particles, ip, poisson)
 end
 
-function TrainingSet(particles::ParticleList{DT}, poisson::PoissonSolver{DT}, nt::Int, parameters::NamedTuple, pspace::ParameterSpace, ip::IntegratorParameters) where {DT}
+function TrainingSet(particles::ParticleList{DT}, poisson::PoissonSolver{DT},
+        nt::Int, parameters::NamedTuple, pspace::ParameterSpace,
+        ip::IntegratorParameters) where {DT}
     TrainingSet(particles, poisson, 1, nt, parameters, pspace, ip)
 end
 
-Base.:(==)(ts1::TrainingSet, ts2::TrainingSet) = (
-                        ts1.parameters == ts2.parameters
-                     && ts1.paramspace == ts2.paramspace
-                     && ts1.initconds  == ts2.initconds
-                     && ts1.snapshots  == ts2.snapshots
-                     && ts1.integrator == ts2.integrator
-                     && ts1.poisson    == ts2.poisson)
-
+function Base.:(==)(ts1::TrainingSet, ts2::TrainingSet)
+    (
+        ts1.parameters == ts2.parameters
+        && ts1.paramspace == ts2.paramspace
+        && ts1.initconds == ts2.initconds
+        && ts1.snapshots == ts2.snapshots
+        && ts1.integrator == ts2.integrator
+        && ts1.poisson == ts2.poisson)
+end
 
 function TrainingSet(h5::H5DataStore, path::AbstractString = "/")
     group = h5[path]

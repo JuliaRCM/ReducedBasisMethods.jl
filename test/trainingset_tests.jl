@@ -1,8 +1,7 @@
 
-h5file  = "temp.h5"
+h5file = "temp.h5"
 
 @testset "TrainingSet" begin
-
     using ParticleMethods
     using PoissonSolvers
 
@@ -18,7 +17,7 @@ h5file  = "temp.h5"
     v = rand(nd, np)
     w = rand(1, np)
 
-    particles = ParticleList(x,v,w)
+    particles = ParticleList(x, v, w)
     poisson = PoissonSolverPBSplines(p, nh, L)
 
     μ = Parameter(:μ, 0.0, 1.0, 3)
@@ -35,25 +34,24 @@ h5file  = "temp.h5"
 
     for p in eachindex(pspace)
         # copy solution
-        ts1.snapshots.X[:,:,:,p] .= rand(nd, np, nt+1)
-        ts1.snapshots.V[:,:,:,p] .= rand(nd, np, nt+1)
-        ts1.snapshots.A[:,:,:,p] .= rand(nd, np, nt+1)
-        ts1.snapshots.Φ[:,:,:,p] .= rand(nd, nh, nt+1)
+        ts1.snapshots.X[:, :, :, p] .= rand(nd, np, nt+1)
+        ts1.snapshots.V[:, :, :, p] .= rand(nd, np, nt+1)
+        ts1.snapshots.A[:, :, :, p] .= rand(nd, np, nt+1)
+        ts1.snapshots.Φ[:, :, :, p] .= rand(nd, nh, nt+1)
 
         # copy diagnostics
-        ts1.snapshots.W[:,p] .= rand(nt+1)
-        ts1.snapshots.K[:,p] .= rand(nt+1)
-        ts1.snapshots.M[:,p] .= rand(nt+1)
-    end    
+        ts1.snapshots.W[:, p] .= rand(nt+1)
+        ts1.snapshots.K[:, p] .= rand(nt+1)
+        ts1.snapshots.M[:, p] .= rand(nt+1)
+    end
 
     @test ts1.parameters == parameters
     @test ts1.paramspace == pspace
     @test ts1.initconds == particles
     @test ts1.integrator == integrator
     @test ts1.poisson == poisson
-    
-    
-    h5save(h5file, ts1; mode="w")
+
+    h5save(h5file, ts1; mode = "w")
     @test isfile(h5file)
 
     ts2 = h5load(TrainingSet, h5file)
@@ -65,5 +63,4 @@ h5file  = "temp.h5"
     @test ts1.integrator == ts2.integrator
 
     rm(h5file)
-
 end

@@ -1,5 +1,5 @@
 
-function get_Ψ(S, Λ, Ω, tol, k=0)
+function get_Ψ(S, Λ, Ω, tol, k = 0)
     E = sum(Λ)
     Eᵣ = 0
     if k == 0
@@ -9,13 +9,12 @@ function get_Ψ(S, Λ, Ω, tol, k=0)
             k+=1
         end
     end
-    Ψ = S*Ω[:,1:k]
+    Ψ = S*Ω[:, 1:k]
     for i in 1:k
-        Ψ[:,i] ./= sqrt(abs.(Λ[i]))
+        Ψ[:, i] ./= sqrt(abs.(Λ[i]))
     end
     return k, Ψ
 end
-
 
 """
 Obtains an orthogonal basis based on the snapshot matrix XV = [X V] ∈ R^(N × 2m) by calculating an EVD of XV' * XV (size: 2m × 2m)
@@ -46,7 +45,7 @@ function get_PODBasis_cotangentLiftEVD(X, V; k = 0, tolerance = 1e-8)
     end
 
     # Ψ contains the left eigenvectors of XV, which can be recovered from Σ⁻¹ XV Ω
-    Ψ = XV * Ω[:,1:k] * diagm( inv.(sqrt.(abs.(Λ[1:k]))) )
+    Ψ = XV * Ω[:, 1:k] * diagm(inv.(sqrt.(abs.(Λ[1:k]))))
     # for i in 1:k
     #     Ψ[:,i] ./= sqrt(abs.(Λ[i]))
     # end
@@ -78,7 +77,7 @@ function get_PODBasis_EVD(S; k = 0, tolerance = 1e-4)
     end
 
     # Ψ contains the left eigenvectors of XV, which can be recovered from Σ⁻¹ XV Ω
-    Ψ = S * Ω[:,1:k] * diagm( inv.(sqrt.(abs.(Λ[1:k]))) )
+    Ψ = S * Ω[:, 1:k] * diagm(inv.(sqrt.(abs.(Λ[1:k]))))
     # for i in 1:k
     #     Ψ[:,i] ./= sqrt(abs.(Λ[i]))
     # end
@@ -119,12 +118,12 @@ end
 function ReducedBasis(alg::CotangentLiftEVD, ts::TrainingSet; particle_tol = 1e-8, field_tol = 1e-4)
     # read integrator parameters
     IP = ts.integrator
-    
+
     # read snapshot data
     X = reshape(ts.snapshots.X, (IP.nₚ, IP.nₛ * IP.nparam))
     V = reshape(ts.snapshots.V, (IP.nₚ, IP.nₛ * IP.nparam))
     E = reshape(ts.snapshots.A, (IP.nₚ, IP.nₛ * IP.nparam))
-    
+
     # EVD
     Ψₚ, Λₚ = get_PODBasis_cotangentLiftEVD(X, V; tolerance = particle_tol)
     Ψₑ, Λₑ = get_PODBasis_EVD(E; tolerance = field_tol)
@@ -132,6 +131,7 @@ function ReducedBasis(alg::CotangentLiftEVD, ts::TrainingSet; particle_tol = 1e-
 
     #Λₚ, Ωₚ, kₚ, Ψₚ = get_ΛΩ_particles(X, V, IP)
     #Λₑ, Ωₑ, kₑ, Ψₑ = get_ΛΩ_efield(E)
-    
-    ReducedBasis(alg, ts.parameters, ts.paramspace, ts.initconds, ts.integrator, ts.poisson, Λₚ, Ψₚ, Λₑ, Ψₑ, Πₑ)
+
+    ReducedBasis(alg, ts.parameters, ts.paramspace, ts.initconds,
+        ts.integrator, ts.poisson, Λₚ, Ψₚ, Λₑ, Ψₑ, Πₑ)
 end

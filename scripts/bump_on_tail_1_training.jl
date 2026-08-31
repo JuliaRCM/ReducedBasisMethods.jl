@@ -10,13 +10,10 @@ using Random
 
 using ReducedBasisMethods: IntegratorParameters, ParameterSpace
 
-
 function ReducedBasisMethods.IntegratorParameters(ip::VPIntegratorParameters, pspace::ParameterSpace)
     IntegratorParameters(ip.dt, ip.nₜ, ip.nₛ, ip.nₕ, ip.nₚ, length(pspace))
 end
 # TODO: Clean up (this does not belong here!)
-
-
 
 # HDF5 file to store training data
 runid = "BoT_Np5e4_k_010_050_np_10_T25"
@@ -35,26 +32,26 @@ const vmin = -10
 
 # fixed parameters
 params = (
-    # κ = 0.2,    # spatial perturbation wave number
+# κ = 0.2,    # spatial perturbation wave number
     κ = 0.3,    # spatial perturbation wave number
 )
 
 # sampling parameters
 # χ = Parameter(:χ,  0.05 / params.κ,  0.35 / params.κ,  10)
 # χ = Parameter(:χ,  0.1 / params.κ,  0.5 / params.κ,  10)
-χ = Parameter(:χ,  1.0,  1.0,  1 )
-ε = Parameter(:ε,  0.03, 0.03, 1 )    # amplitude of spatial perturbation
-a = Parameter(:a,  0.1,  0.1,  1 )    # fast particle share
-v₀= Parameter(:v₀, 4.5,  4.5,  1 )    # velocity
-σ = Parameter(:σ,  0.5,  0.5,  1 )    # temperature
+χ = Parameter(:χ, 1.0, 1.0, 1)
+ε = Parameter(:ε, 0.03, 0.03, 1)    # amplitude of spatial perturbation
+a = Parameter(:a, 0.1, 0.1, 1)    # fast particle share
+v₀ = Parameter(:v₀, 4.5, 4.5, 1)    # velocity
+σ = Parameter(:σ, 0.5, 0.5, 1)    # temperature
 
 # reference parameters
 ref_params = (
     ε = 0.03,     # amplitude of spatial perturbation
     a = 0.1,      # fast particle share
-    v₀= 4.5,      # velocity
+    v₀ = 4.5,      # velocity
     σ = 0.5,      # temperature
-    χ = 1.0,
+    χ = 1.0
 )
 
 function run()
@@ -63,13 +60,13 @@ function run()
 
     # domain length
     L = 2π/params.κ
-    
+
     # integrator parameters
     IP = VPIntegratorParameters(dt, nt, nt+1, nh, np)
 
     # integrator cache
     IC = VPIntegratorCache(IP)
-    
+
     # B-spline Poisson solver
     poisson = PoissonSolverPBSplines(p, nh, L)
 
@@ -81,7 +78,8 @@ function run()
     # particles = BumpOnTail.draw_importance_sampling(np, params)
 
     # training set
-    TS = TrainingSet(particles, poisson, nt+1, params, pspace, IntegratorParameters(IP, pspace))
+    TS = TrainingSet(
+        particles, poisson, nt+1, params, pspace, IntegratorParameters(IP, pspace))
     SS = TS.snapshots
 
     # loop over parameter set
@@ -95,18 +93,18 @@ function run()
         efield = ScaledPoissonField(poisson, lparams.χ)
 
         # integrate particles for parameter
-        integrate_vp!(particles, efield, lparams, IP, IC; save=true)
+        integrate_vp!(particles, efield, lparams, IP, IC; save = true)
 
         # copy solution
-        SS.X[1,:,:,p] .= IC.X
-        SS.V[1,:,:,p] .= IC.V
-        SS.A[1,:,:,p] .= IC.A
-        SS.Φ[1,:,:,p] .= IC.Φ
+        SS.X[1, :, :, p] .= IC.X
+        SS.V[1, :, :, p] .= IC.V
+        SS.A[1, :, :, p] .= IC.A
+        SS.Φ[1, :, :, p] .= IC.Φ
 
         # copy diagnostics
-        SS.W[:,p] .= IC.W
-        SS.K[:,p] .= IC.K
-        SS.M[:,p] .= IC.M
+        SS.W[:, p] .= IC.W
+        SS.K[:, p] .= IC.K
+        SS.M[:, p] .= IC.M
     end
 
     # save results to HDF5
@@ -125,30 +123,29 @@ function run()
 
     #
     Wₗᵢₙ = zero(SS.W)
-    for i in axes(Wₗᵢₙ,2)
-        Wₗᵢₙ[:,i] .= exp.(α[i] .+ β[i] .* IP.t)
+    for i in axes(Wₗᵢₙ, 2)
+        Wₗᵢₙ[:, i] .= exp.(α[i] .+ β[i] .* IP.t)
     end
 
     # plot
-    plot(xlabel = L"$n_t$", yscale = :log10, ylims = (1E-3,1E1), legend = :none,
+    plot(xlabel = L"$n_t$", yscale = :log10, ylims = (1E-3, 1E1), legend = :none,
         grid = true, gridalpha = 0.5, minorgrid = true, minorgridalpha = 0.2)
-    plot!(IP.t, SS.W[:,1:5], linewidth = 2, alpha = 0.25)
-    plot!(IP.t, Wₗᵢₙ[:,1:5], linewidth = 2, alpha = 0.5)
+    plot!(IP.t, SS.W[:, 1:5], linewidth = 2, alpha = 0.25)
+    plot!(IP.t, Wₗᵢₙ[:, 1:5], linewidth = 2, alpha = 0.5)
     savefig("../runs/$(runid)_plot2.pdf")
     # TODO: Change filename to something meaningful!
 
     # plot
-    plot(xlabel = L"$n_t$", yscale = :log10, ylims = (1E-3,1E1), legend = :none,
+    plot(xlabel = L"$n_t$", yscale = :log10, ylims = (1E-3, 1E1), legend = :none,
         grid = true, gridalpha = 0.5, minorgrid = true, minorgridalpha = 0.2)
-    plot!(IP.t, SS.W[:,6:10], linewidth = 2, alpha = 0.25)
-    plot!(IP.t, Wₗᵢₙ[:,6:10], linewidth = 2, alpha = 0.5)
+    plot!(IP.t, SS.W[:, 6:10], linewidth = 2, alpha = 0.25)
+    plot!(IP.t, Wₗᵢₙ[:, 6:10], linewidth = 2, alpha = 0.5)
     savefig("../runs/$(runid)_plot3.pdf")
     # TODO: Change filename to something meaningful!
 
 end
 
 end
-
 
 using .BumpOnTailSimulation
 

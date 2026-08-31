@@ -14,13 +14,11 @@ using Zygote
 
 using GeometricMachineLearning: get_batch
 
-
 # HDF5 file containing training data
 runid = "BoT_Np5e4_k_010_050_np_10_T25"
 ppath = "../runs/$(runid)_projections.h5"
 vpath = "../runs/$(runid)_vectorfield.h5"
 hpath = "../runs/$(runid)_hnn.png"
-
 
 # define some custom apply methods for Chain and Dense
 # that use Tuples for parameters instead of NamedTuples
@@ -30,13 +28,14 @@ hpath = "../runs/$(runid)_hnn.png"
 # as symbolic indexing of NamedTuples does not work when
 # computing two derivatives with Zygote
 
-@generated function Lux.applychain(layers::NamedTuple{fields}, x, ps::Tuple, st::NamedTuple{fields}) where {fields}
+@generated function Lux.applychain(
+        layers::NamedTuple{fields}, x, ps::Tuple, st::NamedTuple{fields}) where {fields}
     N = length(fields)
     x_symbols = vcat([:x], [gensym() for _ in 1:N])
     calls = [:(($(x_symbols[i + 1])) = Lux.apply(layers.$(fields[i]),
-                                                $(x_symbols[i]),
-                                                ps[$i],
-                                                st.$(fields[i]))) for i in 1:N]
+                 $(x_symbols[i]),
+                 ps[$i],
+                 st.$(fields[i]))) for i in 1:N]
     push!(calls, :(return $(x_symbols[N + 1])))
     return Expr(:block, calls...)
 end
@@ -49,20 +48,19 @@ end
     return d.activation.(ps[1] * x .+ vec(ps[2]))
 end
 
-
 # Lux initialisation methods for Float64
 
-function glorot_uniform64(rng::AbstractRNG, dims::Integer...; gain::Real=1)
+function glorot_uniform64(rng::AbstractRNG, dims::Integer...; gain::Real = 1)
     scale = Float64(gain) * sqrt(24.0 / sum(Lux._nfan(dims...)))
     return (rand(rng, Float64, dims...) .- 0.5) .* scale
 end
 
 zeros64(rng::AbstractRNG, args...; kwargs...) = zeros(rng, Float64, args...; kwargs...)
 
-
 # Plot functions for diagnostics
 
-function plot_network(H, total_loss; xmin=-1.2, xmax=+1.2, ymin=-1.2, ymax=+1.2, nsamples=100, filename=nothing)
+function plot_network(H, total_loss; xmin = -1.2, xmax = +1.2, ymin = -1.2,
+        ymax = +1.2, nsamples = 100, filename = nothing)
     # #get offset of learned Hamiltonian
     # H̃₀ = H̃([0,0])
 
@@ -78,7 +76,8 @@ function plot_network(H, total_loss; xmin=-1.2, xmax=+1.2, ymin=-1.2, ymax=+1.2,
     # plt_err = contourf(X, Y, [H̃([x,y]) - H̃₀ - H([x,y]) for x in X, y in Y])
 
     # plot total loss
-    plt_loss = plot(total_loss, xguide="n(training)", yguide="Total Loss", legend=false, size=(1000,800))
+    plt_loss = plot(total_loss, xguide = "n(training)", yguide = "Total Loss",
+        legend = false, size = (1000, 800))
 
     # l = @layout [
     #         grid(1,2)
@@ -94,12 +93,10 @@ function plot_network(H, total_loss; xmin=-1.2, xmax=+1.2, ymin=-1.2, ymax=+1.2,
     return plt_loss
 end
 
-
 # read reduced basis
 h5open(ppath, "r") do file
     global rbasis = ReducedBasis(file)
 end
-
 
 # read E field training data
 
@@ -108,12 +105,11 @@ h5open(vpath, "r") do file
     global A = read(file["A"])
 end
 
-data   = [copy(X[:,i,j]) for (i,j) in Iterators.product(axes(X,2), axes(X,3))]
-target = [copy(A[:,i,j]) for (i,j) in Iterators.product(axes(A,2), axes(A,3))]
+data = [copy(X[:, i, j]) for (i, j) in Iterators.product(axes(X, 2), axes(X, 3))]
+target = [copy(A[:, i, j]) for (i, j) in Iterators.product(axes(A, 2), axes(A, 3))]
 
 @assert length(data) == length(target)
 @assert length(data[begin]) == length(target[begin])
-
 
 # Input normalization
 
@@ -126,7 +122,6 @@ end
 
 # datanorm = [minmax_normalisation(d, Xmin, Xmax) for d in data]
 
-
 function eigenvalue_normalisation(x, λ)
     x ./ λ
 end
@@ -135,12 +130,11 @@ end
 
 datanorm = [eigenvalue_normalisation(d, Λ) for d in data]
 
-
 # set random generator seed
 Random.seed!(42)
 
 # learning rate
-const η = .0001
+const η = 0.0001
 
 # number of training runs
 const nruns = 1000
@@ -156,9 +150,9 @@ const ld = nin
 const act = tanh
 
 # create model
-model = Chain(Dense(nin, ld, act; init_weight=glorot_uniform64, init_bias=zeros64),
-              Dense(ld,  ld, act; init_weight=glorot_uniform64, init_bias=zeros64),
-              Dense(ld,  1; init_weight=glorot_uniform64, init_bias=zeros64, bias=false))
+model = Chain(Dense(nin, ld, act; init_weight = glorot_uniform64, init_bias = zeros64),
+    Dense(ld, ld, act; init_weight = glorot_uniform64, init_bias = zeros64),
+    Dense(ld, 1; init_weight = glorot_uniform64, init_bias = zeros64, bias = false))
 
 # model = Chain(Dense(nin, ld, act),
 #               Dense(ld,  ld, act),
@@ -190,11 +184,14 @@ grad_ϕ(model, x, params, state) = Zygote.gradient(ξ -> hnn(model, ξ, params, 
 loss_sing(model, x, y, params, state) = sqeuclidean(grad_ϕ(model, x, params, state), y)
 
 # total loss
-hnn_loss(model, x, y, params, state) = mapreduce(i -> loss_sing(model, x[i], y[i], params, state), +, eachindex(x,y))
+function hnn_loss(model, x, y, params, state)
+    mapreduce(i -> loss_sing(model, x[i], y[i], params, state), +, eachindex(x, y))
+end
 
 # loss gradient
-hnn_loss_gradient(model, x, y, params, state) = Zygote.gradient(p -> hnn_loss(model, x, y, p, state), params)[1]
-
+function hnn_loss_gradient(model, x, y, params, state)
+    Zygote.gradient(p -> hnn_loss(model, x, y, p, state), params)[1]
+end
 
 function train_lux_hnn(model, params, state, data, target, runs, η)
     # create array to store total loss
@@ -208,7 +205,8 @@ function train_lux_hnn(model, params, state, data, target, runs, η)
         batch_data, batch_target = get_batch(data, target, 100)
 
         # gradient step
-        params_grad = hnn_loss_gradient(model, batch_data, batch_target, params_tuple, state)
+        params_grad = hnn_loss_gradient(
+            model, batch_data, batch_target, params_tuple, state)
 
         # make gradient steps for all the model parameters W & b
         for i in eachindex(params_tuple, params_grad)
@@ -224,7 +222,6 @@ function train_lux_hnn(model, params, state, data, target, runs, η)
 
     return (model, data, target, params, state, total_loss)
 end
-
 
 println()
 println("Test output of model on initial parameters")
@@ -242,23 +239,22 @@ for i in eachindex(batch_data, batch_target)
     println()
 end
 
-
 # println()
 # println("Model parameters before training:")
 # println(ps)
 # println()
 
-model, data, target, params, state, total_loss = train_lux_hnn(model, ps, st, datanorm, target, nruns, η)
+model, data, target, params, state, total_loss = train_lux_hnn(
+    model, ps, st, datanorm, target, nruns, η)
 
 # println()
 # println("Model parameters after training:")
 # println(params)
 # println()
 
-
 # learned Hamiltonian & vector field
 hnn_est(ξ) = hnn(model, ξ, params, state)
 dhnn_est(ξ) = hnn_vf(model, ξ, params, state)
 
 # plot results
-plot_network(hnn_est, total_loss; filename=hpath)
+plot_network(hnn_est, total_loss; filename = hpath)

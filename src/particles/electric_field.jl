@@ -1,5 +1,7 @@
 
-struct ReducedElectricField{FT <: ElectricField, ΨₓT <: AbstractMatrix, ΨₚT <: AbstractMatrix, ΨₑT <: AbstractMatrix, AT <: AbstractArray} <: ElectricField
+struct ReducedElectricField{
+    FT <: ElectricField, ΨₓT <: AbstractMatrix, ΨₚT <: AbstractMatrix,
+    ΨₑT <: AbstractMatrix, AT <: AbstractArray} <: ElectricField
     field::FT
     Ψₓ::ΨₓT
     Ψₚ::ΨₑT
@@ -7,17 +9,17 @@ struct ReducedElectricField{FT <: ElectricField, ΨₓT <: AbstractMatrix, Ψₚ
     x::AT
     y::AT
     e::AT
-    
+
     function ReducedElectricField(field, Ψₓ, Ψₚ, Ψₑ, X)
         x = zero(Ψₓ * X)
         y = zero(Ψₚ * X)
         e = zero(Ψₚ * X)
-        new{typeof(field), typeof(Ψₓ), typeof(Ψₚ), typeof(Ψₑ), typeof(x)}(field, Ψₓ, Ψₚ, Ψₑ, x, y, e)
+        new{typeof(field), typeof(Ψₓ), typeof(Ψₚ), typeof(Ψₑ), typeof(x)}(
+            field, Ψₓ, Ψₚ, Ψₑ, x, y, e)
     end
 end
 
 ReducedElectricField(field, Ψ, X) = ReducedElectricField(field, Ψ, Ψ, Ψ', X)
-
 
 function VlasovMethods.update!(f::ReducedElectricField, X::AbstractArray, w::AbstractArray, t)
     mul!(f.x, f.Ψₓ, X)
@@ -33,7 +35,6 @@ end
 VlasovMethods.energy(f::ReducedElectricField) = energy(f.field)
 
 VlasovMethods.coefficients(f::ReducedElectricField) = coefficients(f.field)
-
 
 # $ \Psi_x^T \Psi_{DEIM} \nabla \phi ( \Pi_{DEIM} \Psi_x x) $
 function DEIMElectricField(field, Ψₓ, Ψₑ, Πₑ, X)

@@ -3,7 +3,6 @@ import PoissonSolvers.PoissonSolverPBSplines
 
 import ReducedComplexityModeling: _create_group
 
-
 function save_tests(fpath::String, Rtest, Rrm, Ψ)
     h5open(fpath, "w") do file
         s = create_group(file, "tests")
@@ -16,7 +15,6 @@ function save_tests(fpath::String, Rtest, Rrm, Ψ)
     end
 end
 
-
 """
 save testing parameters
 """
@@ -27,11 +25,12 @@ function save_testing_parameters(fpath::AbstractString, μₜ::Matrix)
     end
 end
 
-
 """
 save testing data
 """
-function h5save(fpath::String, IP::IntegratorParameters, P::PoissonSolverPBSplines{T}, sampling_params::NamedTuple, μtrain::Matrix{T}, μtest::Matrix{T}, Rtest, Rrm, Ψ) where {T}
+function h5save(fpath::String, IP::IntegratorParameters,
+        P::PoissonSolverPBSplines{T}, sampling_params::NamedTuple,
+        μtrain::Matrix{T}, μtest::Matrix{T}, Rtest, Rrm, Ψ) where {T}
     # create file and save test data
     save_tests(fpath, Rtest, Rrm, Ψ)
     h5save(fpath, P)

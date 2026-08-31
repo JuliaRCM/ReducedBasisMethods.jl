@@ -2,30 +2,28 @@ using ReducedBasisMethods
 using Documenter
 using Weave
 
-
 # weave("src/poisson.jmd",
 #          out_path = "src",
 #          doctype = "github")
 
-
 makedocs(;
-    modules=[ReducedBasisMethods],
-    authors="Tobias M. Blickhan, Michael Kraus, Tomasz M. Tyranoski",
-    repo="https://github.com/JuliaRCM/ReducedBasisMethods.jl/blob/{commit}{path}#L{line}",
-    sitename="ReducedBasisMethods.jl",
-    format=Documenter.HTML(;
-        prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://juliarcm.github.io/ReducedBasisMethods.jl",
-        assets=String[],
+    modules = [ReducedBasisMethods],
+    authors = "Tobias M. Blickhan, Michael Kraus, Tomasz M. Tyranoski",
+    repo = "https://github.com/JuliaRCM/ReducedBasisMethods.jl/blob/{commit}{path}#L{line}",
+    sitename = "ReducedBasisMethods.jl",
+    format = Documenter.HTML(;
+        prettyurls = get(ENV, "CI", "false") == "true",
+        canonical = "https://juliarcm.github.io/ReducedBasisMethods.jl",
+        assets = String[]
     ),
-    pages=[
+    pages = [
         "Home" => "index.md",
-        "Library" => "library.md",
-    ],
+        "Library" => "library.md"
+    ]
 )
 
 deploydocs(;
-    repo   = "github.com/JuliaRCM/ReducedBasisMethods.jl",
+    repo = "github.com/JuliaRCM/ReducedBasisMethods.jl",
     devurl = "latest",
-    devbranch = "main",
+    devbranch = "main"
 )

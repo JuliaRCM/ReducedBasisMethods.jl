@@ -1,8 +1,7 @@
 
-h5file  = "temp.h5"
+h5file = "temp.h5"
 
 @testset "ReducedBasis" begin
-
     using ParticleMethods
 
     dt = 1e-1
@@ -19,7 +18,7 @@ h5file  = "temp.h5"
     v = rand(nd, np)
     w = rand(1, np)
 
-    particles = ParticleList(x,v,w)
+    particles = ParticleList(x, v, w)
     poisson = PoissonSolverPBSplines(p, nh, L)
 
     μ = Parameter(:μ, 0.0, 1.0, 3)
@@ -32,19 +31,19 @@ h5file  = "temp.h5"
 
     integrator = IntegratorParameters(dt, nt, nt+1, nh, np, length(pspace))
 
-    rb1 = ReducedBasis(CotangentLiftEVD(), parameters, pspace, particles, integrator, poisson,
-                       rand(nr), rand(np,nr),
-                       rand(ne), rand(np,ne),
-                       rand(np,ne))
+    rb1 = ReducedBasis(
+        CotangentLiftEVD(), parameters, pspace, particles, integrator, poisson,
+        rand(nr), rand(np, nr),
+        rand(ne), rand(np, ne),
+        rand(np, ne))
 
     @test rb1.parameters == parameters
     @test rb1.paramspace == pspace
     @test rb1.initconds == particles
     @test rb1.integrator == integrator
     @test rb1.poisson == poisson
-    
-    
-    h5save(h5file, rb1; mode="w")
+
+    h5save(h5file, rb1; mode = "w")
     @test isfile(h5file)
 
     rb2 = h5load(ReducedBasis, h5file)
@@ -63,5 +62,4 @@ h5file  = "temp.h5"
     @test rb1.Πₑ == rb2.Πₑ
 
     rm(h5file)
-
 end
