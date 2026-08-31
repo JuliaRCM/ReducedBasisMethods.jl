@@ -7,23 +7,13 @@ module ReducedBasisMethods
     using OffsetArrays
     using ParticleMethods
     using PoissonSolvers
+    using ReducedComplexityModeling
     using TypedTables
     using VlasovMethods
-    using VlasovMethods: efield!, update!, energy, coefficients
+    
+    import VlasovMethods: efield!, update!, energy, coefficients
 
     include("utils.jl")
-
-    include("parameter.jl")
-
-    export Parameter, hassamples
-
-    include("parametersampler.jl")
-
-    export ParameterSampler, CartesianParameterSampler, sample
-
-    include("parameterspace.jl")
-
-    export ParameterSpace
 
     include("regression.jl")
 

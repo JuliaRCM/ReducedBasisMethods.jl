@@ -41,7 +41,8 @@ params = (
 
 # sampling parameters
 # χ = Parameter(:χ,  0.05 / params.κ,  0.35 / params.κ,  10)
-χ = Parameter(:χ,  0.1 / params.κ,  0.5 / params.κ,  10)
+# χ = Parameter(:χ,  0.1 / params.κ,  0.5 / params.κ,  10)
+χ = Parameter(:χ,  1.0,  1.0,  1 )
 ε = Parameter(:ε,  0.03, 0.03, 1 )    # amplitude of spatial perturbation
 a = Parameter(:a,  0.1,  0.1,  1 )    # fast particle share
 v₀= Parameter(:v₀, 4.5,  4.5,  1 )    # velocity
