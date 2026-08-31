@@ -21,4 +21,15 @@ written.
 
 ### Breaking Changes
 
+- **Minimum Julia is now 1.10**, raised from the declared 1.7. 1.10 is the LTS and the floor across
+  the whole tree; 1.7 was declared but never tested and would not resolve against the current
+  dependency versions. CI now derives its lower matrix entry from this field, so a declared floor
+  that nobody tests is no longer possible.
+
 ## Open Issues
+
+- **The package does not load.** `src/ReducedBasisMethods.jl:12` does `using VlasovMethods`, but
+  `VlasovMethods` appears in neither `[deps]` nor `Manifest.toml`, so loading fails immediately with
+  `ArgumentError: Package VlasovMethods not found in current path`. Adding the dependency is not on
+  its own enough: `VlasovMethods` does not currently load either, so the failure would chain.
+  Recorded 2026-08-31.
