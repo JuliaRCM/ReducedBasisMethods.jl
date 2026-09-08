@@ -19,6 +19,14 @@ written.
 
 ### Bug Fixes
 
+### Changed
+
+- `scripts/bump_on_tail_2_projections.jl` is now Unicode NFC-normalised. It stored `ẋ` as a base
+  letter plus a combining mark, inherited from macOS rather than chosen. Nothing about what the
+  script computes changes — Julia's parser normalises identifiers to NFC either way — but a `grep`
+  pattern or an editor search typed in NFC now matches it, where before it silently matched
+  nothing. No file under `src/` or `test/` was affected.
+
 ### Breaking Changes
 
 - **Minimum Julia is now 1.10**, raised from the declared 1.7. 1.10 is the LTS and the floor across

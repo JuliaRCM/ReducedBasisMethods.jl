@@ -42,18 +42,18 @@ X = ts.snapshots.X
 A = ts.snapshots.A
 
 X̃ = zeros(size(rb.Ψₚ, 2), size(X, 3), size(X, 4))
-Ã = zeros(size(rb.Ψₚ, 2), size(A, 3), size(A, 4))
+Ã = zeros(size(rb.Ψₚ, 2), size(A, 3), size(A, 4))
 
 for p in axes(A, 4)
     for it in axes(A, 3)
         X̃[:, it, p] .= rb.Ψₚ' * vec(X[:, :, it, p])
-        Ã[:, it, p] .= rb.Ψₚ' * vec(A[:, :, it, p])
+        Ã[:, it, p] .= rb.Ψₚ' * vec(A[:, :, it, p])
     end
 end
 
 h5open(vpath, "w") do file
     file["X"] = X̃
-    file["A"] = Ã
+    file["A"] = Ã
 end
 
 # plot
