@@ -21,6 +21,13 @@ written.
 
 ### Changed
 
+- **Every dependency now carries a `[compat]` bound.** `Distances`, `Optimisers`, `Statistics` and
+  `Zygote` were in `[deps]` with no entry, so the resolver was free to install any version of them,
+  including one whose interface this package does not use. They are now bounded at `0.10`, `0.4`,
+  `1` and `0.7`. `Parameters` gains `0.13` alongside `0.12`. The five bounds come from the five open
+  CompatHelper pull requests (#19, #26, #32, #33, #34), combined here into one change so that the
+  resolver sees them together rather than one at a time.
+
 - `scripts/bump_on_tail_2_projections.jl` is now Unicode NFC-normalised. It stored `Ã` as `A` plus
   a combining tilde on three lines, inherited from macOS rather than chosen. Nothing about what the
   script computes changes — Julia's parser normalises identifiers to NFC either way, and the base
