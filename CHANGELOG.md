@@ -95,6 +95,14 @@ written.
 
 ## Open Issues
 
+- **Two test files were orphaned by the split.** `test/runtests.jl` still includes
+  `poisson_test.jl` and `bracket_operators_test.jl`, but the functions they exercise left this
+  package: `_apply_∫dv!` is now in `VlasovMethods`, and `_apply_P_h!` and `_apply_P_ϕ!` are in
+  `PoissonBrackets`. Both files were left in place rather than deleted or rewritten, because
+  the tests themselves are worth keeping and belong with the code they test. Moving them is a
+  later task. The suite cannot run in any case while the package does not resolve.
+  Recorded 2026-09-17.
+
 - **The package does not resolve.** `[compat] PoissonSolvers = "0.1, 0.2, 0.3"` is stale: the
   released `PoissonSolvers` is 0.5, and `VlasovMethods` requires `0.4, 0.5`, so the two cannot
   be satisfied together and `Pkg.resolve` reports *Unsatisfiable requirements*. This predates
