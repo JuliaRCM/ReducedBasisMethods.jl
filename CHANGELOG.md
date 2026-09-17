@@ -17,6 +17,35 @@ written.
 
 ### New Features
 
+- **`reference/` is under version control.** It holds the reference implementation of *Symplectic
+  model reduction methods for the Vlasov equation* (Tyranowski & Kraus,
+  [arXiv:1910.06026](https://arxiv.org/abs/1910.06026),
+  [doi:10.1002/ctpp.202200046](https://doi.org/10.1002/ctpp.202200046)). Nine files: one generator
+  of the full-model reference data (`Vlasov_Analytic.jl`), three computing the bases — POD, PSD
+  cotangent lift, PSD complex SVD — and five solving the reduced ODE and PODE equations that use
+  them.
+
+  It had **never been committed, on any branch**, and the directory was not gitignored but simply
+  never added. It existed only as untracked files in one working tree, so nothing outside that
+  machine had it.
+
+  Committed **byte for byte as found**, deliberately: it is the baseline the rewrite is diffed
+  against, so it is worth more unmodified than tidied. The consequence for anyone staging these
+  files is that **the `pre-commit` formatter stage will reject them** — all nine fail
+  `JuliaFormatter --check` against this repository's `sciml` style. They are already
+  NFC-normalised, so that stage passes.
+
+  What it is **not**: these files do not solve the Vlasov–Poisson system. They integrate
+  `q̇ = p`, `ṗ = −β²q` against its closed-form solution, with `E(x) = β²x` in place of a Poisson
+  solve. The paper's three bases were validated on that linear model, while `scripts/` carries the
+  self-consistent model and implements only cotangent-lift EVD.
+
+  They do not run as they stand. They target a GeometricIntegrators v1.x API — `set_config`,
+  `getTableauERK4`, `create_hdf5`, `SSolutionODE` — and read and write **21 distinct hard-coded
+  absolute paths**, 42 occurrences in all, under one author's former scratch directory. Each of
+  the three projection scripts reads the same six β-run data files and writes one basis file; each
+  reduced script reads two and writes two; the generator writes one.
+
 ### Bug Fixes
 
 ### Changed
