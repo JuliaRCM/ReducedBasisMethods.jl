@@ -70,6 +70,24 @@ written.
 
 ### Breaking Changes
 
+- **The grid-based and particle-based code left this package.** `src/gridbased/` and
+  `src/particles/` are gone, and with them every name they exported. A caller who reached
+  `PoissonTensor`, `PoissonOperator` or `Arakawa` now wants `PoissonBrackets`;
+  `PotentialReducedTensor` and `VelocityReducedMatrix` are in `VlasovMethods`;
+  `_apply_Δₓ!`, `_apply_Δₓ₄!` and `_apply_Rₓ!` are in `PoissonSolvers`; `_apply_∫dv!` is in
+  `VlasovMethods`; and `multiindex`, `linearindex` and `_stencil_indices` are in
+  `MultiIndexArrays`. `_apply_P_ϕ!` and `_apply_P_h!` went to `PoissonBrackets` with the
+  bracket they apply. Nothing was rewritten on the way — **every body is byte-identical to
+  what stood here**, so the split reviews as a move.
+
+  `ReducedTensor` **stays**, now in `src/reduced_tensor.jl`. Its `PT <: PoissonTensor{DT}`
+  bound is what makes this package depend on `PoissonBrackets`: relaxing the bound without an
+  interface would break `getindex`, which reaches through to `_stencil_indices`.
+
+  `ReducedElectricField`, `DEIMElectricField`, `Snapshots`, `IntegratorParameters`,
+  `ReducedIntegratorCache` and `reduced_integrate_vp` moved to `VlasovMethods/src/particles/`
+  as files, but are **not yet reachable from there** — see *Open Issues*.
+
 - **Minimum Julia is now 1.10**, raised from the declared 1.7. 1.10 is the LTS and the floor across
   the whole tree; 1.7 was declared but never tested and would not resolve against the current
   dependency versions. CI now derives its lower matrix entry from this field, so a declared floor
@@ -77,8 +95,16 @@ written.
 
 ## Open Issues
 
-- **The package does not load.** `src/ReducedBasisMethods.jl:12` does `using VlasovMethods`, but
-  `VlasovMethods` appears in neither `[deps]` nor `Manifest.toml`, so loading fails immediately with
-  `ArgumentError: Package VlasovMethods not found in current path`. Adding the dependency is not on
-  its own enough: `VlasovMethods` does not currently load either, so the failure would chain.
-  Recorded 2026-08-31.
+- **The package does not resolve.** `[compat] PoissonSolvers = "0.1, 0.2, 0.3"` is stale: the
+  released `PoissonSolvers` is 0.5, and `VlasovMethods` requires `0.4, 0.5`, so the two cannot
+  be satisfied together and `Pkg.resolve` reports *Unsatisfiable requirements*. This predates
+  the split and is not fixed by it. `PoissonBrackets` is a second obstacle: it is unregistered,
+  so it cannot be resolved from General at all, and it declares `julia = "1.11"`, above this
+  package's declared 1.10 floor. Recorded 2026-09-17.
+
+- **The package does not load.** Recorded 2026-08-31, when the cause was a `using VlasovMethods`
+  with no matching `[deps]` entry. The split removed that line, and the cause is now the
+  unsatisfiable resolve above; past it, `src/trainingset.jl`, `src/reducedbasis.jl` and
+  `src/h5routines.jl` still name `Snapshots` and `IntegratorParameters` in type position, and
+  both definitions left for `VlasovMethods`. Restoring the load needs those two reachable
+  again, not a change here.

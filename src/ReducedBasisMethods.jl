@@ -4,35 +4,22 @@ using HDF5
 using HDF5: H5DataStore
 using LinearAlgebra
 using LazyArrays
-using OffsetArrays
+using MultiIndexArrays: _stencil_indices
 using ParticleMethods
 using PoissonSolvers
 using ReducedComplexityModeling
 using TypedTables
-using VlasovMethods
 
-import VlasovMethods: efield!, update!, energy, coefficients
+# `ReducedTensor` wraps the grid tensor that lives in PoissonBrackets, and extends the
+# `_nx`/`_nv` accessors rather than redefining them, so one generic covers both packages.
+using PoissonBrackets: PoissonTensor
+import PoissonBrackets: _nx, _nv
 
 include("utils.jl")
 
 include("regression.jl")
 
 export get_regression_αβ
-
-include("particles/poisson.jl")
-
-include("particles/electric_field.jl")
-
-export ReducedElectricField, DEIMElectricField
-
-include("particles/time_marching.jl")
-
-export IntegratorParameters, IntegratorCache, ReducedIntegratorCache
-export integrate_vp, reduced_integrate_vp
-
-include("particles/snapshots.jl")
-
-export Snapshots
 
 include("trainingset.jl")
 
@@ -58,17 +45,8 @@ include("h5routines.jl")
 
 export h5save, h5load, read_sampling_parameters
 
-include("gridbased/poisson.jl")
+include("reduced_tensor.jl")
 
-export _apply_Δₓ!, _apply_Δₓ₄!, _apply_Rₓ!, _apply_∫dv!
-
-include("gridbased/bracket_operators.jl")
-
-export _apply_P_ϕ!, _apply_P_h!
-
-include("gridbased/bracket_tensors.jl")
-
-export PoissonTensor, PoissonOperator, PotentialReducedTensor, VelocityReducedMatrix,
-       ReducedTensor, Arakawa
+export ReducedTensor
 
 end
