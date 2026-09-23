@@ -68,6 +68,10 @@ written.
   `X` or `x` has no precomposed codepoint, so NFC leaves them decomposed and the file is
   nonetheless fully normalised.
 
+- **`PoissonBrackets` is now `GeometricBrackets`.** The package was renamed upstream with its UUID
+  unchanged, so the dependency and the `using`/`import` lines follow the new name. Where an entry
+  below names `PoissonBrackets`, read `GeometricBrackets`.
+
 ### Breaking Changes
 
 - **The grid-based and particle-based code left this package.** `src/gridbased/` and

@@ -10,10 +10,10 @@ using PoissonSolvers
 using ReducedComplexityModeling
 using TypedTables
 
-# `ReducedTensor` wraps the grid tensor that lives in PoissonBrackets, and extends the
+# `ReducedTensor` wraps the grid tensor that lives in GeometricBrackets, and extends the
 # `_nx`/`_nv` accessors rather than redefining them, so one generic covers both packages.
-using PoissonBrackets: PoissonTensor
-import PoissonBrackets: _nx, _nv
+using GeometricBrackets: PoissonTensor
+import GeometricBrackets: _nx, _nv
 
 include("utils.jl")
 
