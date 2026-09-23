@@ -39,4 +39,3 @@ end
 
 _nx(t::ReducedTensor) = _nx(t.tensor)
 _nv(t::ReducedTensor) = _nv(t.tensor)
-

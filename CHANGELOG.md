@@ -68,24 +68,20 @@ written.
   `X` or `x` has no precomposed codepoint, so NFC leaves them decomposed and the file is
   nonetheless fully normalised.
 
-- **`PoissonBrackets` is now `GeometricBrackets`.** The package was renamed upstream with its UUID
-  unchanged, so the dependency and the `using`/`import` lines follow the new name. Where an entry
-  below names `PoissonBrackets`, read `GeometricBrackets`.
-
 ### Breaking Changes
 
 - **The grid-based and particle-based code left this package.** `src/gridbased/` and
   `src/particles/` are gone, and with them every name they exported. A caller who reached
-  `PoissonTensor`, `PoissonOperator` or `Arakawa` now wants `PoissonBrackets`;
+  `PoissonTensor`, `PoissonOperator` or `Arakawa` now wants `GeometricBrackets`;
   `PotentialReducedTensor` and `VelocityReducedMatrix` are in `VlasovMethods`;
   `_apply_Δₓ!`, `_apply_Δₓ₄!` and `_apply_Rₓ!` are in `PoissonSolvers`; `_apply_∫dv!` is in
   `VlasovMethods`; and `multiindex`, `linearindex` and `_stencil_indices` are in
-  `MultiIndexArrays`. `_apply_P_ϕ!` and `_apply_P_h!` went to `PoissonBrackets` with the
+  `MultiIndexArrays`. `_apply_P_ϕ!` and `_apply_P_h!` went to `GeometricBrackets` with the
   bracket they apply. Nothing was rewritten on the way — **every body is byte-identical to
   what stood here**, so the split reviews as a move.
 
   `ReducedTensor` **stays**, now in `src/reduced_tensor.jl`. Its `PT <: PoissonTensor{DT}`
-  bound is what makes this package depend on `PoissonBrackets`: relaxing the bound without an
+  bound is what makes this package depend on `GeometricBrackets`: relaxing the bound without an
   interface would break `getindex`, which reaches through to `_stencil_indices`.
 
   `ReducedElectricField`, `DEIMElectricField`, `Snapshots`, `IntegratorParameters`,
@@ -101,8 +97,8 @@ written.
 
 - **Two test files were orphaned by the split.** `test/runtests.jl` still includes
   `poisson_test.jl` and `bracket_operators_test.jl`, but the functions they exercise left this
-  package: `_apply_∫dv!` is now in `VlasovMethods`, and `_apply_P_h!` and `_apply_P_ϕ!` are in
-  `PoissonBrackets`. Both files were left in place rather than deleted or rewritten, because
+  package: `_apply_∫dv!` is now in `VlasovMethods`, `_apply_Δₓ!`, `_apply_Δₓ₄!` and `_apply_Rₓ!`
+  are in `PoissonSolvers`, and `_apply_P_h!` and `_apply_P_ϕ!` are in `GeometricBrackets`. Both files were left in place rather than deleted or rewritten, because
   the tests themselves are worth keeping and belong with the code they test. Moving them is a
   later task. The suite cannot run in any case while the package does not resolve.
   Recorded 2026-09-17.
@@ -110,7 +106,7 @@ written.
 - **The package does not resolve.** `[compat] PoissonSolvers = "0.1, 0.2, 0.3"` is stale: the
   released `PoissonSolvers` is 0.5, and `VlasovMethods` requires `0.4, 0.5`, so the two cannot
   be satisfied together and `Pkg.resolve` reports *Unsatisfiable requirements*. This predates
-  the split and is not fixed by it. `PoissonBrackets` is a second obstacle: it is unregistered,
+  the split and is not fixed by it. `GeometricBrackets` is a second obstacle: it is unregistered,
   so it cannot be resolved from General at all, and it declares `julia = "1.11"`, above this
   package's declared 1.10 floor. Recorded 2026-09-17.
 
