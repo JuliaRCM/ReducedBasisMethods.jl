@@ -3,19 +3,11 @@ using TOML
 
 @testset "Generic-only skeleton" begin
     project = TOML.parsefile(joinpath(pkgdir(ReducedBasisMethods), "Project.toml"))
-    deps = keys(project["deps"])
 
-    # no model package, and no integrator, in [deps]
-    for name in ("VlasovMethods", "ParticleMethods", "PoissonSolvers",
-        "GeometricIntegrators", "GeometricIntegratorsBase")
-        @test name ∉ deps
-    end
-
-    # none of the ten unused [deps]
-    for name in ("TypedTables", "Optimisers", "Zygote", "LinearMaps", "RecursiveArrayTools",
-        "Plots", "Distances", "LaTeXStrings", "Parameters", "Random")
-        @test name ∉ deps
-    end
+    # [deps] holds only generic infrastructure: no model package, no integrator
+    permitted = ("GeometricBrackets", "GeometricEquations", "HDF5", "LazyArrays",
+        "LinearAlgebra", "MultiIndexArrays", "ReducedComplexityModeling", "Statistics")
+    @test keys(project["deps"]) ⊆ permitted
 
     # the integrator is a test-only dependency
     @test haskey(project["extras"], "GeometricIntegratorsBase")
