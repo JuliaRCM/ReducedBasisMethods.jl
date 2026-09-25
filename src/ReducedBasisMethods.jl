@@ -6,8 +6,8 @@ using LinearAlgebra
 using LazyArrays
 using MultiIndexArrays: _stencil_indices
 using ReducedComplexityModeling
-using ReducedComplexityModeling: read_parameters, save_parameters
-import ReducedComplexityModeling: h5save, h5load, _create_group
+using ReducedComplexityModeling: read_parameters, save_parameters, _create_group
+import ReducedComplexityModeling: h5save, h5load
 
 # `ReducedTensor` wraps the grid tensor that lives in GeometricBrackets, and extends the
 # `_nx`/`_nv` accessors rather than redefining them, so one generic covers both packages.

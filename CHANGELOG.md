@@ -48,6 +48,11 @@ written.
 
 ### Bug Fixes
 
+- **`ReducedTensor` now follows the `AbstractArray` convention for out-of-bounds dimensions.** Dimensions
+  beyond the first three now return `1` for `size(rt, i)` and `Base.OneTo(1)` for `axes(rt, i)`,
+  aligning with standard Julia array behavior. Previously these raised `BoundsError`. This fixes
+  code patterns that work with generic `AbstractArray` interfaces.
+
 ### Changed
 
 - **`[deps]` is now generic infrastructure only.** Removed from `[deps]`, with their `[compat]`
@@ -56,8 +61,8 @@ written.
   `RecursiveArrayTools`, `TypedTables`, `Zygote`. `GeometricBrackets` and
   `MultiIndexArrays` join `[deps]`, at `0.1.1` each, for `ReducedTensor`: they provide the
   tensor operations and index utilities it uses. The test target gains `Aqua`,
-  `GeometricIntegratorsBase`, `Random` and `TOML`, and `IterativeSolvers` leaves it. New
-  `[compat]` bounds: `LinearAlgebra`, `Random`, `Statistics`, `TOML` and `Test` at `1`,
+  `GeometricIntegratorsBase` and `TOML`, and `IterativeSolvers` leaves it. New
+  `[compat]` bounds: `LinearAlgebra`, `Statistics`, `TOML` and `Test` at `1`,
   `Aqua` at `0.8`, `GeometricIntegratorsBase` at `0.6`. The package now resolves and loads
   on Julia 1.11 and later.
 
@@ -74,8 +79,7 @@ written.
 
 - **The test suite checks the package structure.** A new `skeleton_tests.jl` verifies that
   `[deps]` contains only packages from an explicit allowlist of generic infrastructure. It also
-  runs `Aqua.test_all(ReducedBasisMethods; ambiguities = false, persistent_tasks = false)` with
-  the ambiguity and persistent-task checks off. Among others it catches unused dependencies and
+  runs `Aqua.test_all(ReducedBasisMethods)` with every check enabled. Among others it catches unused dependencies and
   exported names that have no definition. A new `ReducedTensor` testset compares the tensor's
   stencil-based indexing against the dense double projection over all index pairs. The orphaned
   test files `poisson_test.jl` and `bracket_operators_test.jl` are removed. `trainingset_tests.jl`
@@ -90,8 +94,11 @@ written.
   `_apply_Δₓ!`, `_apply_Δₓ₄!` and `_apply_Rₓ!` are in `PoissonSolvers`; `_apply_∫dv!` is in
   `VlasovMethods`; and `multiindex`, `linearindex` and `_stencil_indices` are in
   `MultiIndexArrays`. `_apply_P_ϕ!` and `_apply_P_h!` went to `GeometricBrackets` with the
-  bracket they apply. Nothing was rewritten on the way — **every body is byte-identical to
-  what stood here**, so the split reviews as a move.
+  bracket they apply. Code changes attended the split. `_apply_Δₓ₄!` in PoissonSolvers uses a
+  different stencil than the removed code: (1,−16,30,−16,1)/12h² (fourth-order) replaces
+  (5,−32,54,−32,5)/12h² (second-order), so callers see different numerical results. `PoissonTensor`
+  and `PoissonOperator` in `GeometricBrackets` were rewritten: `Base.materialize` became
+  `Base.Array`, and `@assert` bounds checks became `BoundsError`.
 
   `ReducedTensor` **stays**, now in `src/reduced_tensor.jl`. Its `PT <: PoissonTensor{DT}`
   bound is what makes this package depend on `GeometricBrackets`: relaxing the bound without an

@@ -20,7 +20,6 @@ HDF5 = "0.16, 0.17"
 LazyArrays = "1,2"
 LinearAlgebra = "1"
 MultiIndexArrays = "0.1.1"
-Random = "1"
 ReducedComplexityModeling = "0.1"
 Statistics = "1"
 TOML = "1"
@@ -30,9 +29,8 @@ julia = "1.11"
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 GeometricIntegratorsBase = "71212ab4-08a2-48eb-a02b-4cbad0e9c44a"
-Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "GeometricIntegratorsBase", "Random", "TOML", "Test"]
+test = ["Aqua", "GeometricIntegratorsBase", "TOML", "Test"]

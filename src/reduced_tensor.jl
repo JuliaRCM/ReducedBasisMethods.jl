@@ -1,4 +1,4 @@
-### Reduced Tensor (using with full h)
+### Reduced Tensor
 # A m × m × N tensor where the first two indices are reduced with projection matrices
 
 struct ReducedTensor{DT, PT <: PoissonTensor{DT}, PM1, PM2} <: AbstractArray{DT, 3}
@@ -16,8 +16,6 @@ end
 function Base.size(rt::ReducedTensor)
     (size(rt.projection_i, 2), size(rt.projection_j, 2), size(rt.tensor, 3))
 end
-Base.size(rt::ReducedTensor, i) = size(rt)[i]
-Base.axes(rt::ReducedTensor, i) = Base.OneTo(size(rt, i))
 
 function Base.getindex(rt::ReducedTensor{DT}, i::Int, j::Int, k::Int) where {DT}
     @assert i ≥ 1 && i ≤ size(rt, 1)
