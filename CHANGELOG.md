@@ -52,11 +52,14 @@ written.
 
 - **`[deps]` is now generic infrastructure only.** Removed from `[deps]`, with their `[compat]`
   entries where present: `ParticleMethods`, `PoissonSolvers`, `Distances`, `LaTeXStrings`,
-  `LinearMaps`, `Optimisers`, `Parameters`, `Plots`, `Random`, `RecursiveArrayTools`,
-  `TypedTables`, `Zygote`. The test target gains `Aqua`, `GeometricIntegratorsBase`, `Random` and
-  `TOML`, and `IterativeSolvers` leaves it. New `[compat]` bounds: `LinearAlgebra`, `Random`,
-  `Statistics`, `TOML` and `Test` at `1`, `Aqua` at `0.8`, `GeometricIntegratorsBase`
-  at `0.6`. The package now resolves and loads on Julia 1.11 and later.
+  `LinearMaps`, `OffsetArrays`, `Optimisers`, `Parameters`, `Plots`, `Random`,
+  `RecursiveArrayTools`, `TypedTables`, `Zygote`. `GeometricBrackets` and
+  `MultiIndexArrays` join `[deps]`, at `0.1.1` each, for `ReducedTensor`: they provide the
+  tensor operations and index utilities it uses. The test target gains `Aqua`,
+  `GeometricIntegratorsBase`, `Random` and `TOML`, and `IterativeSolvers` leaves it. New
+  `[compat]` bounds: `LinearAlgebra`, `Random`, `Statistics`, `TOML` and `Test` at `1`,
+  `Aqua` at `0.8`, `GeometricIntegratorsBase` at `0.6`. The package now resolves and loads
+  on Julia 1.11 and later.
 
 - `scripts/bump_on_tail_2_projections.jl` is now Unicode NFC-normalised. It stored `Ã` as `A` plus
   a combining tilde on three lines, inherited from macOS rather than chosen. Nothing about what the
@@ -71,10 +74,12 @@ written.
 
 - **The test suite checks the package structure.** A new `skeleton_tests.jl` verifies that
   `[deps]` contains only packages from an explicit allowlist of generic infrastructure. It also
-  runs `Aqua.test_stale_deps` and `Aqua.test_undefined_exports`, which catch unused dependencies
-  and exported names that have no definition. The orphaned test files `poisson_test.jl` and
-  `bracket_operators_test.jl` are removed. `trainingset_tests.jl` is removed with `TrainingSet`.
-  `test/runtests.jl` no longer includes missing files.
+  runs `Aqua.test_all(ReducedBasisMethods; ambiguities = false, persistent_tasks = false)` with
+  the ambiguity and persistent-task checks off. Among others it catches unused dependencies and
+  exported names that have no definition. A new `ReducedTensor` testset compares the tensor's
+  stencil-based indexing against the dense double projection over all index pairs. The orphaned
+  test files `poisson_test.jl` and `bracket_operators_test.jl` are removed. `trainingset_tests.jl`
+  is removed with `TrainingSet`. `test/runtests.jl` no longer includes missing files.
 
 ### Breaking Changes
 
@@ -93,21 +98,18 @@ written.
   interface would break `getindex`, which reaches through to `_stencil_indices`.
 
   `ReducedElectricField`, `DEIMElectricField`, `Snapshots`, `IntegratorParameters`,
-  `ReducedIntegratorCache` and `reduced_integrate_vp` moved to `VlasovMethods/src/particles/`
-  as files.
+  `ReducedIntegratorCache` and `reduced_integrate_vp` were moved to `VlasovMethods/src/particles/`,
+  which VlasovMethods does not include, so no package defines these names.
 
 - **Vlasov and training code left this package.** `TrainingSet` is removed, together with
-  `src/trainingset.jl`. The export of `read_sampling_parameters`, which had no definition, is
-  removed. `ReducedBasis` loses its fields `initconds`, `integrator` and `poisson`, and the three
-  matching positional constructor arguments; the constructor
-  `ReducedBasis(::CotangentLiftEVD, ::TrainingSet)` is removed. Its HDF5 round trip no longer
-  writes those fields. The Vlasov HDF5 routines `save_tests`, `save_testing_parameters` and
-  `h5save(fpath, ::IntegratorParameters, ::PoissonSolverPBSplines, ...)` are gone.
+  `src/trainingset.jl`. The exports of `read_sampling_parameters`, `IntegratorCache` and
+  `integrate_vp`, which had no definitions, are removed. `ReducedBasis` loses its fields
+  `initconds`, `integrator` and `poisson`, and the three matching positional constructor arguments;
+  the constructor `ReducedBasis(::CotangentLiftEVD, ::TrainingSet)` is removed. Its HDF5 round trip
+  no longer writes those fields. The Vlasov HDF5 routines `save_tests`, `save_testing_parameters`
+  and `h5save(fpath, ::IntegratorParameters, ::PoissonSolverPBSplines, ...)` are gone.
 
-- **Minimum Julia is now 1.10**, raised from the declared 1.7. 1.10 is the LTS and the floor across
-  the whole tree; 1.7 was declared but never tested and would not resolve against the current
-  dependency versions. CI now derives its lower matrix entry from this field, so a declared floor
-  that nobody tests is no longer possible.
-
-- **Minimum Julia is now 1.11**, raised from 1.10, due to `GeometricBrackets` declaring `julia =
-  "1.11"`. The package cannot resolve on 1.10.
+- **Minimum Julia is now 1.11.** The floor is raised from the declared 1.7 (never tested and
+  would not resolve against current dependency versions) to 1.11. `GeometricBrackets`, added to
+  this release's dependencies, declares `julia = "1.11"`. CI derives its lower matrix entry from
+  this field, so every declared floor is tested.
