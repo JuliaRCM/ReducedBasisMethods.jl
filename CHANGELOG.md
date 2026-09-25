@@ -59,11 +59,11 @@ written.
 
 - **`[deps]` is now generic infrastructure only.** Removed from `[deps]`, with their `[compat]`
   entries where present: `ParticleMethods`, `PoissonSolvers`, `Distances`, `LaTeXStrings`,
-  `LinearMaps`, `Optimisers`, `Parameters`, `Plots`, `Random`, `RecursiveArrayTools`, `TypedTables`, `Zygote`.
-  The test target gains `Aqua`, `GeometricIntegratorsBase`, `Random` and `TOML`, and
-  `IterativeSolvers` leaves it. New `[compat]` bounds: `LinearAlgebra`, `Random`, `TOML` and
-  `Test` at `1`, `Aqua` at `0.8`, `GeometricIntegratorsBase` at `0.6`. The package now resolves
-  and loads on Julia 1.11 and later.
+  `LinearMaps`, `Optimisers`, `Parameters`, `Plots`, `Random`, `RecursiveArrayTools`,
+  `TypedTables`, `Zygote`. The test target gains `Aqua`, `GeometricIntegratorsBase`, `Random` and
+  `TOML`, and `IterativeSolvers` leaves it. New `[compat]` bounds: `LinearAlgebra`, `Random`,
+  `TOML` and `Test` at `1`, `Aqua` at `0.8`, `GeometricIntegratorsBase` at `0.6`. The package now
+  resolves and loads on Julia 1.11 and later.
 
 - `scripts/bump_on_tail_2_projections.jl` is now Unicode NFC-normalised. It stored `Ã` as `A` plus
   a combining tilde on three lines, inherited from macOS rather than chosen. Nothing about what the
@@ -101,7 +101,7 @@ written.
 
   `ReducedElectricField`, `DEIMElectricField`, `Snapshots`, `IntegratorParameters`,
   `ReducedIntegratorCache` and `reduced_integrate_vp` moved to `VlasovMethods/src/particles/`
-  as files, but are **not yet reachable from there** — see *Open Issues*.
+  as files, but are **not yet reachable from there**.
 
 - **Vlasov and training code left this package.** `TrainingSet` is removed, together with
   `src/trainingset.jl`. The export of `read_sampling_parameters`, which had no definition, is
