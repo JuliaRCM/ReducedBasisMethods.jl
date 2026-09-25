@@ -13,6 +13,5 @@ using TOML
     @test haskey(project["extras"], "GeometricIntegratorsBase")
     @test "GeometricIntegratorsBase" ∈ project["targets"]["test"]
 
-    Aqua.test_stale_deps(ReducedBasisMethods)
-    Aqua.test_undefined_exports(ReducedBasisMethods)
+    Aqua.test_all(ReducedBasisMethods; ambiguities = false, persistent_tasks = false)
 end

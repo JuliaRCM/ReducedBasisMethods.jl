@@ -109,9 +109,5 @@ written.
   dependency versions. CI now derives its lower matrix entry from this field, so a declared floor
   that nobody tests is no longer possible.
 
-## Open Issues
-
-- **The package does not resolve on Julia 1.10.** `GeometricBrackets` declares `julia = "1.11"`,
-  above this package's declared 1.10 floor. On Julia 1.11 and later the package resolves, loads
-  and passes its suite. `GeometricBrackets` leaves `[deps]` when `ReducedTensor` moves onto a
-  generic locality interface. Recorded 2026-09-25.
+- **Minimum Julia is now 1.11**, raised from 1.10, due to `GeometricBrackets` declaring `julia =
+  "1.11"`. The package cannot resolve on 1.10.
