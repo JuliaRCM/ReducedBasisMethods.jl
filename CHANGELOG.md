@@ -58,8 +58,8 @@ written.
   resolver sees them together rather than one at a time.
 
 - **`[deps]` is now generic infrastructure only.** Removed from `[deps]`, with their `[compat]`
-  entries: `ParticleMethods`, `PoissonSolvers`, `Distances`, `LaTeXStrings`, `LinearMaps`,
-  `Optimisers`, `Parameters`, `Plots`, `Random`, `RecursiveArrayTools`, `TypedTables`, `Zygote`.
+  entries where present: `ParticleMethods`, `PoissonSolvers`, `Distances`, `LaTeXStrings`,
+  `LinearMaps`, `Optimisers`, `Parameters`, `Plots`, `Random`, `RecursiveArrayTools`, `TypedTables`, `Zygote`.
   The test target gains `Aqua`, `GeometricIntegratorsBase`, `Random` and `TOML`, and
   `IterativeSolvers` leaves it. New `[compat]` bounds: `LinearAlgebra`, `Random`, `TOML` and
   `Test` at `1`, `Aqua` at `0.8`, `GeometricIntegratorsBase` at `0.6`. The package now resolves
