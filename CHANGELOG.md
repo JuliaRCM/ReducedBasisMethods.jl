@@ -60,11 +60,10 @@ written.
   `LinearMaps`, `OffsetArrays`, `Optimisers`, `Parameters`, `Plots`, `Random`,
   `RecursiveArrayTools`, `TypedTables`, `Zygote`. `GeometricBrackets` and
   `MultiIndexArrays` join `[deps]`, at `0.1.1` each, for `ReducedTensor`: they provide the
-  tensor operations and index utilities it uses. The test target gains `Aqua`,
-  `GeometricIntegratorsBase` and `TOML`, and `IterativeSolvers` leaves it. New
-  `[compat]` bounds: `LinearAlgebra`, `Statistics`, `TOML` and `Test` at `1`,
-  `Aqua` at `0.8`, `GeometricIntegratorsBase` at `0.6`. The package now resolves and loads
-  on Julia 1.11 and later.
+  tensor operations and index utilities it uses. The test target gains `Aqua` and
+  `TOML`, and `IterativeSolvers` leaves it. New `[compat]` bounds: `LinearAlgebra`,
+  `Statistics`, `TOML` and `Test` at `1`, `Aqua` at `0.8`. The package now resolves and
+  loads on Julia 1.11 and later.
 
 - `scripts/bump_on_tail_2_projections.jl` is now Unicode NFC-normalised. It stored `Ã` as `A` plus
   a combining tilde on three lines, inherited from macOS rather than chosen. Nothing about what the
