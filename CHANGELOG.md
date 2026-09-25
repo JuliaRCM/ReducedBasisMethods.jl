@@ -48,14 +48,22 @@ written.
 
 ### Bug Fixes
 
+- **`ReducedTensor` now follows the `AbstractArray` convention for out-of-bounds dimensions.** Dimensions
+  beyond the first three now return `1` for `size(rt, i)` and `Base.OneTo(1)` for `axes(rt, i)`,
+  aligning with standard Julia array behavior. Previously these raised `BoundsError`. This fixes
+  code patterns that work with generic `AbstractArray` interfaces.
+
 ### Changed
 
-- **Every dependency now carries a `[compat]` bound.** `Distances`, `Optimisers`, `Statistics` and
-  `Zygote` were in `[deps]` with no entry, so the resolver was free to install any version of them,
-  including one whose interface this package does not use. They are now bounded at `0.10`, `0.4`,
-  `1` and `0.7`. `Parameters` gains `0.13` alongside `0.12`. The five bounds come from the five open
-  CompatHelper pull requests (#19, #26, #32, #33, #34), combined here into one change so that the
-  resolver sees them together rather than one at a time.
+- **`[deps]` is now generic infrastructure only.** Removed from `[deps]`, with their `[compat]`
+  entries where present: `ParticleMethods`, `PoissonSolvers`, `Distances`, `LaTeXStrings`,
+  `LinearMaps`, `OffsetArrays`, `Optimisers`, `Parameters`, `Plots`, `Random`,
+  `RecursiveArrayTools`, `TypedTables`, `Zygote`. `GeometricBrackets` and
+  `MultiIndexArrays` join `[deps]`, at `0.1.1` each, for `ReducedTensor`: they provide the
+  tensor operations and index utilities it uses. The test target gains `Aqua` and
+  `TOML`, and `IterativeSolvers` leaves it. New `[compat]` bounds: `LinearAlgebra`,
+  `Statistics`, `TOML` and `Test` at `1`, `Aqua` at `0.8`. The package now resolves and
+  loads on Julia 1.11 and later.
 
 - `scripts/bump_on_tail_2_projections.jl` is now Unicode NFC-normalised. It stored `Ã` as `A` plus
   a combining tilde on three lines, inherited from macOS rather than chosen. Nothing about what the
@@ -68,17 +76,46 @@ written.
   `X` or `x` has no precomposed codepoint, so NFC leaves them decomposed and the file is
   nonetheless fully normalised.
 
+- **The test suite checks the package structure.** A new `skeleton_tests.jl` verifies that
+  `[deps]` contains only packages from an explicit allowlist of generic infrastructure. It also
+  runs `Aqua.test_all(ReducedBasisMethods)` with every check enabled. Among others it catches unused dependencies and
+  exported names that have no definition. A new `ReducedTensor` testset compares the tensor's
+  stencil-based indexing against the dense double projection over all index pairs. The orphaned
+  test files `poisson_test.jl` and `bracket_operators_test.jl` are removed. `trainingset_tests.jl`
+  is removed with `TrainingSet`. `test/runtests.jl` no longer includes missing files.
+
 ### Breaking Changes
 
-- **Minimum Julia is now 1.10**, raised from the declared 1.7. 1.10 is the LTS and the floor across
-  the whole tree; 1.7 was declared but never tested and would not resolve against the current
-  dependency versions. CI now derives its lower matrix entry from this field, so a declared floor
-  that nobody tests is no longer possible.
+- **The grid-based and particle-based code left this package.** `src/gridbased/` and
+  `src/particles/` are gone, and with them every name they exported. A caller who reached
+  `PoissonTensor`, `PoissonOperator` or `Arakawa` now wants `GeometricBrackets`;
+  `PotentialReducedTensor` and `VelocityReducedMatrix` are in `VlasovMethods`;
+  `_apply_Δₓ!`, `_apply_Δₓ₄!` and `_apply_Rₓ!` are in `PoissonSolvers`; `_apply_∫dv!` is in
+  `VlasovMethods`; and `multiindex`, `linearindex` and `_stencil_indices` are in
+  `MultiIndexArrays`. `_apply_P_ϕ!` and `_apply_P_h!` went to `GeometricBrackets` with the
+  bracket they apply. Code changes attended the split. `_apply_Δₓ₄!` in PoissonSolvers uses a
+  different stencil than the removed code: (1,−16,30,−16,1)/12h² (fourth-order) replaces
+  (5,−32,54,−32,5)/12h² (second-order), so callers see different numerical results. `PoissonTensor`
+  and `PoissonOperator` in `GeometricBrackets` were rewritten: `Base.materialize` became
+  `Base.Array`, and `@assert` bounds checks became `BoundsError`.
 
-## Open Issues
+  `ReducedTensor` **stays**, now in `src/reduced_tensor.jl`. Its `PT <: PoissonTensor{DT}`
+  bound is what makes this package depend on `GeometricBrackets`: relaxing the bound without an
+  interface would break `getindex`, which reaches through to `_stencil_indices`.
 
-- **The package does not load.** `src/ReducedBasisMethods.jl:12` does `using VlasovMethods`, but
-  `VlasovMethods` appears in neither `[deps]` nor `Manifest.toml`, so loading fails immediately with
-  `ArgumentError: Package VlasovMethods not found in current path`. Adding the dependency is not on
-  its own enough: `VlasovMethods` does not currently load either, so the failure would chain.
-  Recorded 2026-08-31.
+  `ReducedElectricField`, `DEIMElectricField`, `Snapshots`, `IntegratorParameters`,
+  `ReducedIntegratorCache` and `reduced_integrate_vp` were moved to `VlasovMethods/src/particles/`,
+  which VlasovMethods does not include, so no package defines these names.
+
+- **Vlasov and training code left this package.** `TrainingSet` is removed, together with
+  `src/trainingset.jl`. The exports of `read_sampling_parameters`, `IntegratorCache` and
+  `integrate_vp`, which had no definitions, are removed. `ReducedBasis` loses its fields
+  `initconds`, `integrator` and `poisson`, and the three matching positional constructor arguments;
+  the constructor `ReducedBasis(::CotangentLiftEVD, ::TrainingSet)` is removed. Its HDF5 round trip
+  no longer writes those fields. The Vlasov HDF5 routines `save_tests`, `save_testing_parameters`
+  and `h5save(fpath, ::IntegratorParameters, ::PoissonSolverPBSplines, ...)` are gone.
+
+- **Minimum Julia is now 1.11.** The floor is raised from the declared 1.7 (never tested and
+  would not resolve against current dependency versions) to 1.11. `GeometricBrackets`, added to
+  this release's dependencies, declares `julia = "1.11"`. CI derives its lower matrix entry from
+  this field, so every declared floor is tested.
