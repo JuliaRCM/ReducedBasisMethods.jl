@@ -7,7 +7,7 @@ using LazyArrays
 using MultiIndexArrays: _stencil_indices
 using ReducedComplexityModeling
 using ReducedComplexityModeling: read_parameters, save_parameters
-import ReducedComplexityModeling: h5save, h5load
+import ReducedComplexityModeling: h5save, h5load, _create_group
 
 # `ReducedTensor` wraps the grid tensor that lives in GeometricBrackets, and extends the
 # `_nx`/`_nv` accessors rather than redefining them, so one generic covers both packages.
@@ -35,8 +35,6 @@ export get_PODBasis_EVD, get_PODBasis_cotangentLiftEVD
 include("algorithms/deim.jl")
 
 export get_DEIM_interpolation_matrix
-
-include("h5routines.jl")
 
 export h5save, h5load
 
