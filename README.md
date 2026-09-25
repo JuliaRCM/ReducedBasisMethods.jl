@@ -17,11 +17,6 @@ This package implements structure-preserving reduced basis methods.
 
 ## Development
 
-> **This package does not currently load.** `src/ReducedBasisMethods.jl` does
-> `using VlasovMethods`, but `VlasovMethods` is declared in neither `[deps]` nor `Manifest.toml`.
-> CI is expected to be red, and the `pre-commit` load test below will block any commit that stages
-> a `.jl` file until that is addressed.
-
 ### Git hooks
 
 Two hooks live in `.githooks`. They are **not active in a fresh clone** — `core.hooksPath` is local

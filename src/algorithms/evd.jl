@@ -114,24 +114,3 @@ function get_ΛΩ_efield(E; tolerance = 1e-4, k = 0)
     return Λₑ, Ωₑ, kₑ, Ψₑ
 end
 =#
-
-function ReducedBasis(alg::CotangentLiftEVD, ts::TrainingSet; particle_tol = 1e-8, field_tol = 1e-4)
-    # read integrator parameters
-    IP = ts.integrator
-
-    # read snapshot data
-    X = reshape(ts.snapshots.X, (IP.nₚ, IP.nₛ * IP.nparam))
-    V = reshape(ts.snapshots.V, (IP.nₚ, IP.nₛ * IP.nparam))
-    E = reshape(ts.snapshots.A, (IP.nₚ, IP.nₛ * IP.nparam))
-
-    # EVD
-    Ψₚ, Λₚ = get_PODBasis_cotangentLiftEVD(X, V; tolerance = particle_tol)
-    Ψₑ, Λₑ = get_PODBasis_EVD(E; tolerance = field_tol)
-    Πₑ = get_DEIM_interpolation_matrix(Ψₑ)
-
-    #Λₚ, Ωₚ, kₚ, Ψₚ = get_ΛΩ_particles(X, V, IP)
-    #Λₑ, Ωₑ, kₑ, Ψₑ = get_ΛΩ_efield(E)
-
-    ReducedBasis(alg, ts.parameters, ts.paramspace, ts.initconds,
-        ts.integrator, ts.poisson, Λₚ, Ψₚ, Λₑ, Ψₑ, Πₑ)
-end

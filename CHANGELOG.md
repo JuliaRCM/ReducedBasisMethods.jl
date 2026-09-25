@@ -50,12 +50,13 @@ written.
 
 ### Changed
 
-- **Every dependency now carries a `[compat]` bound.** `Distances`, `Optimisers`, `Statistics` and
-  `Zygote` were in `[deps]` with no entry, so the resolver was free to install any version of them,
-  including one whose interface this package does not use. They are now bounded at `0.10`, `0.4`,
-  `1` and `0.7`. `Parameters` gains `0.13` alongside `0.12`. The five bounds come from the five open
-  CompatHelper pull requests (#19, #26, #32, #33, #34), combined here into one change so that the
-  resolver sees them together rather than one at a time.
+- **`[deps]` is now generic infrastructure only.** Removed from `[deps]`, with their `[compat]`
+  entries where present: `ParticleMethods`, `PoissonSolvers`, `Distances`, `LaTeXStrings`,
+  `LinearMaps`, `Optimisers`, `Parameters`, `Plots`, `Random`, `RecursiveArrayTools`,
+  `TypedTables`, `Zygote`. The test target gains `Aqua`, `GeometricIntegratorsBase`, `Random` and
+  `TOML`, and `IterativeSolvers` leaves it. New `[compat]` bounds: `LinearAlgebra`, `Random`,
+  `Statistics`, `TOML` and `Test` at `1`, `Aqua` at `0.8`, `GeometricIntegratorsBase`
+  at `0.6`. The package now resolves and loads on Julia 1.11 and later.
 
 - `scripts/bump_on_tail_2_projections.jl` is now Unicode NFC-normalised. It stored `Ã` as `A` plus
   a combining tilde on three lines, inherited from macOS rather than chosen. Nothing about what the
@@ -67,6 +68,13 @@ written.
   The `X̃` and `x̃` in the same file still carry a combining tilde, and correctly so: a tilde over
   `X` or `x` has no precomposed codepoint, so NFC leaves them decomposed and the file is
   nonetheless fully normalised.
+
+- **The test suite checks the package structure.** A new `skeleton_tests.jl` verifies that
+  `[deps]` contains only packages from an explicit allowlist of generic infrastructure. It also
+  runs `Aqua.test_stale_deps` and `Aqua.test_undefined_exports`, which catch unused dependencies
+  and exported names that have no definition. The orphaned test files `poisson_test.jl` and
+  `bracket_operators_test.jl` are removed. `trainingset_tests.jl` is removed with `TrainingSet`.
+  `test/runtests.jl` no longer includes missing files.
 
 ### Breaking Changes
 
@@ -86,33 +94,20 @@ written.
 
   `ReducedElectricField`, `DEIMElectricField`, `Snapshots`, `IntegratorParameters`,
   `ReducedIntegratorCache` and `reduced_integrate_vp` moved to `VlasovMethods/src/particles/`
-  as files, but are **not yet reachable from there** — see *Open Issues*.
+  as files.
+
+- **Vlasov and training code left this package.** `TrainingSet` is removed, together with
+  `src/trainingset.jl`. The export of `read_sampling_parameters`, which had no definition, is
+  removed. `ReducedBasis` loses its fields `initconds`, `integrator` and `poisson`, and the three
+  matching positional constructor arguments; the constructor
+  `ReducedBasis(::CotangentLiftEVD, ::TrainingSet)` is removed. Its HDF5 round trip no longer
+  writes those fields. The Vlasov HDF5 routines `save_tests`, `save_testing_parameters` and
+  `h5save(fpath, ::IntegratorParameters, ::PoissonSolverPBSplines, ...)` are gone.
 
 - **Minimum Julia is now 1.10**, raised from the declared 1.7. 1.10 is the LTS and the floor across
   the whole tree; 1.7 was declared but never tested and would not resolve against the current
   dependency versions. CI now derives its lower matrix entry from this field, so a declared floor
   that nobody tests is no longer possible.
 
-## Open Issues
-
-- **Two test files were orphaned by the split.** `test/runtests.jl` still includes
-  `poisson_test.jl` and `bracket_operators_test.jl`, but the functions they exercise left this
-  package: `_apply_∫dv!` is now in `VlasovMethods`, `_apply_Δₓ!`, `_apply_Δₓ₄!` and `_apply_Rₓ!`
-  are in `PoissonSolvers`, and `_apply_P_h!` and `_apply_P_ϕ!` are in `GeometricBrackets`. Both files were left in place rather than deleted or rewritten, because
-  the tests themselves are worth keeping and belong with the code they test. Moving them is a
-  later task. The suite cannot run in any case while the package does not resolve.
-  Recorded 2026-09-17.
-
-- **The package does not resolve.** `[compat] PoissonSolvers = "0.1, 0.2, 0.3"` is stale: the
-  released `PoissonSolvers` is 0.5, and `VlasovMethods` requires `0.4, 0.5`, so the two cannot
-  be satisfied together and `Pkg.resolve` reports *Unsatisfiable requirements*. This predates
-  the split and is not fixed by it. `GeometricBrackets` is a second obstacle: it is unregistered,
-  so it cannot be resolved from General at all, and it declares `julia = "1.11"`, above this
-  package's declared 1.10 floor. Recorded 2026-09-17.
-
-- **The package does not load.** Recorded 2026-08-31, when the cause was a `using VlasovMethods`
-  with no matching `[deps]` entry. The split removed that line, and the cause is now the
-  unsatisfiable resolve above; past it, `src/trainingset.jl`, `src/reducedbasis.jl` and
-  `src/h5routines.jl` still name `Snapshots` and `IntegratorParameters` in type position, and
-  both definitions left for `VlasovMethods`. Restoring the load needs those two reachable
-  again, not a change here.
+- **Minimum Julia is now 1.11**, raised from 1.10, due to `GeometricBrackets` declaring `julia =
+  "1.11"`. The package cannot resolve on 1.10.

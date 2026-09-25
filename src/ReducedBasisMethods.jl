@@ -5,10 +5,9 @@ using HDF5: H5DataStore
 using LinearAlgebra
 using LazyArrays
 using MultiIndexArrays: _stencil_indices
-using ParticleMethods
-using PoissonSolvers
 using ReducedComplexityModeling
-using TypedTables
+using ReducedComplexityModeling: read_parameters, save_parameters
+import ReducedComplexityModeling: h5save, h5load, _create_group
 
 # `ReducedTensor` wraps the grid tensor that lives in GeometricBrackets, and extends the
 # `_nx`/`_nv` accessors rather than redefining them, so one generic covers both packages.
@@ -20,10 +19,6 @@ include("utils.jl")
 include("regression.jl")
 
 export get_regression_αβ
-
-include("trainingset.jl")
-
-export TrainingSet
 
 include("reducedbasis.jl")
 
@@ -41,9 +36,7 @@ include("algorithms/deim.jl")
 
 export get_DEIM_interpolation_matrix
 
-include("h5routines.jl")
-
-export h5save, h5load, read_sampling_parameters
+export h5save, h5load
 
 include("reduced_tensor.jl")
 
