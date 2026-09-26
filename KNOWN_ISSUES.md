@@ -19,11 +19,3 @@ evidence.
 
   from the repository root. The file runs to the end with no failure and no error.
 - **Fix:** make the check a `@test`, and compare `Π` with the known DEIM indices.
-
-## KI-2 · The skeleton test has no mutant that only its assertion catches
-
-- **Kind:** not verified.
-- **Where:** `test/integration/skeleton.jl`.
-- **Claim:** one mutant, a `Printf` entry added to `[deps]`, was caught by the Pkg manifest
-  error, not by `keys(project["deps"]) ⊆ permitted`. A second mutant, a `Random` entry, fails
-  that assertion. The evidence is weak, not absent.
