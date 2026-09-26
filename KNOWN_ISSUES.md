@@ -9,8 +9,7 @@ evidence.
 - **Where:** `test/algorithms/deim.jl`, last line.
 - **Claim:** the DEIM approximation error is checked with `@assert avg_deim_error < 5e-5`, not
   with `@test`, and no test checks the interpolation matrix `Π`. The mutant
-  `j = argmax(r)` → `j = argmin(r)` in `src/algorithms/deim.jl` survives on the branch of the
-  test-suite migration and on the commit before it.
+  `j = argmax(r)` → `j = argmin(r)` in `src/algorithms/deim.jl` survives the test suite.
 - **Evidence:** `mutate.jl <worktree> src/algorithms/deim.jl '        j = argmax(r)'
   '        j = argmin(r)' algorithms/deim.jl` gives SURVIVED.
 - **Fix:** make the check a `@test`, and compare `Π` with the known DEIM indices.
@@ -32,7 +31,9 @@ evidence.
   Only Aqua, TOML and Test were in `[extras]`. GeometricBrackets, LinearAlgebra and
   ReducedComplexityModeling stay in `[deps]`, and Random and SafeTestsets are new in
   `test/Project.toml`.
-- **Evidence:** `git diff origin/main...HEAD -- Project.toml` on the migration branch.
+- **Evidence:** `git show 221852b:Project.toml` lists only Aqua, TOML and Test in `[extras]`, and
+  GeometricBrackets, LinearAlgebra and ReducedComplexityModeling in `[deps]`, where
+  `Project.toml` keeps them.
 
 ## KI-4 · An older CHANGELOG entry contradicts the test migration
 
@@ -40,6 +41,8 @@ evidence.
 - **Where:** `CHANGELOG.md`, `[Unreleased]`, `### Changed`, the entry "`[deps]` is now generic
   infrastructure only".
 - **Claim:** it says "The test target gains `Aqua` and `TOML`" and gives new `[compat]` bounds
-  for `TOML`, `Test` and `Aqua`. The test migration removes `[targets]` and those three bounds from
-  `Project.toml`, so the section contradicts itself.
-- **Evidence:** the diff of `Project.toml` on the migration branch.
+  for `TOML`, `Test` and `Aqua`. `Project.toml` has no `[targets]` and none of those three bounds:
+  the test dependencies are in `test/Project.toml`, which gives a test-only dependency no bound.
+  The section contradicts itself.
+- **Evidence:** `git show 221852b:Project.toml` has `[targets]` and the three bounds;
+  `Project.toml` has neither.
