@@ -60,10 +60,9 @@ written.
   `LinearMaps`, `OffsetArrays`, `Optimisers`, `Parameters`, `Plots`, `Random`,
   `RecursiveArrayTools`, `TypedTables`, `Zygote`. `GeometricBrackets` and
   `MultiIndexArrays` join `[deps]`, at `0.1.1` each, for `ReducedTensor`: they provide the
-  tensor operations and index utilities it uses. The test target gains `Aqua` and
-  `TOML`, and `IterativeSolvers` leaves it. New `[compat]` bounds: `LinearAlgebra`,
-  `Statistics`, `TOML` and `Test` at `1`, `Aqua` at `0.8`. The package now resolves and
-  loads on Julia 1.11 and later.
+  tensor operations and index utilities it uses. `IterativeSolvers` leaves the test
+  dependencies. New `[compat]` bounds: `LinearAlgebra` and `Statistics` at `1`. The package now
+  resolves and loads on Julia 1.11 and later.
 
 - `scripts/bump_on_tail_2_projections.jl` is now Unicode NFC-normalised. It stored `Ã` as `A` plus
   a combining tilde on three lines, inherited from macOS rather than chosen. Nothing about what the
@@ -85,16 +84,16 @@ written.
   `trainingset_tests.jl` is removed with `TrainingSet`. `test/runtests.jl` no longer includes
   missing files.
 
-- **Test infrastructure reorganized: dependencies moved to `test/Project.toml`, files organized
-  under `test/` to mirror `src/`.** Aqua, GeometricBrackets, LinearAlgebra, Random,
-  ReducedComplexityModeling, SafeTestsets, TOML, and Test move from root `Project.toml`
-  `[extras]` and `[targets]` to new `test/Project.toml`; `[compat]` entries for Aqua, TOML, and
-  Test are removed from root. Test files reorganized to mirror `src/`: `deim_test.jl` →
-  `algorithms/deim.jl`, `reducedbasis_tests.jl` split into `reducedbasis.jl` (ReducedBasis HDF5
-  round-trip) and `reduced_tensor.jl` (ReducedTensor), `skeleton_tests.jl` → `integration/skeleton.jl`.
-  Each test file has its own `using` block; files that draw random numbers set `Random.seed!(1234)`.
-  `runtests.jl` wraps each test in `@safetestset` within group "core" (selected from ARGS; empty
-  ARGS runs core and slow). All 30 tests pass before and after; nothing under `src/` changes.
+- **The test dependencies are in `test/Project.toml`, and the test files mirror `src/`.** Aqua,
+  TOML and Test move from `[extras]` and `[targets]` of `Project.toml`, which keeps no test
+  dependency and no `[compat]` bound for them. Random and SafeTestsets are new test dependencies.
+  GeometricBrackets, LinearAlgebra and ReducedComplexityModeling stay in `[deps]`, and
+  `test/Project.toml` lists them with the same bounds. `deim_test.jl` becomes
+  `algorithms/deim.jl`; `reducedbasis_tests.jl` splits into `reducedbasis.jl` and
+  `reduced_tensor.jl`; `skeleton_tests.jl` becomes `integration/skeleton.jl`, and its Aqua check
+  moves to `quality/aqua.jl`. Each file has its own `using`, and a file that draws random numbers
+  fixes the seed. `runtests.jl` runs each file in its own `@safetestset`, in the `core` group,
+  which the test arguments select. Nothing under `src/` changes.
 
 ### Breaking Changes
 
