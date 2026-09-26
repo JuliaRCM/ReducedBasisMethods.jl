@@ -1,3 +1,7 @@
+using LinearAlgebra
+using ReducedBasisMethods
+using Test
+
 """
 Example 1 from doi.org/10.1137/090766498
 """

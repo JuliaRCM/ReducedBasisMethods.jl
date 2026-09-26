@@ -76,13 +76,25 @@ written.
   `X` or `x` has no precomposed codepoint, so NFC leaves them decomposed and the file is
   nonetheless fully normalised.
 
-- **The test suite checks the package structure.** A new `skeleton_tests.jl` verifies that
-  `[deps]` contains only packages from an explicit allowlist of generic infrastructure. It also
-  runs `Aqua.test_all(ReducedBasisMethods)` with every check enabled. Among others it catches unused dependencies and
-  exported names that have no definition. A new `ReducedTensor` testset compares the tensor's
-  stencil-based indexing against the dense double projection over all index pairs. The orphaned
-  test files `poisson_test.jl` and `bracket_operators_test.jl` are removed. `trainingset_tests.jl`
-  is removed with `TrainingSet`. `test/runtests.jl` no longer includes missing files.
+- **The test suite checks the package structure.** `test/integration/skeleton.jl` verifies that
+  `[deps]` contains only packages from an explicit allowlist of generic infrastructure.
+  `Aqua.test_all` with every check enabled runs from `test/quality/aqua.jl`. These checks catch
+  unused dependencies and exported names that have no definition. A new `ReducedTensor` testset
+  compares the tensor's stencil-based indexing against the dense double projection over all index
+  pairs. The orphaned test files `poisson_test.jl` and `bracket_operators_test.jl` are removed.
+  `trainingset_tests.jl` is removed with `TrainingSet`. `test/runtests.jl` no longer includes
+  missing files.
+
+- **Test infrastructure reorganized: dependencies moved to `test/Project.toml`, files organized
+  under `test/` to mirror `src/`.** Aqua, GeometricBrackets, LinearAlgebra, Random,
+  ReducedComplexityModeling, SafeTestsets, TOML, and Test move from root `Project.toml`
+  `[extras]` and `[targets]` to new `test/Project.toml`; `[compat]` entries for Aqua, TOML, and
+  Test are removed from root. Test files reorganized to mirror `src/`: `deim_test.jl` →
+  `algorithms/deim.jl`, `reducedbasis_tests.jl` split into `reducedbasis.jl` (ReducedBasis HDF5
+  round-trip) and `reduced_tensor.jl` (ReducedTensor), `skeleton_tests.jl` → `integration/skeleton.jl`.
+  Each test file has its own `using` block; files that draw random numbers set `Random.seed!(1234)`.
+  `runtests.jl` wraps each test in `@safetestset` within group "core" (selected from ARGS; empty
+  ARGS runs core and slow). All 30 tests pass before and after; nothing under `src/` changes.
 
 ### Breaking Changes
 
