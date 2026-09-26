@@ -1,10 +1,11 @@
-using LinearAlgebra
-using ReducedBasisMethods
-using Test
+using SafeTestsets
 
-@testset "ReducedBasisMethods.jl" begin
-    include("skeleton_tests.jl")
-    include("reducedbasis_tests.jl")
+const GROUPS = isempty(ARGS) ? ["core", "slow"] : ARGS
 
-    include("deim_test.jl")
+if "core" in GROUPS
+    @safetestset "Aqua" include("quality/aqua.jl")
+    @safetestset "Generic-only skeleton" include("integration/skeleton.jl")
+    @safetestset "Reduced basis" include("reducedbasis.jl")
+    @safetestset "Reduced tensor" include("reduced_tensor.jl")
+    @safetestset "DEIM" include("algorithms/deim.jl")
 end

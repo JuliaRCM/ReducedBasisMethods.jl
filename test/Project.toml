@@ -1,0 +1,18 @@
+[deps]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+GeometricBrackets = "2a9ffa85-4e0d-473f-b05e-278d80d8d306"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+ReducedBasisMethods = "91da5cd7-58ae-4d67-87db-f03d1c8da121"
+ReducedComplexityModeling = "abb4722c-1d8e-48eb-a3bd-45b3116bfaba"
+SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ReducedBasisMethods = {path = ".."}
+
+[compat]
+GeometricBrackets = "0.1.1"
+LinearAlgebra = "1"
+ReducedComplexityModeling = "0.1"

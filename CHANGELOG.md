@@ -60,10 +60,9 @@ written.
   `LinearMaps`, `OffsetArrays`, `Optimisers`, `Parameters`, `Plots`, `Random`,
   `RecursiveArrayTools`, `TypedTables`, `Zygote`. `GeometricBrackets` and
   `MultiIndexArrays` join `[deps]`, at `0.1.1` each, for `ReducedTensor`: they provide the
-  tensor operations and index utilities it uses. The test target gains `Aqua` and
-  `TOML`, and `IterativeSolvers` leaves it. New `[compat]` bounds: `LinearAlgebra`,
-  `Statistics`, `TOML` and `Test` at `1`, `Aqua` at `0.8`. The package now resolves and
-  loads on Julia 1.11 and later.
+  tensor operations and index utilities it uses. `IterativeSolvers` leaves the test
+  dependencies. New `[compat]` bounds: `LinearAlgebra` and `Statistics` at `1`. The package now
+  resolves and loads on Julia 1.11 and later.
 
 - `scripts/bump_on_tail_2_projections.jl` is now Unicode NFC-normalised. It stored `Ã` as `A` plus
   a combining tilde on three lines, inherited from macOS rather than chosen. Nothing about what the
@@ -76,13 +75,25 @@ written.
   `X` or `x` has no precomposed codepoint, so NFC leaves them decomposed and the file is
   nonetheless fully normalised.
 
-- **The test suite checks the package structure.** A new `skeleton_tests.jl` verifies that
-  `[deps]` contains only packages from an explicit allowlist of generic infrastructure. It also
-  runs `Aqua.test_all(ReducedBasisMethods)` with every check enabled. Among others it catches unused dependencies and
-  exported names that have no definition. A new `ReducedTensor` testset compares the tensor's
-  stencil-based indexing against the dense double projection over all index pairs. The orphaned
-  test files `poisson_test.jl` and `bracket_operators_test.jl` are removed. `trainingset_tests.jl`
-  is removed with `TrainingSet`. `test/runtests.jl` no longer includes missing files.
+- **The test suite checks the package structure.** `test/integration/skeleton.jl` verifies that
+  `[deps]` contains only packages from an explicit allowlist of generic infrastructure.
+  `Aqua.test_all` with every check enabled runs from `test/quality/aqua.jl`. These checks catch
+  unused dependencies and exported names that have no definition. A new `ReducedTensor` testset
+  compares the tensor's stencil-based indexing against the dense double projection over all index
+  pairs. The orphaned test files `poisson_test.jl` and `bracket_operators_test.jl` are removed.
+  `trainingset_tests.jl` is removed with `TrainingSet`. `test/runtests.jl` no longer includes
+  missing files.
+
+- **The test dependencies are in `test/Project.toml`, and the test files mirror `src/`.** Aqua,
+  TOML and Test move from `[extras]` and `[targets]` of `Project.toml`, which keeps no test
+  dependency and no `[compat]` bound for them. Random and SafeTestsets are new test dependencies.
+  GeometricBrackets, LinearAlgebra and ReducedComplexityModeling stay in `[deps]`, and
+  `test/Project.toml` lists them with the same bounds. `deim_test.jl` becomes
+  `algorithms/deim.jl`; `reducedbasis_tests.jl` splits into `reducedbasis.jl` and
+  `reduced_tensor.jl`; `skeleton_tests.jl` becomes `integration/skeleton.jl`, and its Aqua check
+  moves to `quality/aqua.jl`. Each file has its own `using`, and a file that draws random numbers
+  fixes the seed. `runtests.jl` runs each file in its own `@safetestset`, in the `core` group,
+  which the test arguments select. Nothing under `src/` changes.
 
 ### Breaking Changes
 

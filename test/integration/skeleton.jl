@@ -1,4 +1,5 @@
-using Aqua
+using ReducedBasisMethods
+using Test
 using TOML
 
 @testset "Generic-only skeleton" begin
@@ -8,6 +9,4 @@ using TOML
     permitted = ("GeometricBrackets", "HDF5", "LazyArrays", "LinearAlgebra",
         "MultiIndexArrays", "ReducedComplexityModeling", "Statistics")
     @test keys(project["deps"]) ⊆ permitted
-
-    Aqua.test_all(ReducedBasisMethods)
 end
