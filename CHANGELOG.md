@@ -95,6 +95,14 @@ written.
   fixes the seed. `runtests.jl` runs each file in its own `@safetestset`, in the `core` group,
   which the test arguments select. Nothing under `src/` changes.
 
+- **`test/Project.toml` no longer repeats the root's bounds.** Its `[compat]` entries for
+  GeometricBrackets, LinearAlgebra and ReducedComplexityModeling are removed. The test environment
+  contains the package, so the resolver applies the root `Project.toml` bounds to every shared
+  dependency; a test bound can only narrow them, and tests that run on narrower bounds than the
+  package claims hide a failing version. The rule is: `test/Project.toml` and `docs/Project.toml`
+  carry no `[compat]` entry for a dependency of the root. The test-only bound for Aqua stays.
+  `docs/Project.toml` had no shared entry and is unchanged.
+
 ### Breaking Changes
 
 - **The grid-based and particle-based code left this package.** `src/gridbased/` and

@@ -14,6 +14,3 @@ ReducedBasisMethods = {path = ".."}
 
 [compat]
 Aqua = "0.8.18"
-GeometricBrackets = "0.1.1"
-LinearAlgebra = "1"
-ReducedComplexityModeling = "0.1"
