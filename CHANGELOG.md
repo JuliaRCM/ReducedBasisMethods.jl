@@ -55,6 +55,9 @@ written.
 
 ### Changed
 
+- CI uploads coverage from the `Julia 1 - ubuntu-latest` job instead of `Julia min`, and a test
+  job saves the Julia cache only when it succeeds.
+
 - **`[deps]` is now generic infrastructure only.** Removed from `[deps]`, with their `[compat]`
   entries where present: `ParticleMethods`, `PoissonSolvers`, `Distances`, `LaTeXStrings`,
   `LinearMaps`, `OffsetArrays`, `Optimisers`, `Parameters`, `Plots`, `Random`,
