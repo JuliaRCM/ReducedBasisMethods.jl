@@ -167,9 +167,10 @@ end
     end
 end
 
-# The input of the mixed-type testset. No entry is a power of 2, and the `Float64` ones are not
-# representable in `Float32`, so a projection rounded back to a `Float32` basis misses the bound
-# below.
+# The mixed-input fixture. The no-power-of-2 condition is on the `Float64` input,
+# which a `Float32` basis reads: none of its entries is representable in `Float32`
+# (`1 + 1e-10` rounds to `1`), so a projection carried through that precision misses the
+# bound below. The `Float32` input, read by a `Float64` basis, holds `2` and `4`.
 mixed_input(::Type{Float64}, n::Int) = 1 .+ 1e-10 .* (1:n)
 mixed_input(::Type{Float32}, n::Int) = Float32(1) .+ Float32(0.1) .* (1:n)
 
