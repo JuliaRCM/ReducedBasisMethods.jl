@@ -167,6 +167,43 @@ end
     end
 end
 
+# The input of the mixed-type testset. No entry is a power of 2, and the `Float64` ones are not
+# representable in `Float32`, so a projection rounded back to a `Float32` basis misses the bound
+# below.
+mixed_input(::Type{Float64}, n::Int) = 1 .+ 1e-10 .* (1:n)
+mixed_input(::Type{Float32}, n::Int) = Float32(1) .+ Float32(0.1) .* (1:n)
+
+@testset "Mixed element types" begin
+    # `project` returns the element type of `b.Φ' * x`, and not the element type of the basis: the
+    # coordinates of a `Float32` snapshot read in `Float64` are `Float64`.
+    for (BT, XT) in ((Float32, Float64), (Float64, Float32))
+        @testset "$(BT) basis, $(XT) input" begin
+            N, m, k = 40, 20, 5
+            rtol = 2N * eps(Float64)
+            σ = BT.(2.0 .^ (-(1:10)))
+            SP = low_rank_matrix(BT, N, m, σ)
+            SL = cotangent_snapshot(low_rank_matrix(BT, N, 2m, σ))
+            SC = complex_snapshot(complex_low_rank_matrix(BT, N, m, σ))
+
+            for alg in (PODSVD(), PODEVD(), CotangentLiftSVD(), CotangentLiftEVD(),
+                ComplexSVD())
+                S = alg isa ComplexSVD ? SC : (alg isa Union{PODSVD, PODEVD} ? SP : SL)
+                b = ReducedBasis(alg, S, NamedTuple(), testparamspace(); k = k)
+                v = mixed_input(XT, size(S, 1))
+                X = v .* [XT(1) XT(2) XT(3)]
+
+                @testset "$(nameof(typeof(alg)))" begin
+                    for x in (X, v)
+                        @test eltype(project(b, x)) === Float64
+                        @test eltype(lift(b, project(b, x))) === Float64
+                        @test (@inferred project(b, x)) ≈ Matrix(b)' * x rtol = rtol
+                    end
+                end
+            end
+        end
+    end
+end
+
 @testset "Mismatched domains" begin
     # The blockwise maps read the full-space and the reduced coordinates in blocks, so a row count
     # that does not match the basis is refused before the read, and not sliced away in silence.

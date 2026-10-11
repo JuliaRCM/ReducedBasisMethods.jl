@@ -27,7 +27,8 @@ function project(b::ReducedBasis{<:Any, <:Union{CotangentLiftSVD, CotangentLiftE
         x::AbstractMatrix)
     N, k = size(b.Φ)
     _check_rows(x, 2N, "a cotangent-lift projection")
-    z = similar(b.Φ, 2k, size(x, 2))
+    T = promote_type(eltype(b.Φ), eltype(x))
+    z = similar(b.Φ, T, 2k, size(x, 2))
     mul!(view(z, 1:k, :), b.Φ', view(x, 1:N, :))
     mul!(view(z, (k + 1):(2k), :), b.Φ', view(x, (N + 1):(2N), :))
     return z
@@ -38,11 +39,12 @@ function project(b::ReducedBasis{<:Any, <:ComplexSVD}, x::AbstractMatrix)
     _check_rows(x, 2N, "a complex-SVD projection")
     q = view(x, 1:N, :)
     p = view(x, (N + 1):(2N), :)
-    z = similar(b.Φ, 2k, size(x, 2))
+    T = promote_type(eltype(b.Φ), eltype(x))
+    z = similar(b.Φ, T, 2k, size(x, 2))
     mul!(view(z, 1:k, :), b.Φ', q)
-    mul!(view(z, 1:k, :), b.Ψ', p, one(eltype(b.Φ)), one(eltype(b.Φ)))
+    mul!(view(z, 1:k, :), b.Ψ', p, one(T), one(T))
     mul!(view(z, (k + 1):(2k), :), b.Φ', p)
-    mul!(view(z, (k + 1):(2k), :), b.Ψ', q, -one(eltype(b.Φ)), one(eltype(b.Φ)))
+    mul!(view(z, (k + 1):(2k), :), b.Ψ', q, -one(T), one(T))
     return z
 end
 

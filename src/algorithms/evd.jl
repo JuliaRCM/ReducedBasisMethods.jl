@@ -21,9 +21,9 @@ end
 The orthonormal basis of the columns of `A`: the thin Householder `Q` of `qr(A)`.
 
 Householder QR keeps the nested spans, so the first `j` columns of the result span `A[:, 1:j]` for
-every `j`, and each leading projector is the projector of `A` itself. This is what replaces
-`A = S·Ω·Λ^(-1/2)`, which divides by `√|λ|` of the round-off eigenvalues of a rank-deficient
-snapshot and is off by `O(1)` there.
+every `j`, and each leading projector is the projector of `A` itself. `A = S·Ω·Λ^(-1/2)` is not
+used: it divides by `√|λ|` of the round-off eigenvalues of a rank-deficient snapshot and is off by
+`O(1)` there.
 """
 function _qr_basis(A::AbstractMatrix)
     return Matrix(qr(A).Q)
