@@ -18,17 +18,18 @@ const TOLERANCE_45 = 1.9520e-3
     for T in (Float32, Float64)
         for (N, m) in ((200, 30), (40, 60))
             @testset "$T, N = $N, m = $m" begin
-                # Check 1: POD by SVD. The snapshot has rank 3, so every singular value past the
-                # third is round-off and is compared against the absolute Weyl bound
-                # max(N, m)·eps(T)·σ₁, never against a relative one.
+                # Check 1: POD by SVD. The snapshot has rank 3, so its singular values are `σ`
+                # followed by round-off, and every one of them is compared with the absolute Weyl
+                # bound `max(N, m)·eps(T)·σ₁`, never with a relative one: `rtol = √eps(T)` accepts
+                # a deviation a hundred Weyl bounds wide in Float64.
                 σ = T[0.5, 0.25, 0.125]
                 S = low_rank_matrix(T, N, m, σ)
 
                 b = ReducedBasis(PODSVD(), S, NamedTuple(), testparamspace(); k = 3)
                 @test length(b.Λ) == min(N, m)
                 @test b.k == 3
-                @test sqrt.(b.Λ[1:3]) ≈ σ rtol = √eps(T)
-                @test sqrt(maximum(b.Λ[4:end])) ≤ max(N, m) * eps(T) * σ[1]
+                σref = [σ; zeros(T, length(b.Λ) - length(σ))]
+                @test maximum(abs.(sqrt.(b.Λ) .- σref)) ≤ max(N, m) * eps(T) * σ[1]
 
                 # Check 5, the SVD half: the spectrum σᵢ = 2⁻ⁱ, i = 1:10, and the energy rule
                 # keeps k = 5 for both SVD routes.
