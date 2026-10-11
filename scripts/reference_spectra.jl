@@ -74,6 +74,23 @@ function beta_run!(q::AbstractMatrix, q0::Vector{Float64}, p0::Vector{Float64},
 end
 
 """
+    spectrum_deviation(σ, σref, reference)
+
+The absolute deviation of the spectrum `σ` from the reference spectrum `σref`,
+`maximum(abs.(σ .- σref))`, and the Weyl bound `max(m, n)·eps(Float64)·σ₁` it is compared with,
+where `m` and `n` are the dimensions of the `reference` matrix and `σ₁` is `σref`'s largest
+singular value.
+
+Both numbers are absolute. Dividing the deviation by `σ₁` before the comparison — the bound
+already carries `σ₁`, so the division buys a factor `σ₁` — accepts a deviation that many times the
+bound.
+"""
+function spectrum_deviation(σ::AbstractVector, σref::AbstractVector, reference::AbstractMatrix)
+    bound = max(size(reference)...) * eps(Float64) * σref[1]
+    return maximum(abs.(σ .- σref)), bound
+end
+
+"""
 The singular values of one route against the reference's own `svd`, and the energy-selected `k` at
 each tolerance. One reduction gives the whole spectrum, so the tolerances are read off it rather
 than reduced again.
@@ -86,21 +103,20 @@ function route(name::AbstractString, alg, snapshot::AbstractMatrix,
     σ = sqrt.(b.Λ)
     σref = svd(reference).S
     σ₁ = σ[1]
-    bound = max(size(reference)...) * eps(Float64) * σ₁
+    deviation, bound = spectrum_deviation(σ, σref, reference)
 
-    gap = maximum(abs.(σ .- σref)) / σ₁
     tail = maximum(σ[(rank + 1):end])
     ks = [ReducedBasisMethods._basis_size(b.Λ, nothing, tol) for tol in tolerances]
 
     println(rpad(name, 20), " σ₁ = ", σ₁, ",  rank = ", rank)
-    println(rpad("", 20), " reference svd: ", gap, " ≤ ",
-        bound, "  ", gap ≤ bound ? "ok" : "FAIL")
+    println(rpad("", 20), " reference svd: ", deviation, " ≤ ",
+        bound, "  ", deviation ≤ bound ? "ok" : "FAIL")
     println(rpad("", 20), " σ past rank:   ", tail, " ≤ ", bound, "  ",
         tail ≤ bound ? "ok" : "FAIL")
     println(rpad("", 20), " k at tolerance: ",
         join(["$tol → $k" for (tol, k) in zip(tolerances, ks)], ",  "))
 
-    return gap ≤ bound && tail ≤ bound
+    return deviation ≤ bound && tail ≤ bound
 end
 
 function main(stride::Int, nbeta::Int)

@@ -5,6 +5,7 @@ const GROUPS = isempty(ARGS) ? ["core", "slow"] : ARGS
 if "core" in GROUPS
     @safetestset "Aqua" include("quality/aqua.jl")
     @safetestset "Generic-only skeleton" include("integration/skeleton.jl")
+    @safetestset "Reference spectra script" include("integration/reference_spectra.jl")
     @safetestset "Reduced basis" include("reducedbasis.jl")
     @safetestset "Reduced tensor" include("reduced_tensor.jl")
     @safetestset "SVD routes" include("algorithms/svd.jl")

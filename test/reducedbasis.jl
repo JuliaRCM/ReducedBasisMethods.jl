@@ -11,11 +11,23 @@ Random.seed!(43)
     ps = testparamspace()
     S = low_rank_matrix(Float64, 40, 20, 2.0 .^ (-(1:5)))
 
-    # `k` is at most `min(N, m)` for POD and the complex SVD, and `min(N, 2m)` for the
-    # cotangent lift, because that is how many columns the spectrum holds.
+    # `k` is at most `min(N, m)` for POD and the complex SVD, and `min(N, 2m)` for the cotangent
+    # lift, because that is how many columns a snapshot of `N` rows admits — the Gram spectrum of
+    # the EVD routes is longer than that and is stored whole.
     @test ReducedBasis(PODSVD(), S, NamedTuple(), ps; k = 20).k == 20
     @test size(Matrix(ReducedBasis(PODSVD(), S, NamedTuple(), ps; k = 20).Φ)) == (40, 20)
     @test_throws ArgumentError ReducedBasis(PODSVD(), S, NamedTuple(), ps; k = 21)
+
+    # An out-of-range `k` is an `ArgumentError` for every `Integer` type, the ones whose
+    # conversion to `Int` would throw `InexactError` first included: the range is checked in the
+    # type `k` arrives in.
+    for alg in (PODSVD(), PODEVD(), CotangentLiftSVD(), CotangentLiftEVD(), ComplexSVD())
+        Ssmall = alg isa Union{PODSVD, PODEVD} ? low_rank_matrix(Float64, 4, 2, [1.0]) :
+                 cotangent_snapshot(low_rank_matrix(Float64, 4, 2, [1.0]))
+        for k in (typemax(UInt), big(typemax(Int)) + 1, -big(typemax(Int)) - 2)
+            @test_throws ArgumentError ReducedBasis(alg, Ssmall, NamedTuple(), ps; k = k)
+        end
+    end
 
     # k = 0, tolerance outside [0, 1), and both or neither of the two keywords.
     @test_throws ArgumentError ReducedBasis(PODSVD(), S, NamedTuple(), ps; k = 0)

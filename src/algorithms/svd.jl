@@ -37,7 +37,9 @@ that the basis is `diag(Φ, Φ)`.
 function _reduce(alg::CotangentLiftSVD, S::AbstractMatrix, parameters::NamedTuple,
         paramspace::ParameterSpace, k, tolerance)
     N = size(S, 1) ÷ 2
-    U, σ = _svd(hcat(S[1:N, :], S[(N + 1):(2N), :]))
+    Q = @view S[1:N, :]
+    P = @view S[(N + 1):(2N), :]
+    U, σ = _svd(hcat(Q, P))
     Λ = σ .^ 2
     k = _basis_size(Λ, k, tolerance)
     return ReducedBasis(alg, parameters, paramspace, Λ, k, U[:, 1:k], nothing)

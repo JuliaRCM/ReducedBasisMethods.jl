@@ -39,7 +39,8 @@ The fields are
   can plot it;
 - `k`: the basis size, `1 ≤ k ≤ length(Λ)`;
 - `Φ`: the `N × k` (POD) or `N × k` real factor of the basis;
-- `Ψ`: the imaginary part of `Φ` for `ComplexSVD`, and `nothing` for every other algorithm.
+- `Ψ`: the imaginary part `Im U` of the singular vectors whose real part is `Φ`, for `ComplexSVD`,
+  and `nothing` for every other algorithm.
 
 `Matrix(b)` assembles `Φ` for the POD algorithms, `diag(Φ, Φ)` for the cotangent lift and
 `[Φ −Ψ; Ψ Φ]` for the complex SVD. `Ψ` is a type parameter, so the field costs nothing for an
@@ -79,16 +80,17 @@ end
 
 The reduced basis of the snapshot matrix `S`, built by `algorithm`.
 
-`S` is the `N × m` snapshot for `PODSVD` and `PODEVD`, the `N × 2m` matrix `[Q P]` for the
-cotangent lift, and the stacked `2N × m` matrix `[Q; P]` for every PSD algorithm.
+`S` is the `N × m` snapshot for `PODSVD` and `PODEVD`, and the stacked `2N × m` matrix `[Q; P]` for
+`CotangentLiftSVD`, `CotangentLiftEVD` and `ComplexSVD`.
 
-Exactly one of `k` and `tolerance` says how large the basis is. `k` is the number of columns,
-and `tolerance` keeps the leading columns that carry all but `tolerance` of the energy
+Exactly one of `k` and `tolerance` says how large the basis is. `k` is the number of columns, and
+`tolerance` keeps the leading columns that carry all but `tolerance` of the energy
 `sum(max.(Λ, 0))` of the spectrum `Λ`.
 
 Throws an `ArgumentError` when `S` has a zero dimension, when a PSD snapshot has an odd number of
-rows, when `k` is outside `1:length(Λ)`, when `tolerance` is outside `[0, 1)`, and when both or
-neither of `k` and `tolerance` are given.
+rows, when `k` is outside `1:kmax`, where `kmax = min(N, m)` for the POD and complex algorithms and
+`min(N, 2m)` for the cotangent lift, when `tolerance` is outside `[0, 1)`, and when both or neither
+of `k` and `tolerance` are given.
 """
 function ReducedBasis(algorithm::ReductionAlgorithm, S::AbstractMatrix,
         parameters::NamedTuple, paramspace::ParameterSpace;
@@ -98,34 +100,38 @@ function ReducedBasis(algorithm::ReductionAlgorithm, S::AbstractMatrix,
 end
 
 """
-    _basis_size(Λ, k, tolerance)
+    _basis_size(Λ, k, tolerance, kmax = length(Λ))
 
-The leading number of entries of the spectrum `Λ` the caller asked for.
+The leading number of entries of the spectrum `Λ` the caller asked for, at most `kmax`.
 
-`k` is returned as an `Int` after its range is checked. Under `tolerance`, the energy
-`Λ⁺ = max.(Λ, 0)` is accumulated and the first index whose running sum reaches `(1 - tolerance)`
-of it is kept. The clamp is what makes a negative entry, which a Gram matrix of a rank-deficient
-snapshot produces, contribute no energy; the last index always qualifies, so the result never
-runs past `length(Λ)` even at `tolerance = 0`.
+`k` is checked in its own integer type and converted to `Int` only once it is inside `1:kmax`, so
+`typemax(UInt)` and an oversized `BigInt` raise the `ArgumentError` the range promises, and not the
+`InexactError` an earlier conversion would.
+
+Under `tolerance`, the energy `Λ⁺ = max.(Λ, 0)` is accumulated and the first index whose running sum
+reaches `(1 - tolerance)` of it is kept, capped at `kmax`. The clamp is what makes a negative entry,
+which a Gram matrix of a rank-deficient snapshot produces, contribute no energy; the last index
+always qualifies, so the result never runs past `length(Λ)` even at `tolerance = 0`. A spectrum with
+a non-finite entry, which this package's inputs do not define, leaves `findfirst` with nothing to
+find, and the result is then `kmax`.
 """
 function _basis_size(Λ::AbstractVector, k::Union{Nothing, Integer},
-        tolerance::Union{Nothing, Real})
+        tolerance::Union{Nothing, Real}, kmax::Int = length(Λ))
     if k === nothing && tolerance === nothing
         throw(ArgumentError("one of `k` and `tolerance` says how large the basis is"))
     elseif k !== nothing && tolerance !== nothing
         throw(ArgumentError("`k` and `tolerance` are mutually exclusive"))
     elseif k !== nothing
-        k = Int(k)
-        1 ≤ k ≤ length(Λ) ||
-            throw(ArgumentError("k = $k is outside 1:$(length(Λ))"))
-        return k
+        1 ≤ k ≤ kmax ||
+            throw(ArgumentError("k = $k is outside 1:$kmax"))
+        return Int(k)
     end
 
     tol = float(tolerance)
     0 ≤ tol < 1 || throw(ArgumentError("tolerance = $tol is outside [0, 1)"))
 
     E = cumsum(max.(Λ, zero(eltype(Λ))))
-    return something(findfirst(≥((1 - tol) * last(E)), E), length(Λ))
+    return min(something(findfirst(≥((1 - tol) * last(E)), E), kmax), kmax)
 end
 
 """

@@ -166,3 +166,56 @@ end
         end
     end
 end
+
+@testset "Mismatched domains" begin
+    # The blockwise maps read the full-space and the reduced coordinates in blocks, so a row count
+    # that does not match the basis is refused before the read, and not sliced away in silence.
+    for alg in (CotangentLiftSVD(), CotangentLiftEVD(), ComplexSVD())
+        b = ReducedBasis(alg, ones(6, 2), NamedTuple(), testparamspace(); k = 1)  # N = 3, k = 1
+
+        @test size(project(b, ones(6, 1))) == (2, 1)
+        @test size(lift(b, ones(2, 1))) == (6, 1)
+        for n in (5, 7)
+            @test_throws DimensionMismatch project(b, ones(n, 1))
+            @test_throws DimensionMismatch project(b, ones(n))
+        end
+        for n in (1, 3)
+            @test_throws DimensionMismatch lift(b, ones(n, 1))
+            @test_throws DimensionMismatch lift(b, ones(n))
+        end
+    end
+end
+
+# A concrete barrier: the arguments' types are known, and the call before the measurement warms
+# the method.
+allocations(f::F, b::B, x::X) where {F, B, X} = (f(b, x); @allocated f(b, x))
+
+@testset "Projection allocation" begin
+    # `project` is called once per integration step and its output is `2k × p` whatever the number
+    # of rows of the snapshot. A tenfold increase of those rows must not cost more than the output
+    # does, or the call copies what it reads. The barrier, the warm call, one BLAS thread and the
+    # minimum of ten repeats are what make the count reproducible; the 2 KiB slack is far below one
+    # copied `1800 × 3` block.
+    threads = BLAS.get_num_threads()
+    BLAS.set_num_threads(1)
+    try
+        for T in (Float32, Float64)
+            for alg in (CotangentLiftSVD(), CotangentLiftEVD(), ComplexSVD())
+                bytes = Int[]
+                for N in (200, 2000)
+                    b = ReducedBasis(
+                        alg, randn(T, 2N, 20), NamedTuple(), testparamspace(); k = 5)
+                    X = randn(T, 2N, 3)
+                    push!(bytes, minimum(allocations(project, b, X) for _ in 1:10))
+                end
+                @test abs(last(bytes) - first(bytes)) ≤ 2048
+            end
+        end
+
+        # The barrier sees an allocation.
+        b = ReducedBasis(PODSVD(), randn(200, 20), NamedTuple(), testparamspace(); k = 5)
+        @test allocations((b, x) -> collect(x), b, randn(200, 3)) > 0
+    finally
+        BLAS.set_num_threads(threads)
+    end
+end

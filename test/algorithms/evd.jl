@@ -11,14 +11,14 @@ Random.seed!(31)
     for T in (Float32, Float64)
         for (N, m) in ((200, 30), (40, 60))
             @testset "$T, N = $N, m = $m" begin
-                # The Gram spectrum is sorted by value, never by magnitude, and it is cut to the
-                # basis limit `min(N, 2m)`: past the rank of the snapshot the remaining
-                # eigenvalues are round-off.
+                # The Gram spectrum is the whole `2m × 2m` spectrum of `[Q P]`, sorted by value,
+                # never by magnitude: past the rank of the snapshot its eigenvalues are round-off
+                # and of both signs, and all of them stay — only the basis is cut, to `min(N, 2m)`.
                 S = cotangent_snapshot(low_rank_matrix(T, N, 2m, T[0.5, 0.25]))
                 b = ReducedBasis(
                     CotangentLiftEVD(), S, NamedTuple(), testparamspace(); k = 2)
                 @test issorted(b.Λ; rev = true)
-                @test length(b.Λ) == min(N, 2m)
+                @test length(b.Λ) == 2m
                 @test b.k == 2
 
                 # Check 5, the EVD half: the same energy rule and the same k as the SVD routes.
@@ -28,14 +28,20 @@ Random.seed!(31)
                     tolerance = T(1.9520e-3))
                 @test b5.k == 5
 
-                # The POD EVD route cuts the Gram spectrum to `min(N, m)`, and its leading
+                # The POD EVD route stores the whole `m × m` Gram spectrum, and its leading
                 # singular values are recovered to `√eps` where the squared condition number
                 # allows it — the first five, the ones the gap precondition of check 3 admits.
                 SP = low_rank_matrix(T, N, m, σ10)
                 bp = ReducedBasis(PODEVD(), SP, NamedTuple(), testparamspace(); k = 5)
-                @test length(bp.Λ) == min(N, m)
+                @test length(bp.Λ) == m
                 @test bp.k == 5
                 @test sqrt.(bp.Λ[1:5]) ≈ σ10[1:5] rtol = √eps(T)
+
+                # `A⁺A = I` holds on the POD EVD route too, at a `k` past the rank of the
+                # snapshot: there `S·Ω·Λ^(-1/2)` divides by a round-off eigenvalue and is `O(1)`
+                # off, while the QR route stays orthonormal.
+                b20 = ReducedBasis(PODEVD(), SP, NamedTuple(), testparamspace(); k = 20)
+                @test opnorm(b20.Φ' * b20.Φ - I) ≤ N * eps(T)
 
                 # A Float32 snapshot gives a Float32 basis.
                 @test eltype(bp.Λ) === T
@@ -44,8 +50,8 @@ Random.seed!(31)
             end
         end
 
-        # The rank-2 EVD case, N ≫ m: the Gram matrix is not cut, so its round-off eigenvalues
-        # of both signs are all in the spectrum a caller plots.
+        # The rank-2 EVD case, N ≫ m: the spectrum is whole, so its round-off eigenvalues of both
+        # signs are all in the spectrum a caller plots.
         S = cotangent_snapshot(low_rank_matrix(T, 200, 60, T[0.5, 0.25]))
         b = ReducedBasis(CotangentLiftEVD(), S, NamedTuple(), testparamspace(); k = 2)
         @test length(b.Λ) == 60
@@ -59,9 +65,13 @@ Random.seed!(31)
         @test ReducedBasisMethods._basis_size([4.0, 1.0, -0.5], nothing, 0.15) == 2
 
         # tolerance 0 keeps the first index that reaches the full energy, and never runs past the
-        # end of the spectrum.
+        # end of the spectrum. The second input is the one the moved `while` loop of the old
+        # `get_PODBasis_EVD` runs past: `sum` of that sequence exceeds the running sum a loop
+        # forms by a rounding, so the loop reaches `Λ[22]` and throws, where `_basis_size` keeps a
+        # valid `k`.
         @test ReducedBasisMethods._basis_size([4.0, 1.0, -0.5], nothing, 0.0) == 2
         @test ReducedBasisMethods._basis_size(Float32[4, 0], nothing, 0.0f0) == 1
+        @test 1 ≤ ReducedBasisMethods._basis_size([1.0; fill(1e-16, 20)], nothing, 0.0) ≤ 21
 
         # k of any `Integer` is converted to `Int`.
         @test ReducedBasisMethods._basis_size([1.0, 2.0, 3.0], Int32(2), nothing) === 2

@@ -6,7 +6,7 @@ using TOML
     project = TOML.parsefile(joinpath(pkgdir(ReducedBasisMethods), "Project.toml"))
 
     # [deps] holds only generic infrastructure: no model package, no integrator
-    permitted = ("GeometricBrackets", "HDF5", "LazyArrays", "LinearAlgebra",
+    permitted = ("GeometricBrackets", "HDF5", "LinearAlgebra",
         "MultiIndexArrays", "ReducedComplexityModeling", "Statistics")
     @test keys(project["deps"]) ⊆ permitted
 end
