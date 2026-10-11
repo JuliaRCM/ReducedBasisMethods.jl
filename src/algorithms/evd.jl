@@ -1,86 +1,74 @@
+"""
+    _sorted_eigen(G)
 
-function get_Ψ(S, Λ, Ω, tol, k = 0)
-    E = sum(Λ)
-    Eᵣ = 0
-    if k == 0
-        k = 1
-        while 1 - (Eᵣ + Λ[k])/E > tol
-            Eᵣ += Λ[k]
-            k+=1
-        end
-    end
-    Ψ = S*Ω[:, 1:k]
-    for i in 1:k
-        Ψ[:, i] ./= sqrt(abs.(Λ[i]))
-    end
-    return k, Ψ
+The eigen-decomposition of the symmetric matrix `G`, with the eigenvalues sorted in descending
+order and the eigenvectors permuted to match. `eigen` returns them ascending, and both the basis
+size and the leading columns are counted from the largest, so the order is reversed once here.
+
+The eigenvectors are sorted by their value, never by its magnitude: a Gram matrix of a
+rank-deficient snapshot has round-off eigenvalues of both signs, and `|λ|` puts those among the
+leading ones.
+"""
+function _sorted_eigen(G::AbstractMatrix)
+    F = eigen(Symmetric(G))
+    p = reverse(eachindex(F.values))
+    return F.values[p], F.vectors[:, p]
 end
 
 """
-Obtains an orthogonal basis based on the snapshot matrix XV = [X V] ∈ R^(N × 2m) by calculating an EVD of XV' * XV (size: 2m × 2m)
-The size of the basis is set as k. 
-If k = 0 is given, the size is determined by the tolerance parameter as 1 - tol < (E(k) + Λ[k+1])/E(N) where E(k) is the sum of the largest k eigenvalues of the snapshot matrix.
-Returns the k largest left eigenvectors in the N × k matrix Ψ and the corresponding eigenvalues in Λ
+    _qr_basis(A)
+
+The compressions of the leading columns of `A`: the first `size(A, 2)` columns of the thin
+Householder `Q` of `qr(A)`.
+
+Householder QR keeps the nested spans, so the first `j` columns of the result span `A[:, 1:j]` for
+every `j`, and each leading projector is the projector of `A` itself. This is what replaces
+`A = S·Ω·Λ^(-1/2)`, which divides by `√|λ|` of the round-off eigenvalues of a rank-deficient
+snapshot and is off by `O(1)` there.
 """
-function get_PODBasis_cotangentLiftEVD(X, V; k = 0, tolerance = 1e-8)
-    @assert size(X) == size(V)
-
-    N, m = size(X)
-    XVᵀXV = zeros(2m, 2m)
-
-    XV = ApplyArray(hcat, X, V)
-    XVᵀXV .= XV' * XV
-
-    EVD = eigen(XVᵀXV)
-    Λ, Ω = sorteigen(EVD.values, EVD.vectors) # Ω (size: 2m × 2m) contains the right eigenvectors of XV as columns
-
-    E = sum(Λ)
-    Eᵣ = 0
-    if k == 0   # use tolerance based on ∑ᵢλᵢ
-        k = 1
-        while 1 - tolerance > (Eᵣ + Λ[k])/E
-            Eᵣ += Λ[k]
-            k+=1
-        end
-    end
-
-    # Ψ contains the left eigenvectors of XV, which can be recovered from Σ⁻¹ XV Ω
-    Ψ = XV * Ω[:, 1:k] * diagm(inv.(sqrt.(abs.(Λ[1:k]))))
-    # for i in 1:k
-    #     Ψ[:,i] ./= sqrt(abs.(Λ[i]))
-    # end
-
-    return Ψ, Λ
+function _qr_basis(A::AbstractMatrix)
+    return Matrix(qr(A).Q)[:, 1:size(A, 2)]
 end
 
 """
-Obtains an orthogonal basis based on the snapshot matrix S ∈ R^(N × m) by calculating an EVD of S' * S (size: m × m)
-The size of the basis is set as k. 
-If k = 0 is given, the size is determined by the tolerance parameter as 1 - tol < (E(k) + Λ[k+1])/E(N) where E(k) is the sum of the largest k eigenvalues of the snapshot matrix.
-Returns the k largest left eigenvectors in the N × k matrix Ψ and the corresponding eigenvalues in Λ
+    _reduce(::PODEVD, S, parameters, paramspace, k, tolerance)
+
+The POD basis of the `N × m` snapshot `S` from the eigendecomposition of the `m × m` Gram matrix
+`SᵀS`. The spectrum `Λ` is the Gram spectrum, which squared entries make `σ²`, and it is cut to
+`min(N, m)` entries — past the rank of `S` its remaining eigenvalues are round-off. `Φ` is the
+orthonormal basis of `S·Ω[:, 1:k]`.
 """
-function get_PODBasis_EVD(S; k = 0, tolerance = 1e-4)
-    N, m = size(S)
-    SᵀS = S' * S
+function _reduce(alg::PODEVD, S::AbstractMatrix, parameters::NamedTuple,
+        paramspace::ParameterSpace, k, tolerance)
+    Λ, Ω = _sorted_eigen(S' * S)
+    Λ = Λ[1:min(size(S, 1), size(S, 2))]
+    k = _basis_size(Λ, k, tolerance)
+    return ReducedBasis(
+        alg, parameters, paramspace, Λ, k, _qr_basis(S * Ω[:, 1:k]), nothing)
+end
 
-    EVD = eigen(SᵀS)
-    Λ, Ω = sorteigen(EVD.values, EVD.vectors) # Ω (size: m × m) contains the right eigenvectors of XV as columns
+"""
+    _reduce(::CotangentLiftEVD, S, parameters, paramspace, k, tolerance)
 
-    E = sum(Λ)
-    Eᵣ = 0
-    if k == 0   # use tolerance based on ∑ᵢλᵢ
-        k = 1
-        while 1 - tolerance > (Eᵣ + Λ[k])/E
-            Eᵣ += Λ[k]
-            k+=1
-        end
-    end
+The cotangent-lift basis of the stacked `2N × m` snapshot `S = [Q; P]`, from the eigendecomposition
+of the `2m × 2m` Gram matrix `[Q P]ᵀ[Q P]`, assembled from the views `Q` and `P` without forming
+`[Q P]`. Its spectrum is cut to `min(N, 2m)` entries, and `Φ` is the orthonormal basis of
+`Q·Ω[1:m, 1:k] + P·Ω[m+1:2m, 1:k]`.
+"""
+function _reduce(alg::CotangentLiftEVD, S::AbstractMatrix, parameters::NamedTuple,
+        paramspace::ParameterSpace, k, tolerance)
+    N = size(S, 1) ÷ 2
+    m = size(S, 2)
+    Q = @view S[1:N, :]
+    P = @view S[(N + 1):(2N), :]
 
-    # Ψ contains the left eigenvectors of XV, which can be recovered from Σ⁻¹ XV Ω
-    Ψ = S * Ω[:, 1:k] * diagm(inv.(sqrt.(abs.(Λ[1:k]))))
-    # for i in 1:k
-    #     Ψ[:,i] ./= sqrt(abs.(Λ[i]))
-    # end
+    QQ = Q' * Q
+    PP = P' * P
+    QP = Q' * P
+    Λ, Ω = _sorted_eigen([QQ QP; QP' PP])
+    Λ = Λ[1:min(N, 2m)]
 
-    return Ψ, Λ
+    k = _basis_size(Λ, k, tolerance)
+    Φ = _qr_basis(Q * Ω[1:m, 1:k] + P * Ω[(m + 1):(2m), 1:k])
+    return ReducedBasis(alg, parameters, paramspace, Λ, k, Φ, nothing)
 end
