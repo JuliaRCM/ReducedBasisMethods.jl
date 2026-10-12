@@ -147,6 +147,10 @@ written.
   cotangent-lift EVD route, which the rewrite removes, so a caller that needs `LazyArrays` now
   adds it to its own environment.
 
+- **`ReducedComplexityModeling` is required at `0.1.1`.** The `0.1` bound admitted 0.1.0, which
+  needs GeometricEquations 0.10 and GeometricSolutions 0.3. At the lower bounds the resolver
+  selects 0.1.1 instead, so the CI Downgrade job failed its lower-bound check.
+
 ### Breaking Changes
 
 - **The grid-based and particle-based code left this package.** `src/gridbased/` and
