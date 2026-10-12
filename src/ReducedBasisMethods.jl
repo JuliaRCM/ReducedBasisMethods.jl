@@ -35,6 +35,10 @@ include("algorithms/deim.jl")
 
 export get_DEIM_interpolation_matrix
 
+include("algorithms/symplectic_deim.jl")
+
+export SymplecticDEIM, hamiltonian_gradient!
+
 export h5save, h5load
 
 include("reduced_tensor.jl")
