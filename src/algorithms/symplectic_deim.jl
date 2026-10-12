@@ -6,9 +6,9 @@ Structure-preserving DEIM for a Hamiltonian `H(x) = ½xᵀLx + Σᵢ hᵢ(x)`, a
 
 DEIM is applied to the densities `hᵢ`, not to the gradient `∇H`, and the reduced gradient is
 then obtained by differentiating the reduced Hamiltonian exactly. The reduced gradient is
-therefore the gradient of a scalar, and its Jacobian is symmetric by construction. The plain
-DEIM reduction of eq. (5.8) of the same paper, `W = AᵀΨ(ΠᵀΨ)⁻¹`, gives neither: that `W` is
-not symmetric, and the authors state that the reduced system is "not necessarily Hamiltonian".
+therefore the gradient of a scalar, and its Jacobian is symmetric by construction. In contrast,
+the plain DEIM reduction of eq. (5.8) of the same paper uses `W = AᵀΨ(ΠᵀΨ)⁻¹` and does not
+guarantee a symmetric reduced-gradient Jacobian or a Hamiltonian reduced system.
 
 # Arguments
 - `A`: an `N × r` basis. It need not be symplectic: `H̃` is defined for any `A`.
@@ -45,7 +45,7 @@ function SymplecticDEIM(
         A::AbstractMatrix, L::AbstractMatrix, U::AbstractMatrix, stencil, h, ∇h)
     T = float(promote_type(eltype(A), eltype(L), eltype(U)))
 
-    # The weights make the interpolation of the densities exact on the DEIM rows:
+    # The weights express the sum of the DEIM-interpolated densities using sampled values:
     # 𝟙ᵀU(ΠᵀU)⁻¹Πᵀh = wᵀh[p].
     p = _deim_indices(U)
     w = convert(Vector{T}, (U[p, :])' \ (U' * ones(T, size(U, 1))))
@@ -121,13 +121,10 @@ the write reads 0 B, and anything a callback allocates is the caller's.
 The write gives no guarantee for an aliased array: `g` and `z` must be distinct, because the
 quadratic part is written with `mul!`, which requires its output and its input to differ.
 
-It throws nothing itself. The `ArgumentError`s are the constructor's, from
-[`_deim_indices`](@ref): `m > M`, and a column of the density basis whose largest DEIM residual
-magnitude `ρ` is `0` — a zero column or one exactly dependent on the ones before it — or `NaN`,
-or `Inf`. A `NaN` or an `Inf` in `z`, or from `∇h`, enters `g` with no check.
-
-The name is `hamiltonian_gradient!` rather than `gradient!` because `gradient!` clashes with
-`ForwardDiff` in a test environment.
+The constructor validates the density basis through [`_deim_indices`](@ref): `m > M`, and a
+column whose largest DEIM residual magnitude is zero or non-finite, raise `ArgumentError`.
+This write propagates errors from array operations and callbacks. A `NaN` or an `Inf` in `z`,
+or from `∇h`, enters `g` with no check.
 """
 function hamiltonian_gradient!(
         g::AbstractVector, sd::SymplecticDEIM{T}, z::AbstractVector) where {T}

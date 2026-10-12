@@ -36,11 +36,9 @@ end
 
         @test Λ[10] < 1e0
         @test Λ[15] < 1e-2
-        # `Λ[20]` of a `Float32` S sits on its own EVD's round-off floor: 2.46e-5, against 2.91e-8
-        # in `Float64`, because a `Float32` Gram matrix resolves no eigenvalue below about
-        # `eps(Float32) * Λ[1] = 7.35e-5`, and the tail is round-off. The threshold takes the
-        # precision, not the route: `eps(Float64) * Λ[1]` leaves the bound at exactly 1e-7, and in
-        # `Float32` it is `eps(Float32) * Λ[1]`, which the measured value meets at 0.34 of it.
+        # The Float32 Gram matrix's EVD has a round-off floor of order `eps(T) * Λ[1]`.
+        # The threshold accounts for that floor while retaining the 1e-7 bound
+        # where it exceeds the round-off scale.
         @test Λ[20] < max(1e-7, eps(T) * Λ[1])
 
         Π = get_DEIM_interpolation_matrix(Ψ)
@@ -91,9 +89,8 @@ end
         # At k = 1 the first pick is the whole selection.
         @test _deim_indices(Ψ₂[:, 1:1]) == [2]
 
-        # A residual that vanishes identically: the row of the largest value is the one the
-        # first pick took, and the two candidates that remain are equal, so the first of them
-        # decides.
+        # The residual is zero at the selected row and has equal largest magnitudes in
+        # rows 2 and 3, so the tie goes to row 2.
         Ψ₃ = T[1 0; 0 -1; 0 -1] ./ T[1 sqrt(2)]
         @test _deim_indices(Ψ₃) == [1, 2]
 
@@ -119,19 +116,16 @@ end
     @test _deim_indices(zeros(3, 0)) == Int[]
     @test size(get_DEIM_interpolation_matrix(zeros(3, 0))) == (3, 0)
 
-    # k > N is rejected rather than silently returning a matrix with repeated rows.
+    # k > N leaves too few distinct rows for the interpolation.
     @test_throws ArgumentError get_DEIM_interpolation_matrix(randn(Xoshiro(1), 3, 4))
 
-    # A column whose residual is exactly zero, NaN or Inf. Each leaves the selection with no
-    # order to follow: the zero and the NaN residual pick an index already taken, and the
-    # Inf residual has no largest magnitude at all.
+    # A zero residual adds no independent column; a non-finite residual is not interpolable.
     @test_throws ArgumentError get_DEIM_interpolation_matrix([1 2; 0 0; 0 0])
     @test_throws ArgumentError get_DEIM_interpolation_matrix([NaN 0; 0 1; 0 0])
     @test_throws ArgumentError get_DEIM_interpolation_matrix([Inf 0; 0 1; 0 0])
     @test_throws ArgumentError get_DEIM_interpolation_matrix([1 0; 0 Inf; 0 0])
 
-    # Column 1 carries the same test as every other column, so a zero, NaN or Inf first column is
-    # rejected rather than selected in silence.
+    # The validator rejects a zero, NaN or Inf first column as it does every other column.
     for T in (Float32, Float64), bad in (zero(T), T(NaN), T(Inf))
 
         @test_throws ArgumentError get_DEIM_interpolation_matrix(reshape(T[bad, 0, 0], 3, 1))
