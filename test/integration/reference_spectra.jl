@@ -2,7 +2,7 @@ using LinearAlgebra
 using Test
 
 # The comparator of `scripts/reference_spectra.jl`, on its own: the paper-data run it belongs to
-# needs a 9.6 GiB snapshot, and this is the rule that decides whether that run says PASS. The
+# needs an 8.94 GiB snapshot, and this is the rule that decides whether that run says PASS. The
 # script ends in `exit(main(...))` because it is a script, so the file is loaded up to that line.
 const SCRIPT = normpath(joinpath(@__DIR__, "..", "..", "scripts", "reference_spectra.jl"))
 

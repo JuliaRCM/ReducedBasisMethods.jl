@@ -9,7 +9,12 @@ matrices this package reduces it costs as much memory as the snapshot itself. `M
 the element type it is asked for, since `gesvd!` overwrites its argument.
 """
 function _svd(M::AbstractMatrix{T}) where {T}
-    U, σ, _ = LinearAlgebra.LAPACK.gesvd!('S', 'N', Matrix{T}(M))
+    return _svd!(Matrix{T}(M))
+end
+
+"The thin left singular factor and singular values of the owned matrix `M`, overwritten by LAPACK."
+function _svd!(M::Matrix)
+    U, σ, _ = LinearAlgebra.LAPACK.gesvd!('S', 'N', M)
     return U, σ
 end
 
@@ -39,7 +44,7 @@ function _reduce(alg::CotangentLiftSVD, S::AbstractMatrix, parameters::NamedTupl
     N = size(S, 1) ÷ 2
     Q = @view S[1:N, :]
     P = @view S[(N + 1):(2N), :]
-    U, σ = _svd(hcat(Q, P))
+    U, σ = _svd!(hcat(Q, P))
     Λ = σ .^ 2
     k = _basis_size(Λ, k, tolerance)
     return ReducedBasis(alg, parameters, paramspace, Λ, k, U[:, 1:k], nothing)
@@ -59,7 +64,9 @@ too, but it spans `X − iV`.
 function _reduce(alg::ComplexSVD, S::AbstractMatrix, parameters::NamedTuple,
         paramspace::ParameterSpace, k, tolerance)
     N = size(S, 1) ÷ 2
-    U, σ = _svd(S[1:N, :] + im * S[(N + 1):(2N), :])
+    Q = @view S[1:N, :]
+    P = @view S[(N + 1):(2N), :]
+    U, σ = _svd!(Q .+ im .* P)
     Λ = σ .^ 2
     k = _basis_size(Λ, k, tolerance)
     U = U[:, 1:k]

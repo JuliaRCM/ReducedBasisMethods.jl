@@ -64,11 +64,10 @@ Random.seed!(31)
         # energy is 4.5 rather than 5, and the rule keeps one column instead of two.
         @test ReducedBasisMethods._basis_size([4.0, 1.0, -0.5], nothing, 0.15) == 2
 
-        # tolerance 0 keeps the first index that reaches the full energy, and never runs past the
-        # end of the spectrum. The second input is the one the moved `while` loop of the old
-        # `get_PODBasis_EVD` runs past: `sum` of that sequence exceeds the running sum a loop
-        # forms by a rounding, so the loop reaches `Λ[22]` and throws, where `_basis_size` keeps a
-        # valid `k`.
+        # Tolerance 0 keeps the first index that reaches the full energy and stays inside the
+        # spectrum. Pairwise `sum` and a sequential running sum can round differently on
+        # `[1.0; fill(1e-16, 20)]`; using the same cumulative sum for the target and the search
+        # keeps the final index eligible.
         @test ReducedBasisMethods._basis_size([4.0, 1.0, -0.5], nothing, 0.0) == 2
         @test ReducedBasisMethods._basis_size(Float32[4, 0], nothing, 0.0f0) == 1
         @test 1 ≤ ReducedBasisMethods._basis_size([1.0; fill(1e-16, 20)], nothing, 0.0) ≤ 21

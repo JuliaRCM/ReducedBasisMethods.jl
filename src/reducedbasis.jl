@@ -83,9 +83,9 @@ The reduced basis of the snapshot matrix `S`, built by `algorithm`.
 `S` is the `N × m` snapshot for `PODSVD` and `PODEVD`, and the stacked `2N × m` matrix `[Q; P]` for
 `CotangentLiftSVD`, `CotangentLiftEVD` and `ComplexSVD`.
 
-Exactly one of `k` and `tolerance` says how large the basis is. `k` is the number of columns, and
-`tolerance` keeps the leading columns that carry all but `tolerance` of the energy
-`sum(max.(Λ, 0))` of the spectrum `Λ`.
+Exactly one of `k` and `tolerance` says how large the basis is. `k` counts the retained columns
+of `Φ` (and of `Φ + iΨ` for `ComplexSVD`); a PSD basis assembles `2k` columns. `tolerance` keeps
+the leading factors that carry all but `tolerance` of the energy `sum(max.(Λ, 0))`.
 
 Throws an `ArgumentError` when `S` has a zero dimension, when a PSD snapshot has an odd number of
 rows, when `k` is outside `1:kmax`, where `kmax = min(N, m)` for the POD and complex algorithms and
@@ -111,9 +111,9 @@ The leading number of entries of the spectrum `Λ` the caller asked for, at most
 Under `tolerance`, the energy `Λ⁺ = max.(Λ, 0)` is accumulated and the first index whose running sum
 reaches `(1 - tolerance)` of it is kept, capped at `kmax`. The clamp is what makes a negative entry,
 which a Gram matrix of a rank-deficient snapshot produces, contribute no energy; the last index
-always qualifies, so the result never runs past `length(Λ)` even at `tolerance = 0`. A spectrum with
-a non-finite entry, which this package's inputs do not define, leaves `findfirst` with nothing to
-find, and the result is then `kmax`.
+always qualifies for finite cumulative energy, so the result stays inside `length(Λ)` even at
+`tolerance = 0`. If non-finite energy leaves `findfirst` with nothing to find, the result is
+`kmax`; non-finite snapshots are outside the supported input domain.
 """
 function _basis_size(Λ::AbstractVector, k::Union{Nothing, Integer},
         tolerance::Union{Nothing, Real}, kmax::Int = length(Λ))

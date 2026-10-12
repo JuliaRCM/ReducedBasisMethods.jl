@@ -14,8 +14,8 @@ function orthonormal_columns(::Type{T}, N::Int, r::Int) where {T}
     return Matrix(qr(randn(T, N, r)).Q)[:, 1:r]
 end
 
-"An `N × m` real matrix `U * Diagonal(σ) * Vᵀ` with orthonormal factors, so that its singular
-values are `σ` exactly."
+"An `N × m` real matrix `U * Diagonal(σ) * Vᵀ` with orthonormal factors, whose singular
+values are `σ` up to floating-point round-off."
 function low_rank_matrix(::Type{T}, N::Int, m::Int, σ::AbstractVector) where {T <: Real}
     r = length(σ)
     return orthonormal_columns(T, N, r) * Diagonal(T.(σ)) * orthonormal_columns(T, m, r)'

@@ -54,9 +54,9 @@ project(b::ReducedBasis, x::AbstractVector) = vec(project(b, reshape(x, :, 1)))
     lift(b::ReducedBasis, z)
 
 The full-space vector of the reduced coordinates `z`, for a vector or a matrix of columns. It is
-the assembled `A = Matrix(b)` applied to `z`, and the right inverse of `project`: a POD basis
-lifts to `Φz`, the cotangent lift to `[Φa; Φb]` with `z = [a; b]`, and the complex SVD to
-`[Φa - Ψb; Ψa + Φb]`.
+the assembled `A = Matrix(b)` applied to `z`, and a right inverse of `project`:
+`project(b, lift(b, z)) ≈ z`. A POD basis lifts to `Φz`, the cotangent lift to `[Φa; Φb]` with
+`z = [a; b]`, and the complex SVD to `[Φa - Ψb; Ψa + Φb]`.
 """
 function lift(b::ReducedBasis{<:Any, <:PODAlgorithm}, z::AbstractMatrix)
     return b.Φ * z
@@ -64,17 +64,27 @@ end
 
 function lift(b::ReducedBasis{<:Any, <:Union{CotangentLiftSVD, CotangentLiftEVD}},
         z::AbstractMatrix)
-    k = b.k
+    N, k = size(b.Φ)
     _check_rows(z, 2k, "a cotangent-lift lift")
-    return [b.Φ * z[1:k, :]; b.Φ * z[(k + 1):(2k), :]]
+    T = promote_type(eltype(b.Φ), eltype(z))
+    x = similar(b.Φ, T, 2N, size(z, 2))
+    mul!(view(x, 1:N, :), b.Φ, view(z, 1:k, :))
+    mul!(view(x, (N + 1):(2N), :), b.Φ, view(z, (k + 1):(2k), :))
+    return x
 end
 
 function lift(b::ReducedBasis{<:Any, <:ComplexSVD}, z::AbstractMatrix)
-    k = b.k
+    N, k = size(b.Φ)
     _check_rows(z, 2k, "a complex-SVD lift")
-    a = z[1:k, :]
-    c = z[(k + 1):(2k), :]
-    return [b.Φ * a - b.Ψ * c; b.Ψ * a + b.Φ * c]
+    a = view(z, 1:k, :)
+    c = view(z, (k + 1):(2k), :)
+    T = promote_type(eltype(b.Φ), eltype(z))
+    x = similar(b.Φ, T, 2N, size(z, 2))
+    mul!(view(x, 1:N, :), b.Φ, a)
+    mul!(view(x, 1:N, :), b.Ψ, c, -one(T), one(T))
+    mul!(view(x, (N + 1):(2N), :), b.Ψ, a)
+    mul!(view(x, (N + 1):(2N), :), b.Φ, c, one(T), one(T))
+    return x
 end
 
 lift(b::ReducedBasis, z::AbstractVector) = vec(lift(b, reshape(z, :, 1)))

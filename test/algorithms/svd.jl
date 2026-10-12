@@ -24,8 +24,10 @@ const TOLERANCE_45 = 1.9520e-3
                 # a deviation a hundred Weyl bounds wide in Float64.
                 σ = T[0.5, 0.25, 0.125]
                 S = low_rank_matrix(T, N, m, σ)
+                Ssaved = copy(S)
 
                 b = ReducedBasis(PODSVD(), S, NamedTuple(), testparamspace(); k = 3)
+                @test S == Ssaved
                 @test length(b.Λ) == min(N, m)
                 @test b.k == 3
                 σref = [σ; zeros(T, length(b.Λ) - length(σ))]
@@ -62,7 +64,11 @@ const TOLERANCE_45 = 1.9520e-3
         σ10 = T.(2.0 .^ (-(1:10)))
         C = complex_low_rank_matrix(T, 40, 60, σ10)
         S = complex_snapshot(C)
+        Ssaved = copy(S)
         b = ReducedBasis(ComplexSVD(), S, NamedTuple(), testparamspace(); k = 5)
+        @test ReducedBasis(ComplexSVD(), S, NamedTuple(), testparamspace();
+            tolerance = T(TOLERANCE_45)).k == 5
+        @test S == Ssaved
 
         @test length(b.Λ) == min(40, 60)
         @test sqrt.(b.Λ[1:5]) ≈ σ10[1:5] rtol = √eps(T)

@@ -6,14 +6,14 @@
 # `reference/CalculateProjection_POD.jl`, `_PSD_Cotangent.jl` and `_PSD_Complex.jl` read six
 # β-runs written by `reference/Vlasov_Analytic.jl` and take every tenth saved column of the
 # 1000001 in each file, which is `t = 0.001 * (0:10:10^6)`: 600006 columns, and a 2000 × 600006
-# POD matrix, which is 9.6 GiB in `Float64`. Those HDF5 files are not in the tree, so this script
-# regenerates the kept columns from the closed form instead. The generators are
+# POD matrix, which is about 8.94 GiB (9.60 GB) in `Float64`. Those HDF5 files are not in the
+# tree, so this script regenerates the kept columns from the closed form instead. The generators are
 # `Vlasov_Analytic.jl:27-46` (the initial conditions and the bump) and `:58-65` (the two
 # closed-form lines), with its own constants and its own seeds.
 #
-# The defaults `stride = 10` and `nbeta = 6` are the reference's configuration. Smaller values are
-# for a short run on a machine that cannot hold the paper's matrix: the script prints the data
-# scale it used. The data comes from `Random.seed!`, which is Xoshiro and not the MersenneTwister
+# The defaults `stride = 10` and `nbeta = 6` are the reference's configuration. A larger stride
+# or fewer β-runs gives a short run: the script prints the data scale it uses.
+# The data comes from `Random.seed!`, which is Xoshiro and not the MersenneTwister
 # stream the paper's files were written from, so these are regenerated singular values and not
 # the paper's.
 #
@@ -87,7 +87,7 @@ bound.
 """
 function spectrum_deviation(σ::AbstractVector, σref::AbstractVector, reference::AbstractMatrix)
     bound = max(size(reference)...) * eps(Float64) * σref[1]
-    return maximum(abs.(σ .- σref)), bound
+    return maximum(abs(σ[i] - σref[i]) for i in eachindex(σ, σref)), bound
 end
 
 """
@@ -105,10 +105,11 @@ function route(name::AbstractString, alg, snapshot::AbstractMatrix,
     σ₁ = σ[1]
     deviation, bound = spectrum_deviation(σ, σref, reference)
 
-    tail = maximum(σ[(rank + 1):end])
+    tail = maximum(view(σ, (rank + 1):length(σ)))
     ks = [ReducedBasisMethods._basis_size(b.Λ, nothing, tol) for tol in tolerances]
 
     println(rpad(name, 20), " σ₁ = ", σ₁, ",  rank = ", rank)
+    println(rpad("", 20), " σ = ", σ)
     println(rpad("", 20), " reference svd: ", deviation, " ≤ ",
         bound, "  ", deviation ≤ bound ? "ok" : "FAIL")
     println(rpad("", 20), " σ past rank:   ", tail, " ≤ ", bound, "  ",
@@ -126,8 +127,8 @@ function main(stride::Int, nbeta::Int)
 
     M = Matrix{Float64}(undef, 2n, nbeta * length(t))
     for i in 1:nbeta
-        M[:, ((i - 1) * length(t) + 1):(i * length(t))] .= beta_run!(
-            similar(M, 2n, length(t)), q0, p0, BETA[i], t)
+        beta_run!(view(M, :, ((i - 1) * length(t) + 1):(i * length(t))),
+            q0, p0, BETA[i], t)
     end
     C = size(M, 2)
 
@@ -145,10 +146,10 @@ function main(stride::Int, nbeta::Int)
     ok = true
 
     ok &= route("POD, SVD", PODSVD(), M, M, nbeta == 1 ? 2 : 3, tolerances)
-    ok &= route("cotangent lift, SVD", CotangentLiftSVD(), M,
-        hcat(M[1:n, :], M[(n + 1):(2n), :]), 2, tolerances)
-    ok &= route("complex SVD", ComplexSVD(), M,
-        M[1:n, :] + im * M[(n + 1):(2n), :], 2, tolerances)
+    Q = view(M, 1:n, :)
+    P = view(M, (n + 1):(2n), :)
+    ok &= route("cotangent lift, SVD", CotangentLiftSVD(), M, hcat(Q, P), 2, tolerances)
+    ok &= route("complex SVD", ComplexSVD(), M, Q .+ im .* P, 2, tolerances)
 
     println()
     println(ok ? "PASS" : "FAIL")

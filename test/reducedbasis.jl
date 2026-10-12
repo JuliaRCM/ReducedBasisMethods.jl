@@ -27,6 +27,22 @@ Random.seed!(43)
         for k in (typemax(UInt), big(typemax(Int)) + 1, -big(typemax(Int)) - 2)
             @test_throws ArgumentError ReducedBasis(alg, Ssmall, NamedTuple(), ps; k = k)
         end
+        kmax = alg isa Union{PODSVD, PODEVD} ? 2 : (alg isa ComplexSVD ? 1 : 2)
+        b = ReducedBasis(alg, Ssmall, NamedTuple(), ps; k = kmax)
+        @test b.k == kmax
+        @test size(b.Φ, 2) == kmax
+        @test size(Matrix(b), 2) == (alg isa Union{PODSVD, PODEVD} ? kmax : 2kmax)
+        @test_throws ArgumentError ReducedBasis(alg, Ssmall, NamedTuple(), ps; k = kmax + 1)
+        @test_throws ArgumentError ReducedBasis(alg, Ssmall, NamedTuple(), ps; k = 0)
+        @test_throws ArgumentError ReducedBasis(
+            alg, Ssmall, NamedTuple(), ps; tolerance = 1)
+        @test_throws ArgumentError ReducedBasis(
+            alg, Ssmall, NamedTuple(), ps; tolerance = -0.1)
+        @test_throws ArgumentError ReducedBasis(alg, Ssmall, NamedTuple(), ps)
+        @test_throws ArgumentError ReducedBasis(
+            alg, Ssmall, NamedTuple(), ps; k = 1, tolerance = 0.5)
+        b0 = ReducedBasis(alg, Ssmall, NamedTuple(), ps; tolerance = 0.0)
+        @test 1 ≤ b0.k ≤ kmax
     end
 
     # k = 0, tolerance outside [0, 1), and both or neither of the two keywords.
@@ -45,11 +61,12 @@ Random.seed!(43)
     # separates the guard from the checks that come later: without it the spectrum is empty and
     # the energy rule runs off the end of it, which is a `BoundsError` and not an
     # `ArgumentError`.
-    for (alg, S) in ((PODSVD(), zeros(0, 3)), (PODSVD(), zeros(3, 0)),
-        (PODEVD(), zeros(0, 3)), (CotangentLiftSVD(), zeros(0, 4)),
-        (CotangentLiftSVD(), zeros(4, 0)), (ComplexSVD(), zeros(4, 0)))
-        @test_throws ArgumentError ReducedBasis(alg, S, NamedTuple(), ps; k = 1)
-        @test_throws ArgumentError ReducedBasis(alg, S, NamedTuple(), ps; tolerance = 0.5)
+    for alg in (PODSVD(), PODEVD(), CotangentLiftSVD(), CotangentLiftEVD(), ComplexSVD())
+        for Sempty in (zeros(0, 4), zeros(4, 0))
+            @test_throws ArgumentError ReducedBasis(alg, Sempty, NamedTuple(), ps; k = 1)
+            @test_throws ArgumentError ReducedBasis(
+                alg, Sempty, NamedTuple(), ps; tolerance = 0.5)
+        end
     end
 
     # A PSD algorithm reduces the stacked `[q; p]`, which has an even number of rows.

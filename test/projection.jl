@@ -170,7 +170,7 @@ end
 # The mixed-input fixture. The no-power-of-2 condition is on the `Float64` input,
 # which a `Float32` basis reads: none of its entries is representable in `Float32`
 # (`1 + 1e-10` rounds to `1`), so a projection carried through that precision misses the
-# bound below. The `Float32` input, read by a `Float64` basis, holds `2` and `4`.
+# bound below. The `Float32` input uses the rounded values of `1 + 0.1i` for `i = 1:n`.
 mixed_input(::Type{Float64}, n::Int) = 1 .+ 1e-10 .* (1:n)
 mixed_input(::Type{Float32}, n::Int) = Float32(1) .+ Float32(0.1) .* (1:n)
 
@@ -227,6 +227,9 @@ end
 # A concrete barrier: the arguments' types are known, and the call before the measurement warms
 # the method.
 allocations(f::F, b::B, x::X) where {F, B, X} = (f(b, x); @allocated f(b, x))
+function lift_output(b, Z)
+    similar(b.Φ, promote_type(eltype(b.Φ), eltype(Z)), 2size(b.Φ, 1), size(Z, 2))
+end
 
 @testset "Projection allocation" begin
     # `project` is called once per integration step and its output is `2k × p` whatever the number
@@ -247,6 +250,18 @@ allocations(f::F, b::B, x::X) where {F, B, X} = (f(b, x); @allocated f(b, x))
                     push!(bytes, minimum(allocations(project, b, X) for _ in 1:10))
                 end
                 @test abs(last(bytes) - first(bytes)) ≤ 2048
+            end
+        end
+        for T in (Float32, Float64),
+            alg in (CotangentLiftSVD(), CotangentLiftEVD(), ComplexSVD())
+
+            for N in (200, 2000)
+                b = ReducedBasis(
+                    alg, randn(T, 2N, 20), NamedTuple(), testparamspace(); k = 5)
+                Z = randn(T, 10, 3)
+                bytes = minimum(allocations(lift, b, Z) for _ in 1:10)
+                output_bytes = minimum(allocations(lift_output, b, Z) for _ in 1:10)
+                @test bytes ≤ output_bytes + 2048
             end
         end
 
