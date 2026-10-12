@@ -83,9 +83,9 @@ written.
   authors state that its reduced system is "not necessarily Hamiltonian". Both the call of the
   object and `hamiltonian_gradient!` read 0 B where their callbacks allocate nothing: the density
   callbacks receive a lazy view of `A_{Sⱼ}z`, so whatever a callback allocates is the caller's.
-- **`ReducedTensor` wraps any rank-3 `GridTensor`, of any width.** Its sum reads the tensor's own
-  stencil, so it no longer needs the width-1 `Arakawa` the `PoissonTensor` bound stood for, and
-  `getindex` allocates nothing after the first call rather than a `Vector` per call.
+- **`ReducedTensor` wraps any rank-3 `GridTensor`, of any width its grid holds.** Its sum reads
+  the tensor's own stencil, so it no longer needs the width-1 `Arakawa` the `PoissonTensor` bound
+  stood for, and `getindex` allocates nothing after the first call rather than a `Vector` per call.
 
 ### Bug Fixes
 
@@ -196,7 +196,8 @@ written.
   rank is a `MethodError`. `GeometricBrackets` leaves `[deps]` and `[compat]`, and
   `MultiIndexArrays` takes the bound `0.1.2`. The constructor throws a `DimensionMismatch` or an
   `ArgumentError` where it asserted, and an index off the array throws a `BoundsError` through
-  `checkbounds`, not an `AssertionError`.
+  `checkbounds`, not an `AssertionError`. A tensor of stencil width `w` on a grid with a direction
+  shorter than `2w + 1` nodes is an `ArgumentError`: its stencil names a node twice.
 
 - **The grid-based and particle-based code left this package.** `src/gridbased/` and
   `src/particles/` are gone, and with them every name they exported. A caller who reached

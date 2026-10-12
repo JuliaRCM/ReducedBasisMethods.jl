@@ -74,7 +74,8 @@ allocations(f::F, a::A, b::B) where {F, A, B} = (f(a, b); @allocated f(a, b))
             @test maximum(abs, rt .- R) ≤ bound(DT, R)
 
             # the second, non-bracket tensor: one caller does not demonstrate generality
-            for (g, w) in (((5, 6), 1), ((5, 6), 2), ((2, 5), 1))
+            for w in (1, 2)
+                local g = (nx, nv)
                 local n = g[1] * g[2]
                 local Qi = rand(Xoshiro(2), DT, n, 3)
                 local Qj = rand(Xoshiro(3), DT, n, 2)
@@ -92,8 +93,8 @@ allocations(f::F, a::A, b::B) where {F, A, B} = (f(a, b); @allocated f(a, b))
     @testset "the entries the width-1 stencil of k alone would drop exist" begin
         # Nonzero entries with `K` outside the width-1 neighbourhood of `J` distinguish the
         # nested neighbourhoods from restricting both summation indices to the stencil of `k`.
-        for DT in (Float32, Float64), g in ((5, 6), (2, 5))
-
+        for DT in (Float32, Float64)
+            local g = (5, 6)
             local A = Array(neighbourhood_tensor(Xoshiro(1), DT, g, 1))
             local L = CartesianIndices(g)
             local displaced = count(!iszero(A[i, j, k]) &&
@@ -138,6 +139,18 @@ allocations(f::F, a::A, b::B) where {F, A, B} = (f(a, b); @allocated f(a, b))
 
             # an integer projection is refused by the same element-type rule
             @test_throws ArgumentError ReducedTensor(gt, ones(Int, N, 3), Pj)
+
+            # a direction shorter than `2w + 1` makes the stencil name a node twice; the 4 × 5
+            # grid is long enough for width 1, so the width is read from the tensor
+            for (g, w) in (((2, 5), 1), ((4, 5), 2))
+                local n = g[1] * g[2]
+                local gt2 = neighbourhood_tensor(Xoshiro(1), DT, g, w)
+                @test_throws ArgumentError ReducedTensor(
+                    gt2, rand(Xoshiro(2), DT, n, 3), rand(Xoshiro(3), DT, n, 2))
+            end
+            local gt3 = neighbourhood_tensor(Xoshiro(1), DT, (4, 5), 1)
+            @test ReducedTensor(gt3, rand(Xoshiro(2), DT, 20, 3), rand(Xoshiro(3), DT, 20, 2)) isa
+                  ReducedTensor
         end
 
         # the element type of the projections is the tensor's, not a promoted one
@@ -205,8 +218,9 @@ allocations(f::F, a::A, b::B) where {F, A, B} = (f(a, b); @allocated f(a, b))
     @testset "the entries allocate nothing" begin
         # `getindex` is called on every right-hand side evaluation downstream; the `> 0` control
         # shows that the barrier measures
-        for DT in (Float32, Float64), (g, w) in (((5, 6), 1), ((5, 6), 2), ((2, 5), 1))
+        for DT in (Float32, Float64), w in (1, 2)
 
+            local g = (5, 6)
             local n = g[1] * g[2]
             local gt = neighbourhood_tensor(Xoshiro(1), DT, g, w)
             local rt = ReducedTensor(gt, rand(Xoshiro(2), DT, n, 3), rand(Xoshiro(3), DT, n, 2))
