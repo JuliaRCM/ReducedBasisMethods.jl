@@ -80,9 +80,11 @@ written.
   symmetric by construction, which is what makes the reduced Hamiltonian an exact invariant of the
   reduced system. The plain DEIM reduction of the same paper, eq. (5.8), gives neither: its
   `W = AᵀΨ(ΠᵀΨ)⁻¹` is not symmetric, and the authors state that its reduced system is "not
-  necessarily Hamiltonian". `hamiltonian_gradient!` is not named `gradient!` because that clashes
-  with `ForwardDiff` in a test environment. Its test is the first use of `ForwardDiff` and
-  `GeometricIntegrators` in `test/Project.toml`.
+  necessarily Hamiltonian". Both the call of the object and `hamiltonian_gradient!` read 0 B
+  where their callbacks allocate nothing: the density callbacks receive a lazy view of `A_{Sⱼ}z`,
+  so whatever a callback allocates is the caller's. `hamiltonian_gradient!` is not named
+  `gradient!` because that clashes with `ForwardDiff` in a test environment. Its test is the
+  first use of `ForwardDiff` and `GeometricIntegrators` in `test/Project.toml`.
 
 ### Bug Fixes
 
@@ -108,9 +110,10 @@ written.
 
 - **`get_DEIM_interpolation_matrix` rejects a basis it cannot interpolate.** It throws an
   `ArgumentError` where `k > N`, and where a column's largest residual magnitude is not both
-  positive and finite — `0` for a column that is exactly dependent on the ones before it, and
-  `NaN` or `Inf` for a `NaN` or an `Inf` in the basis. Before, each of these returned a matrix
-  with a repeated row in silence.
+  positive and finite — `0` for a zero column or one exactly dependent on the ones before it,
+  the first column included, and `NaN` or `Inf` for a `NaN` or an `Inf` in the basis. Before,
+  each of these returned a matrix with a repeated row in silence, and a zero first column went
+  on to a singular solve.
 
 - **`[deps]` is now generic infrastructure only.** Removed from `[deps]`, with their `[compat]`
   entries where present: `ParticleMethods`, `PoissonSolvers`, `Distances`, `LaTeXStrings`,

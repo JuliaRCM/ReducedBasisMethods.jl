@@ -7,13 +7,14 @@ columns are the basis vectors.
 
 The index of column `i` is the row of the largest magnitude of the residual
 `r = Ψ[:, i] - Ψ[:, 1:i-1] * c`, where `c` solves the interpolation problem of the columns
-selected so far. The magnitude decides, so a residual that peaks at a negative entry selects
-that entry; ties go to the first index.
+selected so far. The residual of column 1 is the column itself. The magnitude decides, so a
+residual that peaks at a negative entry selects that entry; ties go to the first index.
 
 Throws an `ArgumentError` where `k > N`, and for a column whose largest residual magnitude `ρ`
-is not both positive and finite — `ρ == 0` for exactly dependent columns, and `NaN` or `Inf`
-for a `NaN` or an `Inf` in `Ψ`. Every entry of `Ψ` enters the residual of a later column, so
-that one test per column covers the matrix.
+is not both positive and finite — `ρ == 0` for a zero column or one exactly dependent on the
+ones before it, and `NaN` or `Inf` for a `NaN` or an `Inf` in `Ψ`. Every entry of `Ψ` enters
+the residual of a later column, and column 1 is tested as it stands, so the test of each column
+covers the whole matrix.
 """
 function _deim_indices(Ψ::AbstractMatrix)
     N, k = size(Ψ)
@@ -23,16 +24,27 @@ function _deim_indices(Ψ::AbstractMatrix)
     k == 0 && return Int[]
 
     p = Vector{Int}(undef, k)
-    p[1] = last(findmax(abs, @view Ψ[:, 1]))
     r = Vector{float(eltype(Ψ))}(undef, N)
+
+    # One residual test per column, whether the residual is the column itself or what the
+    # interpolation of the columns already selected leaves behind: it throws where the largest
+    # magnitude of `r` is not both positive and finite, and names the column.
+    function check_residual(r, i)
+        ρ = maximum(abs, r)
+        0 < ρ < Inf || throw(ArgumentError(
+            "max|r| = $ρ for column $i of the DEIM basis, so the column is zero or dependent " *
+            "on the ones before it, or it holds a NaN or an Inf"))
+        return nothing
+    end
+
+    r .= @view Ψ[:, 1]
+    check_residual(r, 1)
+    p[1] = last(findmax(abs, @view Ψ[:, 1]))
 
     for i in 2:k
         c = @views (Ψ[p[1:(i - 1)], 1:(i - 1)]) \ (Ψ[p[1:(i - 1)], i])
         r .= @views Ψ[:, i] .- Ψ[:, 1:(i - 1)] * c
-        ρ = maximum(abs, r)
-        0 < ρ < Inf || throw(ArgumentError(
-            "the residual of column $i of the DEIM basis has max|r| = $ρ, so the column is " *
-            "dependent on the ones before it, or holds a NaN or an Inf"))
+        check_residual(r, i)
         p[i] = last(findmax(abs, r))
     end
 

@@ -99,6 +99,11 @@ function sd_gradient(sd, z)
     return g
 end
 
+"""`@allocated` of `f(sd, z, g)`, after a first call that warms the barrier."""
+function allocations(f::F, sd::S, z::Z, g::G) where {F, S, Z, G}
+    (f(sd, z, g); @allocated f(sd, z, g))
+end
+
 @testset "the reduced gradient is a gradient" begin
     for T in (Float32, Float64)
         b = test_bases(T)
@@ -134,6 +139,33 @@ end
             # Plain DEIM on the same system is not a gradient, and by a wide margin.
             Jp = ForwardDiff.jacobian(plain, z)
             @test norm(Jp - Jp', 2) ≥ 100 * sqrt(eps(T)) * norm(Jp, 2)
+        end
+    end
+end
+
+@testset "the field and its gradient allocate nothing" begin
+    for T in (Float32, Float64)
+        b = test_bases(T)
+        # `stencil` and the two callbacks below allocate nothing, so the barrier measures the
+        # methods' own code alone. Here `∇h` returns a `Tuple`.
+        sd = SymplecticDEIM(b.A, b.L, b.U, i -> i:i, h_test, (xs, i) -> (sin(xs[1]),))
+        z = b.z₀
+        g = similar(z)
+
+        @test @inferred(sd(z)) isa T
+        @test @inferred(hamiltonian_gradient!(g, sd, z)) === g
+
+        # A gradient a `Tuple`-valued `∇h` builds is the gradient a `Vector`-valued one builds,
+        # on the same stencil: either is indexable, which is all the accumulation reads.
+        sdv = SymplecticDEIM(b.A, b.L, b.U, i -> i:i, h_test, ∇h_test)
+        @test hamiltonian_gradient!(g, sd, z) == hamiltonian_gradient!(similar(z), sdv, z)
+
+        # Coverage instrumentation allocates on its own account, so the readings are taken only
+        # where the runner does not instrument the code.
+        if Base.JLOptions().code_coverage == 0
+            @test allocations((s, z, g) -> collect(z), sd, z, g) > 0
+            @test allocations((s, z, g) -> s(z), sd, z, g) == 0
+            @test allocations((s, z, g) -> hamiltonian_gradient!(g, s, z), sd, z, g) == 0
         end
     end
 end
@@ -188,6 +220,14 @@ end
             ref = (z' * (sdᵢ.L̃ * z)) / 2 +
                   sum((1 + i / NQ) * (1 - cos(Az[i])) for i in 1:NQ)
             @test abs(sdᵢ(z) - ref) ≤ sqrt(eps(T)) * abs(ref)
+
+            # The gradient carries the same labels as `H̃`: `∇h` receives `pⱼ`, the DEIM index,
+            # and not the counter `j` of the loop over the selected densities. With a label in
+            # the density itself, a swapped label moves the gradient away from the derivative
+            # of `H̃`, which is what `ForwardDiff` gives.
+            gᵢ = sd_gradient(sdᵢ, z)
+            gfᵢ = ForwardDiff.gradient(sdᵢ, z)
+            @test norm(gᵢ - gfᵢ) ≤ sqrt(eps(T)) * norm(gfᵢ)
         end
     end
 end
@@ -228,7 +268,23 @@ end
         @test sd0(z) ≈ (z' * (sd0.L̃ * z)) / 2
         @test sd_gradient(sd0, z) ≈ sd0.L̃ * z
 
-        # A NaN in U reaches the DEIM selection, which rejects it.
+        # `L̃` is symmetrised after the product, so it is symmetric to the last bit and not only
+        # to the round-off of the product. On the reduced basis that is not visible; a random
+        # basis is what separates the two.
+        Arand = randn(Xoshiro(6), T, 2NQ, 5)
+        Lrand = randn(Xoshiro(7), T, 2NQ, 2NQ)
+        sdrand = SymplecticDEIM(Arand, Lrand, b.U, stencil_test, h_test, ∇h_test)
+        @test sdrand.L̃ == transpose(sdrand.L̃)
+
+        # A non-finite U reaches the DEIM selection, which rejects it. The `Inf` stands outside
+        # the rows the weight solve touches, so the `ArgumentError` here is the validator's: a
+        # second index routine without the `0 < ρ < Inf` test would construct in silence.
+        Uinf = T.(UTRAIN)
+        Uinf[10, 1] = T(Inf)
+        @test_throws ArgumentError SymplecticDEIM(
+            b.A, b.L, Uinf, stencil_test, h_test, ∇h_test)
+
+        # And so does a `NaN` in U.
         Unan = T.(UTRAIN)
         Unan[1, 1] = T(NaN)
         @test_throws ArgumentError SymplecticDEIM(

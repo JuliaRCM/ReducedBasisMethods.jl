@@ -36,12 +36,12 @@ end
 
         @test Λ[10] < 1e0
         @test Λ[15] < 1e-2
-        # Λ[20] of a Float32 S sits on the round-off floor of its own EVD — 2.46e-5, against
-        # 2.91e-8 in Float64 — so its threshold is a Float64 one. The Float32 basis is held to
-        # the same standard by the DEIM error below, which carries the same threshold in both.
-        if T === Float64
-            @test Λ[20] < 1e-7
-        end
+        # `Λ[20]` of a `Float32` S sits on its own EVD's round-off floor: 2.46e-5, against 2.91e-8
+        # in `Float64`, because a `Float32` Gram matrix resolves no eigenvalue below about
+        # `eps(Float32) * Λ[1] = 7.35e-5`, and the tail is round-off. The threshold takes the
+        # precision, not the route: `eps(Float64) * Λ[1]` leaves the bound at exactly 1e-7, and in
+        # `Float32` it is `eps(Float32) * Λ[1]`, which the measured value meets at 0.34 of it.
+        @test Λ[20] < max(1e-7, eps(T) * Λ[1])
 
         Π = get_DEIM_interpolation_matrix(Ψ)
         @test size(Π) == (100, 20)
@@ -75,29 +75,33 @@ end
 end
 
 @testset "selection" begin
-    # The residual of the second column peaks at its most negative entry. Selecting the row
-    # of the largest value rather than of the largest magnitude picks row 3, which the first
-    # pick has already taken.
-    Ψ₁ = [1 0; 0 -2; 0 1] ./ [1 sqrt(5)]
-    @test _deim_indices(Ψ₁) == [1, 2]
-    @test get_DEIM_interpolation_matrix(Ψ₁) == [1 0; 0 1; 0 0]
+    # Each numbered case runs in both precisions: the rule is the magnitude of the residual, and
+    # the element type must not change which row it picks.
+    for T in (Float32, Float64)
+        # The residual of the second column peaks at its most negative entry. Selecting the row
+        # of the largest value rather than of the largest magnitude picks row 3, which the first
+        # pick has already taken.
+        Ψ₁ = T[1 0; 0 -2; 0 1] ./ T[1 sqrt(5)]
+        @test _deim_indices(Ψ₁) == [1, 2]
+        @test get_DEIM_interpolation_matrix(Ψ₁) == T[1 0; 0 1; 0 0]
 
-    # The first pick: the largest magnitude is in row 2, the largest value in row 3.
-    Ψ₂ = [0.1 0; -1 -2; 0.2 1] ./ [norm([0.1, -1, 0.2]) sqrt(5)]
-    @test _deim_indices(Ψ₂) == [2, 3]
-    # At k = 1 the loop never runs, so the first pick is the whole selection.
-    @test _deim_indices(Ψ₂[:, 1:1]) == [2]
+        # The first pick: the largest magnitude is in row 2, the largest value in row 3.
+        Ψ₂ = T[0.1 0; -1 -2; 0.2 1] ./ T[norm([0.1, -1, 0.2]) sqrt(5)]
+        @test _deim_indices(Ψ₂) == [2, 3]
+        # At k = 1 the first pick is the whole selection.
+        @test _deim_indices(Ψ₂[:, 1:1]) == [2]
 
-    # A residual that vanishes identically: the row of the largest value is the one the
-    # first pick took, and the two candidates that remain are equal, so the first of them
-    # decides.
-    Ψ₃ = [1 0; 0 -1; 0 -1] ./ [1 sqrt(2)]
-    @test _deim_indices(Ψ₃) == [1, 2]
+        # A residual that vanishes identically: the row of the largest value is the one the
+        # first pick took, and the two candidates that remain are equal, so the first of them
+        # decides.
+        Ψ₃ = T[1 0; 0 -1; 0 -1] ./ T[1 sqrt(2)]
+        @test _deim_indices(Ψ₃) == [1, 2]
 
-    p₃ = _deim_indices(Ψ₃)
-    Π₃ = get_DEIM_interpolation_matrix(Ψ₃)
-    @test allunique(p₃)
-    @test rank(Π₃' * Ψ₃) == 2
+        p₃ = _deim_indices(Ψ₃)
+        Π₃ = get_DEIM_interpolation_matrix(Ψ₃)
+        @test allunique(p₃)
+        @test rank(Π₃' * Ψ₃) == 2
+    end
 end
 
 @testset "edges" begin
@@ -111,7 +115,8 @@ end
     @test _deim_indices(Ψᵢ) == [1, 2]
     @test eltype(get_DEIM_interpolation_matrix(Ψᵢ)) === Float64
 
-    # k = 0 gives an N × 0 matrix.
+    # k = 0: the empty selection, and the N × 0 matrix built from it.
+    @test _deim_indices(zeros(3, 0)) == Int[]
     @test size(get_DEIM_interpolation_matrix(zeros(3, 0))) == (3, 0)
 
     # k > N is rejected rather than silently returning a matrix with repeated rows.
@@ -125,6 +130,27 @@ end
     @test_throws ArgumentError get_DEIM_interpolation_matrix([Inf 0; 0 1; 0 0])
     @test_throws ArgumentError get_DEIM_interpolation_matrix([1 0; 0 Inf; 0 0])
 
+    # Column 1 carries the same test as every other column, so a zero, NaN or Inf first column is
+    # rejected rather than selected in silence.
+    for T in (Float32, Float64), bad in (zero(T), T(NaN), T(Inf))
+
+        @test_throws ArgumentError get_DEIM_interpolation_matrix(reshape(T[bad, 0, 0], 3, 1))
+        @test_throws ArgumentError _deim_indices(reshape(T[bad, 0, 0], 3, 1))
+
+        # A bad first column of a two-column basis is reported as column 1, not as column 2, and
+        # a zero first column is rejected before it reaches the solve, which as a singular
+        # `PᵀΨ` would raise `SingularException` where the `ArgumentError` is due.
+        err = try
+            _deim_indices(T[bad 1; 0 0; 0 1])
+            nothing
+        catch e
+            e
+        end
+        @test err isa ArgumentError
+        @test occursin("column 1", sprint(showerror, err))
+    end
+    @test_throws ArgumentError _deim_indices([0.0 1; 0 0; 0 0])
+
     # The selection is scale-invariant: the residual is compared with zero, never with a
     # cutoff. At 3.7e-8 in Float32 the largest residual is below `eps(Float32)`.
     for T in (Float32, Float64)
@@ -133,5 +159,9 @@ end
 
         @test _deim_indices(T(3.7e8) .* Ψ) == p
         @test _deim_indices(T(3.7e-8) .* Ψ) == p
+
+        # A subnormal first column is positive, so it is selected rather than refused: column 1's
+        # test is the same `0 < ρ`, with no threshold.
+        @test _deim_indices(reshape(T[nextfloat(zero(T)), zero(T)], 2, 1)) == [1]
     end
 end
