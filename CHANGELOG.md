@@ -83,6 +83,9 @@ written.
   authors state that its reduced system is "not necessarily Hamiltonian". Both the call of the
   object and `hamiltonian_gradient!` read 0 B where their callbacks allocate nothing: the density
   callbacks receive a lazy view of `A_{Sⱼ}z`, so whatever a callback allocates is the caller's.
+- **`ReducedTensor` wraps any rank-3 `GridTensor`, of any width.** Its sum reads the tensor's own
+  stencil, so it no longer needs the width-1 `Arakawa` the `PoissonTensor` bound stood for, and
+  `getindex` allocates nothing after the first call rather than a `Vector` per call.
 
 ### Bug Fixes
 
@@ -122,11 +125,10 @@ written.
 - **`[deps]` is now generic infrastructure only.** Removed from `[deps]`, with their `[compat]`
   entries where present: `ParticleMethods`, `PoissonSolvers`, `Distances`, `LaTeXStrings`,
   `LinearMaps`, `OffsetArrays`, `Optimisers`, `Parameters`, `Plots`, `Random`,
-  `RecursiveArrayTools`, `TypedTables`, `Zygote`. `GeometricBrackets` and
-  `MultiIndexArrays` join `[deps]`, at `0.1.1` each, for `ReducedTensor`: they provide the
-  tensor operations and index utilities it uses. `IterativeSolvers` leaves the test
-  dependencies. New `[compat]` bounds: `LinearAlgebra` and `Statistics` at `1`. The package now
-  resolves and loads on Julia 1.11 and later.
+  `RecursiveArrayTools`, `TypedTables`, `Zygote`. `MultiIndexArrays` joins `[deps]`, at `0.1.2`,
+  for `ReducedTensor`: it provides the grid tensor and the index utilities it uses. `IterativeSolvers`
+  leaves the test dependencies. New `[compat]` bounds: `LinearAlgebra` and `Statistics` at `1`.
+  The package now resolves and loads on Julia 1.11 and later.
 
 - `scripts/bump_on_tail_2_projections.jl` is now Unicode NFC-normalised. It stored `Ã` as `A` plus
   a combining tilde on three lines, inherited from macOS rather than chosen. Nothing about what the
@@ -151,8 +153,9 @@ written.
 - **The test dependencies are in `test/Project.toml`, and the test files mirror `src/`.** Aqua,
   TOML and Test move from `[extras]` and `[targets]` of `Project.toml`, which keeps no test
   dependency and no `[compat]` bound for them. Random and SafeTestsets are new test dependencies.
-  GeometricBrackets, LinearAlgebra and ReducedComplexityModeling stay in `[deps]`, and
-  `test/Project.toml` lists them with the same bounds. `deim_test.jl` becomes
+  GeometricBrackets becomes a test-only dependency, and `LinearAlgebra` and
+  ReducedComplexityModeling stay in `[deps]`, with `test/Project.toml` listing them with the same
+  bounds. `deim_test.jl` becomes
   `algorithms/deim.jl`; `reducedbasis_tests.jl` splits into `reducedbasis.jl` and
   `reduced_tensor.jl`; `skeleton_tests.jl` becomes `integration/skeleton.jl`, and its Aqua check
   moves to `quality/aqua.jl`. Each file has its own `using`, and a file that draws random numbers
@@ -160,11 +163,12 @@ written.
   which the test arguments select. Nothing under `src/` changes.
 
 - **`test/Project.toml` no longer repeats the root's bounds.** Its `[compat]` entries for
-  GeometricBrackets, LinearAlgebra and ReducedComplexityModeling are removed. The test environment
+  LinearAlgebra and ReducedComplexityModeling are removed. The test environment
   contains the package, so the resolver applies the root `Project.toml` bounds to every shared
   dependency; a test bound can only narrow them, and tests that run on narrower bounds than the
   package claims hide a failing version. The rule is: `test/Project.toml` and `docs/Project.toml`
-  carry no `[compat]` entry for a dependency of the root. The test-only bound for Aqua stays.
+  carry no `[compat]` entry for a dependency of the root. The test-only bounds for Aqua and
+  GeometricBrackets stay.
   `docs/Project.toml` had no shared entry and is unchanged.
 
 - **The SVD routes skip the right singular vectors, and the EVD routes are rewritten.**
@@ -187,6 +191,13 @@ written.
 
 ### Breaking Changes
 
+- **`ReducedTensor` is built on `GridTensor`, not on `PoissonTensor`.** A caller passes any rank-3
+  `MultiIndexArrays.GridTensor`; a `PoissonTensor`, a dense array, or a `GridTensor` of another
+  rank is a `MethodError`. `GeometricBrackets` leaves `[deps]` and `[compat]`, and
+  `MultiIndexArrays` takes the bound `0.1.2`. The constructor throws a `DimensionMismatch` or an
+  `ArgumentError` where it asserted, and an index off the array throws a `BoundsError` through
+  `checkbounds`, not an `AssertionError`.
+
 - **The grid-based and particle-based code left this package.** `src/gridbased/` and
   `src/particles/` are gone, and with them every name they exported. A caller who reached
   `PoissonTensor`, `PoissonOperator` or `Arakawa` now wants `GeometricBrackets`;
@@ -200,9 +211,9 @@ written.
   and `PoissonOperator` in `GeometricBrackets` were rewritten: `Base.materialize` became
   `Base.Array`, and `@assert` bounds checks became `BoundsError`.
 
-  `ReducedTensor` **stays**, now in `src/reduced_tensor.jl`. Its `PT <: PoissonTensor{DT}`
-  bound is what makes this package depend on `GeometricBrackets`: relaxing the bound without an
-  interface would break `getindex`, which reaches through to `_stencil_indices`.
+  `ReducedTensor` **stays**, now in `src/reduced_tensor.jl`, and is re-parameterised on
+  `MultiIndexArrays`' `GridTensor`: its bound is `GT <: GridTensor{DT, 3}`, and its sum follows the
+  tensor's own locality contract rather than the width-1 `Arakawa` in a `PoissonTensor`.
 
   `ReducedElectricField`, `DEIMElectricField`, `Snapshots`, `IntegratorParameters`,
   `ReducedIntegratorCache` and `reduced_integrate_vp` were moved to `VlasovMethods/src/particles/`,
@@ -217,8 +228,8 @@ written.
   and `h5save(fpath, ::IntegratorParameters, ::PoissonSolverPBSplines, ...)` are gone.
 
 - **Minimum Julia is now 1.11.** The floor is raised from the declared 1.7 (never tested and
-  would not resolve against current dependency versions) to 1.11. `GeometricBrackets`, added to
-  this release's dependencies, declares `julia = "1.11"`. CI derives its lower matrix entry from
+  would not resolve against current dependency versions) to 1.11. `GeometricBrackets`, the test
+  environment's bracket, declares `julia = "1.11"`. CI derives its lower matrix entry from
   this field, so every declared floor is tested.
 
 - **The 0.1.0 reduced-basis algorithms and their fields are removed.**
