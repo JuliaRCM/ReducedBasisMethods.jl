@@ -46,11 +46,31 @@ written.
   the three projection scripts reads the same six β-run data files and writes one basis file; each
   reduced script reads two and writes two; the generator writes one.
 
-- **`ReducedBasis` is built from a snapshot by one constructor, with five algorithms.** `ReducedBasis(algorithm, S, parameters, paramspace; k = nothing, tolerance = nothing)` decomposes the snapshot matrix `S` itself. The algorithm tags are `PODSVD`, `PODEVD`, `CotangentLiftSVD`, `CotangentLiftEVD` and `ComplexSVD`. Exactly one of `k` (the basis size) and `tolerance` (in `[0, 1)`, which chooses the size from the spectrum) must be given. An `ArgumentError` is raised for both or neither, for a `k` outside `1:kmax`, where `kmax = min(N, m)` for the POD and complex algorithms and `min(N, 2m)` for the cotangent lift, for a `tolerance` outside `[0, 1)`, for a snapshot with a zero dimension, and for an odd row count under a PSD algorithm, which reduces the stacked `[q; p]`. The struct holds `algorithm`, `parameters`, `paramspace`, `Λ`, `k`, `Φ` and `Ψ`. `Λ` is the full spectrum, sorted descending with negative entries kept. `Ψ` is the imaginary part for `ComplexSVD` and `nothing` otherwise.
+- **`ReducedBasis` is built from a snapshot by one constructor, with five algorithms.**
+  `ReducedBasis(algorithm, S, parameters, paramspace; k = nothing, tolerance = nothing)`
+  decomposes the snapshot matrix `S` itself. `S` must have element type `Float32` or `Float64`:
+  any other element type, complex and integer included, is a `MethodError` at the constructor, on
+  every algorithm. The algorithm tags are `PODSVD`, `PODEVD`, `CotangentLiftSVD`,
+  `CotangentLiftEVD` and `ComplexSVD`. Exactly one of `k` (the basis size) and `tolerance` (in
+  `[0, 1)`, which chooses the size from the spectrum) must be given. Before any decomposition, an
+  `ArgumentError` is raised for both or neither, for a `k` outside `1:kmax`, where
+  `kmax = min(N, m)` for the POD and complex algorithms and `min(N, 2m)` for the cotangent lift,
+  for a `tolerance` outside `[0, 1)`, for a snapshot with a zero dimension, and for an odd row
+  count under a PSD algorithm, which reduces the stacked `[q; p]`. The struct holds `algorithm`,
+  `parameters`, `paramspace`, `Λ`, `k`, `Φ` and `Ψ`. `Λ` is the full spectrum, sorted descending
+  with negative entries kept. `Ψ` is the imaginary part for `ComplexSVD` and `nothing` otherwise.
 
-- **`Matrix` assembles the basis, and `lift` and two error measures are exported.** `Matrix(b)` returns `Φ` for the POD routes, `diag(Φ, Φ)` for the cotangent lift and `[Φ −Ψ; Ψ Φ]` for the complex SVD. `lift` maps reduced coordinates back to the full space. `project` applied to a `ReducedBasis` is a new method of `ReducedComplexityModeling.project`; this package does not export a `project` of its own. `projection_error(b, X)` is the absolute Frobenius norm of `X - lift(b, project(b, X))`, and `reduction_error(b, X, Z)` is the same norm of `X - lift(b, Z)` for reduced coordinates `Z`.
+- **`Matrix` assembles the basis, and `lift` and two error measures are exported.**
+  `Matrix(b)` returns `Φ` for the POD routes, `diag(Φ, Φ)` for the cotangent lift and
+  `[Φ −Ψ; Ψ Φ]` for the complex SVD. `lift` maps reduced coordinates back to the full space.
+  `project` applied to a `ReducedBasis` is a new method of `ReducedComplexityModeling.project`;
+  this package does not export a `project` of its own. `projection_error(b, X)` is the absolute
+  Frobenius norm of `X - lift(b, project(b, X))`, and `reduction_error(b, X, Z)` is the same norm
+  of `X - lift(b, Z)` for reduced coordinates `Z`.
 
-- **`scripts/reference_spectra.jl` regenerates the paper's reference spectra.** It rebuilds the reference data from the closed form in `reference/Vlasov_Analytic.jl`, and prints the singular values and the energy-selected basis size of the three SVD routes.
+- **`scripts/reference_spectra.jl` regenerates the paper's reference spectra.**
+  It rebuilds the reference data from the closed form in `reference/Vlasov_Analytic.jl`, and
+  prints the singular values and the energy-selected basis size of the three SVD routes.
 
 ### Bug Fixes
 
@@ -112,9 +132,19 @@ written.
   carry no `[compat]` entry for a dependency of the root. The test-only bound for Aqua stays.
   `docs/Project.toml` had no shared entry and is unchanged.
 
-- **The SVD routes skip the right singular vectors, and the EVD routes are rewritten.** `PODSVD`, `CotangentLiftSVD` and `ComplexSVD` call LAPACK's `gesvd!` with `jobu = 'S'` and `jobvt = 'N'`, so the right singular vectors, which the basis does not use, are never formed. `PODEVD` and `CotangentLiftEVD` take the eigendecomposition of the Gram matrix and build the basis from a Householder QR, so the leading columns keep the nested spans: the first `k` columns of a larger basis span the same space as a basis of size `k`.
+- **The SVD routes skip the right singular vectors, and the EVD routes are rewritten.**
+  `PODSVD`, `CotangentLiftSVD` and `ComplexSVD` call LAPACK's `gesvd!` with `jobu = 'S'` and
+  `jobvt = 'N'`, so the right singular vectors, which the basis does not use, are never formed.
+  `PODEVD` and `CotangentLiftEVD` take the eigendecomposition of the Gram matrix and build the
+  basis from a Householder QR, so the leading columns keep the nested spans: the first `k` columns
+  of a larger basis span the same space as a basis of size `k`, for each leading block that keeps
+  full rank. At rank loss the QR completes an orthonormal basis, so the projector can include
+  directions outside the snapshot's column space.
 
-- **`LazyArrays` is no longer a dependency.** It leaves `[deps]` and `[compat]`. It was used only by the `ApplyArray` construction in the cotangent-lift EVD route, which the rewrite removes, so a caller that needs `LazyArrays` now adds it to its own environment.
+- **`LazyArrays` is no longer a dependency.**
+  It leaves `[deps]` and `[compat]`. It was used only by the `ApplyArray` construction in the
+  cotangent-lift EVD route, which the rewrite removes, so a caller that needs `LazyArrays` now
+  adds it to its own environment.
 
 ### Breaking Changes
 
@@ -152,8 +182,22 @@ written.
   this release's dependencies, declares `julia = "1.11"`. CI derives its lower matrix entry from
   this field, so every declared floor is tested.
 
-- **The 0.1.0 reduced-basis algorithms and their fields are removed.** `UnspecifiedAlgorithm` goes, with the particle-shaped and field-shaped fields `Λₚ`, `kₚ`, `Ψₚ`, `Λₑ`, `kₑ`, `Ψₑ` and `Πₑ`. A basis is no longer split into a particle part and a field part: `Λ` replaces `Λₚ` and `Λₑ` as the full spectrum. Code that built a basis calls the new constructor on the snapshot and selects the algorithm by its tag.
+- **The 0.1.0 reduced-basis algorithms and their fields are removed.**
+  `UnspecifiedAlgorithm` goes, with the particle-shaped and field-shaped fields `Λₚ`, `kₚ`, `Ψₚ`,
+  `Λₑ`, `kₑ`, `Ψₑ` and `Πₑ`. A basis is no longer split into a particle part and a field part:
+  `Λ` replaces `Λₚ` and `Λₑ` as the full spectrum. Code that built a basis calls the new
+  constructor on the snapshot and selects the algorithm by its tag.
 
-- **The 0.1.0 basis functions are deleted, with their exports.** `get_PODBasis_cotangentLiftEVD`, `get_PODBasis_EVD`, `get_Ψ` and `sorteigen` are removed, and `src/eigen.jl` with them. The two EVD functions are now the `CotangentLiftEVD` and `PODEVD` tags. `Ψ` is a field of the basis, set for `ComplexSVD`, so `get_Ψ` has no counterpart. `POD` is not an algorithm tag: `ReducedComplexityModeling` exports `POD`, and this package exports no second `POD` or `project`, so a session that loads both sees one name each. The POD routes are `PODSVD` and `PODEVD`.
+- **The 0.1.0 basis functions are deleted, with their exports.**
+  `get_PODBasis_cotangentLiftEVD`, `get_PODBasis_EVD`, `get_Ψ` and `sorteigen` are removed, and
+  `src/eigen.jl` with them. The two EVD functions are now the `CotangentLiftEVD` and `PODEVD`
+  tags. `Ψ` is a field of the basis, set for `ComplexSVD`, so `get_Ψ` has no counterpart. `POD`
+  is not an algorithm tag: `ReducedComplexityModeling` exports `POD`, and this package exports no
+  second `POD` or `project`, so a session that loads both sees one name each. The POD routes are
+  `PODSVD` and `PODEVD`.
 
-- **The HDF5 layout changed, so a file written by 0.1.0 no longer loads.** The keys are now `algorithm` (the tag name), `k`, `Λ`, `Φ`, `Ψ` (for `ComplexSVD` only), `parameters` and `parameterspace`. The 0.1.0 keys `kp`, `ke`, `Λp`, `Ψp`, `Λe`, `Ψe` and `Πe` are gone. The new layout holds no snapshot, so a basis saved by 0.1.0 is recomputed from its snapshot with the new constructor.
+- **The HDF5 layout changed, so a file written by 0.1.0 no longer loads.**
+  The keys are now `algorithm` (the tag name), `k`, `Λ`, `Φ`, `Ψ` (for `ComplexSVD` only),
+  `parameters` and `parameterspace`. The 0.1.0 keys `kp`, `ke`, `Λp`, `Ψp`, `Λe`, `Ψe` and `Πe`
+  are gone. The new layout holds no snapshot, so a basis saved by 0.1.0 is recomputed from its
+  snapshot with the new constructor.
