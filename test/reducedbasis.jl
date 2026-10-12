@@ -92,8 +92,22 @@ Base.getindex(::Unreadable, ::Int, ::Int) = error("the snapshot was read")
         end
     end
 
-    # Every guard runs before the snapshot is read: a snapshot whose entries throw on access
-    # reaches the `ArgumentError`, and the decomposition, which would read it, never starts.
+    # A non-finite entry is refused for every tag, at a fixed `k` and under the energy rule, which
+    # without the guard kept the whole admissible basis and a `NaN` spectrum.
+    for alg in (PODSVD(), PODEVD(), CotangentLiftSVD(), CotangentLiftEVD(), ComplexSVD()),
+        T in (Float32, Float64)
+
+        for bad in (T(NaN), T(Inf), T(-Inf))
+            Sbad = rand(T, 8, 4)
+            Sbad[3, 2] = bad
+            @test_throws ArgumentError ReducedBasis(alg, Sbad, NamedTuple(), ps; k = 1)
+            @test_throws ArgumentError ReducedBasis(
+                alg, Sbad, NamedTuple(), ps; tolerance = 1e-3)
+        end
+    end
+
+    # Every keyword guard runs before the snapshot is read: a snapshot whose entries throw on
+    # access reaches the `ArgumentError`, and the decomposition, which would read it, never starts.
     for alg in (PODSVD(), PODEVD(), CotangentLiftSVD(), CotangentLiftEVD(), ComplexSVD())
         S8 = Unreadable(8, 4)
         @test_throws ArgumentError ReducedBasis(alg, S8, NamedTuple(), ps; k = 100)

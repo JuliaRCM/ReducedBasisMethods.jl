@@ -88,7 +88,8 @@ _kmax(::ComplexSVD, S::AbstractMatrix) = min(size(S, 1) ÷ 2, size(S, 2))
 
 The guards the constructor owes before it decomposes anything: a snapshot with a zero dimension
 has no basis, a PSD algorithm reduces the stacked `[q; p]` snapshot, which has an even number of
-rows, and exactly one of `k` and `tolerance` is given, inside its range.
+rows, exactly one of `k` and `tolerance` is given, inside its range, and every entry of `S` is
+finite. The last check is the only one that reads `S`.
 
 `k` is compared in its own integer type, so `typemax(UInt)` and an oversized `BigInt` raise the
 `ArgumentError` the range promises, and not the `InexactError` of a conversion to `Int`.
@@ -109,6 +110,7 @@ function _check_arguments(algorithm::ReductionAlgorithm, S::AbstractMatrix,
     k === nothing || 1 ≤ k ≤ kmax || throw(ArgumentError("k = $k is outside 1:$kmax"))
     tolerance === nothing || 0 ≤ tolerance < 1 ||
         throw(ArgumentError("tolerance = $tolerance is outside [0, 1)"))
+    all(isfinite, S) || throw(ArgumentError("the snapshot matrix has a non-finite entry"))
     return nothing
 end
 
@@ -128,7 +130,8 @@ the leading factors that carry all but `tolerance` of the energy `sum(max.(Λ, 0
 Throws an `ArgumentError`, before any decomposition, when `S` has a zero dimension, when a PSD
 snapshot has an odd number of rows, when `k` is outside `1:kmax`, where `kmax = min(N, m)` for the
 POD and complex algorithms and `min(N, 2m)` for the cotangent lift, when `tolerance` is outside
-`[0, 1)`, and when both or neither of `k` and `tolerance` are given.
+`[0, 1)`, when both or neither of `k` and `tolerance` are given, and when `S` has a `NaN` or an
+infinite entry.
 """
 function ReducedBasis(
         algorithm::ReductionAlgorithm, S::AbstractMatrix{<:Union{Float32, Float64}},
@@ -148,8 +151,8 @@ The energy `Λ⁺ = max.(Λ, 0)` is accumulated, and the first of the leading `k
 running sum reaches `(1 - tolerance)` of the whole energy is kept, or `kmax` if none does. The
 clamp is what makes a negative entry, which a Gram matrix of a rank-deficient snapshot produces,
 contribute no energy. The last index of `Λ` always qualifies for finite cumulative energy, so the
-rule never runs past the spectrum, even at `tolerance = 0`. Non-finite energy leaves nothing to
-find, and the result is `kmax`; non-finite snapshots are outside the supported input domain.
+rule never runs past the spectrum, even at `tolerance = 0`; the constructor refuses a non-finite
+snapshot, so the energy is finite.
 """
 function _basis_size(Λ::AbstractVector, k::Union{Nothing, Integer},
         tolerance::Union{Nothing, Real}, kmax::Int = length(Λ))

@@ -126,7 +126,7 @@ function eigenvalue_normalisation(x, λ)
     x ./ λ
 end
 
-Λ = sqrt.(rbasis.Λₚ[1:length(data[begin])])
+Λ = sqrt.(rbasis.Λ[1:length(data[begin])])
 
 datanorm = [eigenvalue_normalisation(d, Λ) for d in data]
 

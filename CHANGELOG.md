@@ -55,10 +55,11 @@ written.
   `[0, 1)`, which chooses the size from the spectrum) must be given. Before any decomposition, an
   `ArgumentError` is raised for both or neither, for a `k` outside `1:kmax`, where
   `kmax = min(N, m)` for the POD and complex algorithms and `min(N, 2m)` for the cotangent lift,
-  for a `tolerance` outside `[0, 1)`, for a snapshot with a zero dimension, and for an odd row
-  count under a PSD algorithm, which reduces the stacked `[q; p]`. The struct holds `algorithm`,
-  `parameters`, `paramspace`, `Λ`, `k`, `Φ` and `Ψ`. `Λ` is the full spectrum, sorted descending
-  with negative entries kept. `Ψ` is the imaginary part for `ComplexSVD` and `nothing` otherwise.
+  for a `tolerance` outside `[0, 1)`, for a snapshot with a zero dimension, for an odd row count
+  under a PSD algorithm, which reduces the stacked `[q; p]`, and for a snapshot with a `NaN` or an
+  infinite entry. The struct holds `algorithm`, `parameters`, `paramspace`, `Λ`, `k`, `Φ` and `Ψ`.
+  `Λ` is the full spectrum, sorted descending with negative entries kept. `Ψ` is the imaginary
+  part for `ComplexSVD` and `nothing` otherwise.
 
 - **`Matrix` assembles the basis, and `lift` and two error measures are exported.**
   `Matrix(b)` returns `Φ` for the POD routes, `diag(Φ, Φ)` for the cotangent lift and
