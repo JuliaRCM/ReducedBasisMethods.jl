@@ -1,86 +1,31 @@
-
-function get_Ψ(S, Λ, Ω, tol, k = 0)
-    E = sum(Λ)
-    Eᵣ = 0
-    if k == 0
-        k = 1
-        while 1 - (Eᵣ + Λ[k])/E > tol
-            Eᵣ += Λ[k]
-            k+=1
-        end
-    end
-    Ψ = S*Ω[:, 1:k]
-    for i in 1:k
-        Ψ[:, i] ./= sqrt(abs.(Λ[i]))
-    end
-    return k, Ψ
-end
-
 """
-Obtains an orthogonal basis based on the snapshot matrix XV = [X V] ∈ R^(N × 2m) by calculating an EVD of XV' * XV (size: 2m × 2m)
-The size of the basis is set as k. 
-If k = 0 is given, the size is determined by the tolerance parameter as 1 - tol < (E(k) + Λ[k+1])/E(N) where E(k) is the sum of the largest k eigenvalues of the snapshot matrix.
-Returns the k largest left eigenvectors in the N × k matrix Ψ and the corresponding eigenvalues in Λ
+    _reduce(::Union{PODEVD, CotangentLiftEVD}, S, parameters, paramspace, k, tolerance)
+
+The basis from the eigendecomposition of the Gram matrix `MᵀM` of `M = _left_matrix(S)`: the
+`m × m` matrix `SᵀS` for `PODEVD`, and the `2m × 2m` Gram matrix of `[Q P]`, up to a permutation,
+for `CotangentLiftEVD`, where `S = [Q; P]`.
+
+The spectrum is the whole Gram spectrum, `σ²` with the round-off eigenvalues of both signs kept,
+sorted descending by value, never by magnitude: `|λ|` would put the round-off eigenvalues of a
+rank-deficient snapshot among the leading ones. It is stored as it is, so a caller that plots it
+sees every eigenvalue of `MᵀM`. The basis is cut to `kmax = min(size(M)...)` entries, the most `M`
+admits.
+
+`Φ` is the thin Householder `Q` of `M·Ω[:, 1:k]`, where `Ω` holds the sorted eigenvectors. Its
+columns are orthonormal even where `M·Ω[:, 1:k]` loses rank, and no division by a round-off
+eigenvalue is needed. For each full-rank leading block of `M·Ω`, the first `j` columns of `Φ` span
+that block; at rank loss, `Φ` completes an orthonormal basis, so its projector can include
+directions outside the column space of `M`.
+
+The Gram matrix squares the snapshot entries and can overflow for large finite inputs.
 """
-function get_PODBasis_cotangentLiftEVD(X, V; k = 0, tolerance = 1e-8)
-    @assert size(X) == size(V)
-
-    N, m = size(X)
-    XVᵀXV = zeros(2m, 2m)
-
-    XV = ApplyArray(hcat, X, V)
-    XVᵀXV .= XV' * XV
-
-    EVD = eigen(XVᵀXV)
-    Λ, Ω = sorteigen(EVD.values, EVD.vectors) # Ω (size: 2m × 2m) contains the right eigenvectors of XV as columns
-
-    E = sum(Λ)
-    Eᵣ = 0
-    if k == 0   # use tolerance based on ∑ᵢλᵢ
-        k = 1
-        while 1 - tolerance > (Eᵣ + Λ[k])/E
-            Eᵣ += Λ[k]
-            k+=1
-        end
-    end
-
-    # Ψ contains the left eigenvectors of XV, which can be recovered from Σ⁻¹ XV Ω
-    Ψ = XV * Ω[:, 1:k] * diagm(inv.(sqrt.(abs.(Λ[1:k]))))
-    # for i in 1:k
-    #     Ψ[:,i] ./= sqrt(abs.(Λ[i]))
-    # end
-
-    return Ψ, Λ
-end
-
-"""
-Obtains an orthogonal basis based on the snapshot matrix S ∈ R^(N × m) by calculating an EVD of S' * S (size: m × m)
-The size of the basis is set as k. 
-If k = 0 is given, the size is determined by the tolerance parameter as 1 - tol < (E(k) + Λ[k+1])/E(N) where E(k) is the sum of the largest k eigenvalues of the snapshot matrix.
-Returns the k largest left eigenvectors in the N × k matrix Ψ and the corresponding eigenvalues in Λ
-"""
-function get_PODBasis_EVD(S; k = 0, tolerance = 1e-4)
-    N, m = size(S)
-    SᵀS = S' * S
-
-    EVD = eigen(SᵀS)
-    Λ, Ω = sorteigen(EVD.values, EVD.vectors) # Ω (size: m × m) contains the right eigenvectors of XV as columns
-
-    E = sum(Λ)
-    Eᵣ = 0
-    if k == 0   # use tolerance based on ∑ᵢλᵢ
-        k = 1
-        while 1 - tolerance > (Eᵣ + Λ[k])/E
-            Eᵣ += Λ[k]
-            k+=1
-        end
-    end
-
-    # Ψ contains the left eigenvectors of XV, which can be recovered from Σ⁻¹ XV Ω
-    Ψ = S * Ω[:, 1:k] * diagm(inv.(sqrt.(abs.(Λ[1:k]))))
-    # for i in 1:k
-    #     Ψ[:,i] ./= sqrt(abs.(Λ[i]))
-    # end
-
-    return Ψ, Λ
+function _reduce(algorithm::Union{PODEVD, CotangentLiftEVD}, S::AbstractMatrix,
+        parameters::NamedTuple, paramspace::ParameterSpace, k, tolerance)
+    M = _left_matrix(algorithm, S)
+    F = eigen(Symmetric(M' * M))
+    Λ = reverse(F.values)
+    Ω = reverse(F.vectors; dims = 2)
+    k = _basis_size(Λ, k, tolerance, _kmax(algorithm, S))
+    Φ = Matrix(qr(M * view(Ω, :, 1:k)).Q)
+    return ReducedBasis(algorithm, parameters, paramspace, Λ, Φ, nothing)
 end

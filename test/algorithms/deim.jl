@@ -1,5 +1,6 @@
 using LinearAlgebra
 using ReducedBasisMethods
+using ReducedComplexityModeling: Parameter, ParameterSpace
 using Test
 
 """
@@ -15,7 +16,11 @@ x = range(-1, 1, 100)
 
 S = [s(x[i], μₜ[j]) for i in 1:100, j in 1:51]
 
-Ψ, Λ = get_PODBasis_EVD(S; k = 20)
+basis = ReducedBasis(
+    PODEVD(), S, NamedTuple(), ParameterSpace(Parameter(:μ, 1.0, 3.0, 51));
+    k = 20)
+Ψ = basis.Φ
+Λ = basis.Λ
 
 @test Λ[10] < 1e0
 @test Λ[15] < 1e-2
