@@ -7,6 +7,14 @@ include("helpers/spectra.jl")
 
 Random.seed!(43)
 
+"A `Float64` snapshot whose entries throw on any read."
+struct Unreadable <: AbstractMatrix{Float64}
+    n::Int
+    m::Int
+end
+Base.size(S::Unreadable) = (S.n, S.m)
+Base.getindex(::Unreadable, ::Int, ::Int) = error("the snapshot was read")
+
 @testset "Constructor guards" begin
     ps = testparamspace()
     S = low_rank_matrix(Float64, 40, 20, 2.0 .^ (-(1:5)))
@@ -74,6 +82,30 @@ Random.seed!(43)
         @test_throws ArgumentError ReducedBasis(alg, rand(41, 6), NamedTuple(), ps; k = 1)
         @test_throws ArgumentError ReducedBasis(alg, zeros(41, 0), NamedTuple(), ps; k = 1)
     end
+
+    # Every route takes the same element types, `Float32` and `Float64`: a complex snapshot made
+    # the Gram route return a wrong basis, and an integer one passed the EVD routes and failed in
+    # LAPACK on the SVD routes.
+    for alg in (PODSVD(), PODEVD(), CotangentLiftSVD(), CotangentLiftEVD(), ComplexSVD())
+        for Sbad in (rand(ComplexF64, 8, 4), rand(-3:3, 8, 4), rand(Float16, 8, 4))
+            @test_throws MethodError ReducedBasis(alg, Sbad, NamedTuple(), ps; k = 1)
+        end
+    end
+
+    # Every guard runs before the snapshot is read: a snapshot whose entries throw on access
+    # reaches the `ArgumentError`, and the decomposition, which would read it, never starts.
+    for alg in (PODSVD(), PODEVD(), CotangentLiftSVD(), CotangentLiftEVD(), ComplexSVD())
+        S8 = Unreadable(8, 4)
+        @test_throws ArgumentError ReducedBasis(alg, S8, NamedTuple(), ps; k = 100)
+        @test_throws ArgumentError ReducedBasis(alg, S8, NamedTuple(), ps; tolerance = 1)
+        @test_throws ArgumentError ReducedBasis(alg, S8, NamedTuple(), ps)
+        @test_throws ArgumentError ReducedBasis(
+            alg, S8, NamedTuple(), ps; k = 1, tolerance = 0.5)
+        @test_throws ErrorException ReducedBasis(alg, S8, NamedTuple(), ps; k = 1)
+    end
+
+    # The basis size is the number of columns of `Φ`, whoever builds the basis.
+    @test ReducedBasis(PODSVD(), NamedTuple(), ps, rand(3), rand(3, 2), nothing).k == 2
 end
 
 @testset "Assembled basis" begin

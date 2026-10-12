@@ -18,8 +18,8 @@
 # the paper's.
 #
 # Each route is reduced by the package — the SVD routes only, the EVD route is for `N ≫ m` — and
-# compared with the reference's own call: `svd` as `CalculateProjection_POD.jl:39`,
-# `_PSD_Cotangent.jl:44-46` and `_PSD_Complex.jl:43-46` make it. Every singular value past the
+# compared with `svdvals` of the matrix the reference's own `svd` call decomposes, as
+# `CalculateProjection_POD.jl:39`, `_PSD_Cotangent.jl:44-46` and `_PSD_Complex.jl:43-46` make it. Every singular value past the
 # rank of the snapshot is round-off and is compared with the absolute Weyl bound
 # `max(m, n) * eps(Float64) * σ₁`, never with a relative one.
 #
@@ -101,7 +101,7 @@ function route(name::AbstractString, alg, snapshot::AbstractMatrix,
     b = ReducedBasis(alg, snapshot, NamedTuple(), pspace; k = 1)
 
     σ = sqrt.(b.Λ)
-    σref = svd(reference).S
+    σref = svdvals(reference)
     σ₁ = σ[1]
     deviation, bound = spectrum_deviation(σ, σref, reference)
 
@@ -157,5 +157,7 @@ function main(stride::Int, nbeta::Int)
     return ok
 end
 
-exit(main(length(ARGS) >= 1 ? parse(Int, ARGS[1]) : 10,
-    length(ARGS) >= 2 ? parse(Int, ARGS[2]) : 6) ? 0 : 1)
+if abspath(PROGRAM_FILE) == @__FILE__
+    exit(main(length(ARGS) >= 1 ? parse(Int, ARGS[1]) : 10,
+        length(ARGS) >= 2 ? parse(Int, ARGS[2]) : 6) ? 0 : 1)
+end

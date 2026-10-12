@@ -3,12 +3,12 @@ using Test
 
 # The comparator of `scripts/reference_spectra.jl`, on its own: the paper-data run it belongs to
 # needs an 8.94 GiB snapshot, and this is the rule that decides whether that run says PASS. The
-# script ends in `exit(main(...))` because it is a script, so the file is loaded up to that line.
+# script runs `main` only as the program file, so including it defines the functions and runs
+# nothing.
 const SCRIPT = normpath(joinpath(@__DIR__, "..", "..", "scripts", "reference_spectra.jl"))
 
 module ReferenceSpectraScript end
-Base.include_string(ReferenceSpectraScript,
-    first(split(read(SCRIPT, String), "exit(main(")), SCRIPT)
+Base.include(ReferenceSpectraScript, SCRIPT)
 
 @testset "Reference spectra comparator" begin
     # The bound is the Weyl bound of the reference matrix, `max(m, n)·eps(Float64)·σ₁`.

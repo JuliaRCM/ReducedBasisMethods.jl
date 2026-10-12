@@ -10,11 +10,11 @@ structures and `Φᵀ` for the POD ones:
 - cotangent lift: `[Φᵀq; Φᵀp]` with `x = [q; p]`;
 - complex SVD: `[Φᵀq + Ψᵀp; Φᵀp - Ψᵀq]` with `x = [q; p]`.
 
-`A⁺` is applied blockwise, and `J` is never formed. For both PSD structures `A⁺ = J_kᵀAᵀJ_N`,
-which the tests assert against a dense `J`.
+For both PSD structures `A` commutes with `J` (`J_N A = A J_k`), so `A⁺ = J_kᵀAᵀJ_N = Aᵀ`, which
+the tests assert against a dense `J`. `Aᵀ` is applied blockwise, and neither `A` nor `J` is formed.
 
-The two PSD structures read `x` through views and fill the two blocks of the result, so a call
-allocates the result and nothing proportional to the number of rows of `x`.
+The two PSD structures read `x` through views, so a call allocates the result and `k`-row
+temporaries, and nothing proportional to the number of rows of `x`.
 
 `project` is `ReducedComplexityModeling.project`: this package imports the generic and adds a
 method, so a caller that loads both packages sees one name.
@@ -25,27 +25,17 @@ end
 
 function project(b::ReducedBasis{<:Any, <:Union{CotangentLiftSVD, CotangentLiftEVD}},
         x::AbstractMatrix)
-    N, k = size(b.Φ)
+    N = size(b.Φ, 1)
     _check_rows(x, 2N, "a cotangent-lift projection")
-    T = promote_type(eltype(b.Φ), eltype(x))
-    z = similar(b.Φ, T, 2k, size(x, 2))
-    mul!(view(z, 1:k, :), b.Φ', view(x, 1:N, :))
-    mul!(view(z, (k + 1):(2k), :), b.Φ', view(x, (N + 1):(2N), :))
-    return z
+    return [b.Φ' * view(x, 1:N, :); b.Φ' * view(x, (N + 1):(2N), :)]
 end
 
 function project(b::ReducedBasis{<:Any, <:ComplexSVD}, x::AbstractMatrix)
-    N, k = size(b.Φ)
+    N = size(b.Φ, 1)
     _check_rows(x, 2N, "a complex-SVD projection")
     q = view(x, 1:N, :)
     p = view(x, (N + 1):(2N), :)
-    T = promote_type(eltype(b.Φ), eltype(x))
-    z = similar(b.Φ, T, 2k, size(x, 2))
-    mul!(view(z, 1:k, :), b.Φ', q)
-    mul!(view(z, 1:k, :), b.Ψ', p, one(T), one(T))
-    mul!(view(z, (k + 1):(2k), :), b.Φ', p)
-    mul!(view(z, (k + 1):(2k), :), b.Ψ', q, -one(T), one(T))
-    return z
+    return [b.Φ' * q + b.Ψ' * p; b.Φ' * p - b.Ψ' * q]
 end
 
 project(b::ReducedBasis, x::AbstractVector) = vec(project(b, reshape(x, :, 1)))
@@ -66,11 +56,7 @@ function lift(b::ReducedBasis{<:Any, <:Union{CotangentLiftSVD, CotangentLiftEVD}
         z::AbstractMatrix)
     N, k = size(b.Φ)
     _check_rows(z, 2k, "a cotangent-lift lift")
-    T = promote_type(eltype(b.Φ), eltype(z))
-    x = similar(b.Φ, T, 2N, size(z, 2))
-    mul!(view(x, 1:N, :), b.Φ, view(z, 1:k, :))
-    mul!(view(x, (N + 1):(2N), :), b.Φ, view(z, (k + 1):(2k), :))
-    return x
+    return reshape(b.Φ * reshape(z, k, :), 2N, :)
 end
 
 function lift(b::ReducedBasis{<:Any, <:ComplexSVD}, z::AbstractMatrix)

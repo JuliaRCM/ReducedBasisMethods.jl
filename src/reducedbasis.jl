@@ -37,8 +37,8 @@ The fields are
   `k` can be recorded;
 - `Λ`: the full spectrum, sorted descending and with its negative entries kept, so that a caller
   can plot it;
-- `k`: the basis size, `1 ≤ k ≤ length(Λ)`;
-- `Φ`: the `N × k` (POD) or `N × k` real factor of the basis;
+- `k`: the basis size, `size(Φ, 2)`, which the constructor sets;
+- `Φ`: the `N × k` basis for POD, and the `N × k` real factor of the basis otherwise;
 - `Ψ`: the imaginary part `Im U` of the singular vectors whose real part is `Φ`, for `ComplexSVD`,
   and `nothing` for every other algorithm.
 
@@ -55,16 +55,46 @@ struct ReducedBasis{DT <: Number, ALG <: ReductionAlgorithm, PAR <: NamedTuple,
     k::Int
     Φ::Matrix{DT}
     Ψ::ΨT
+
+    function ReducedBasis(algorithm::ReductionAlgorithm, parameters::NamedTuple,
+            paramspace::ParameterSpace, Λ::Vector{DT}, Φ::Matrix{DT},
+            Ψ::Union{Nothing, Matrix{DT}}) where {DT}
+        return new{DT, typeof(algorithm), typeof(parameters), typeof(paramspace), typeof(Ψ)}(
+            algorithm, parameters, paramspace, Λ, size(Φ, 2), Φ, Ψ)
+    end
 end
 
 """
-    _check_snapshot(S, algorithm)
+    _left_matrix(algorithm, S)
+
+The matrix whose leading left singular vectors are `Φ`: the snapshot `S` itself for POD, and the
+`N × 2m` reshape of the stacked `S = [Q; P]` for the cotangent lift. The reshape interleaves the
+columns of `Q` and `P`, a column permutation of `[Q P]`, so it has the left singular vectors and
+the singular values of `[Q P]`, and it copies nothing.
+"""
+_left_matrix(::PODAlgorithm, S::AbstractMatrix) = S
+function _left_matrix(::Union{CotangentLiftSVD, CotangentLiftEVD}, S::AbstractMatrix)
+    return reshape(S, size(S, 1) ÷ 2, :)
+end
+
+"The largest basis size `k` the snapshot `S` admits under `algorithm`."
+function _kmax(algorithm::ReductionAlgorithm, S::AbstractMatrix)
+    minimum(size(_left_matrix(algorithm, S)))
+end
+_kmax(::ComplexSVD, S::AbstractMatrix) = min(size(S, 1) ÷ 2, size(S, 2))
+
+"""
+    _check_arguments(algorithm, S, k, tolerance)
 
 The guards the constructor owes before it decomposes anything: a snapshot with a zero dimension
-has no basis, and a PSD algorithm reduces the stacked `[q; p]` snapshot, which has an even number
-of rows.
+has no basis, a PSD algorithm reduces the stacked `[q; p]` snapshot, which has an even number of
+rows, and exactly one of `k` and `tolerance` is given, inside its range.
+
+`k` is compared in its own integer type, so `typemax(UInt)` and an oversized `BigInt` raise the
+`ArgumentError` the range promises, and not the `InexactError` of a conversion to `Int`.
 """
-function _check_snapshot(S::AbstractMatrix, algorithm::ReductionAlgorithm)
+function _check_arguments(algorithm::ReductionAlgorithm, S::AbstractMatrix,
+        k::Union{Nothing, Integer}, tolerance::Union{Nothing, Real})
     if size(S, 1) == 0 || size(S, 2) == 0
         throw(ArgumentError("the snapshot matrix $(size(S)) has a zero dimension"))
     end
@@ -72,66 +102,60 @@ function _check_snapshot(S::AbstractMatrix, algorithm::ReductionAlgorithm)
         throw(ArgumentError("a $(typeof(algorithm)) snapshot holds [q; p] and has an even " *
                             "number of rows, got $(size(S, 1))"))
     end
+    if (k === nothing) == (tolerance === nothing)
+        throw(ArgumentError("exactly one of `k` and `tolerance` says how large the basis is"))
+    end
+    kmax = _kmax(algorithm, S)
+    k === nothing || 1 ≤ k ≤ kmax || throw(ArgumentError("k = $k is outside 1:$kmax"))
+    tolerance === nothing || 0 ≤ tolerance < 1 ||
+        throw(ArgumentError("tolerance = $tolerance is outside [0, 1)"))
     return nothing
 end
 
 """
     ReducedBasis(algorithm, S, parameters, paramspace; k = nothing, tolerance = nothing)
 
-The reduced basis of the snapshot matrix `S`, built by `algorithm`.
+The reduced basis of the real snapshot matrix `S`, built by `algorithm`.
 
 `S` is the `N × m` snapshot for `PODSVD` and `PODEVD`, and the stacked `2N × m` matrix `[Q; P]` for
-`CotangentLiftSVD`, `CotangentLiftEVD` and `ComplexSVD`.
+`CotangentLiftSVD`, `CotangentLiftEVD` and `ComplexSVD`. Its element type is `Float32` or
+`Float64`, the real types LAPACK computes in, and the basis has the same element type.
 
 Exactly one of `k` and `tolerance` says how large the basis is. `k` counts the retained columns
 of `Φ` (and of `Φ + iΨ` for `ComplexSVD`); a PSD basis assembles `2k` columns. `tolerance` keeps
 the leading factors that carry all but `tolerance` of the energy `sum(max.(Λ, 0))`.
 
-Throws an `ArgumentError` when `S` has a zero dimension, when a PSD snapshot has an odd number of
-rows, when `k` is outside `1:kmax`, where `kmax = min(N, m)` for the POD and complex algorithms and
-`min(N, 2m)` for the cotangent lift, when `tolerance` is outside `[0, 1)`, and when both or neither
-of `k` and `tolerance` are given.
+Throws an `ArgumentError`, before any decomposition, when `S` has a zero dimension, when a PSD
+snapshot has an odd number of rows, when `k` is outside `1:kmax`, where `kmax = min(N, m)` for the
+POD and complex algorithms and `min(N, 2m)` for the cotangent lift, when `tolerance` is outside
+`[0, 1)`, and when both or neither of `k` and `tolerance` are given.
 """
-function ReducedBasis(algorithm::ReductionAlgorithm, S::AbstractMatrix,
+function ReducedBasis(
+        algorithm::ReductionAlgorithm, S::AbstractMatrix{<:Union{Float32, Float64}},
         parameters::NamedTuple, paramspace::ParameterSpace;
         k::Union{Nothing, Integer} = nothing, tolerance::Union{Nothing, Real} = nothing)
-    _check_snapshot(S, algorithm)
+    _check_arguments(algorithm, S, k, tolerance)
     return _reduce(algorithm, S, parameters, paramspace, k, tolerance)
 end
 
 """
     _basis_size(Λ, k, tolerance, kmax = length(Λ))
 
-The leading number of entries of the spectrum `Λ` the caller asked for, at most `kmax`.
+The basis size: `k` as an `Int` when it is given, and otherwise the energy rule on the spectrum
+`Λ`, at most `kmax`. The constructor has checked both keywords.
 
-`k` is checked in its own integer type and converted to `Int` only once it is inside `1:kmax`, so
-`typemax(UInt)` and an oversized `BigInt` raise the `ArgumentError` the range promises, and not the
-`InexactError` an earlier conversion would.
-
-Under `tolerance`, the energy `Λ⁺ = max.(Λ, 0)` is accumulated and the first index whose running sum
-reaches `(1 - tolerance)` of it is kept, capped at `kmax`. The clamp is what makes a negative entry,
-which a Gram matrix of a rank-deficient snapshot produces, contribute no energy; the last index
-always qualifies for finite cumulative energy, so the result stays inside `length(Λ)` even at
-`tolerance = 0`. If non-finite energy leaves `findfirst` with nothing to find, the result is
-`kmax`; non-finite snapshots are outside the supported input domain.
+The energy `Λ⁺ = max.(Λ, 0)` is accumulated, and the first of the leading `kmax` indices whose
+running sum reaches `(1 - tolerance)` of the whole energy is kept, or `kmax` if none does. The
+clamp is what makes a negative entry, which a Gram matrix of a rank-deficient snapshot produces,
+contribute no energy. The last index of `Λ` always qualifies for finite cumulative energy, so the
+rule never runs past the spectrum, even at `tolerance = 0`. Non-finite energy leaves nothing to
+find, and the result is `kmax`; non-finite snapshots are outside the supported input domain.
 """
 function _basis_size(Λ::AbstractVector, k::Union{Nothing, Integer},
         tolerance::Union{Nothing, Real}, kmax::Int = length(Λ))
-    if k === nothing && tolerance === nothing
-        throw(ArgumentError("one of `k` and `tolerance` says how large the basis is"))
-    elseif k !== nothing && tolerance !== nothing
-        throw(ArgumentError("`k` and `tolerance` are mutually exclusive"))
-    elseif k !== nothing
-        1 ≤ k ≤ kmax ||
-            throw(ArgumentError("k = $k is outside 1:$kmax"))
-        return Int(k)
-    end
-
-    tol = float(tolerance)
-    0 ≤ tol < 1 || throw(ArgumentError("tolerance = $tol is outside [0, 1)"))
-
+    k === nothing || return Int(k)
     E = cumsum(max.(Λ, zero(eltype(Λ))))
-    return min(something(findfirst(≥((1 - tol) * last(E)), E), kmax), kmax)
+    return something(findfirst(≥((1 - tolerance) * last(E)), view(E, 1:kmax)), kmax)
 end
 
 """
@@ -140,29 +164,11 @@ end
 The assembled basis matrix: `Φ` for the POD algorithms, `diag(Φ, Φ)` for the cotangent lift and
 `[Φ −Ψ; Ψ Φ]` for the complex SVD. Each is `2N × 2k` except the POD one, which is `N × k`.
 """
-function Base.Matrix(b::ReducedBasis{DT, <:PODAlgorithm}) where {DT}
-    return copy(b.Φ)
+Base.Matrix(b::ReducedBasis{<:Any, <:PODAlgorithm}) = copy(b.Φ)
+function Base.Matrix(b::ReducedBasis{<:Any, <:Union{CotangentLiftSVD, CotangentLiftEVD}})
+    return [b.Φ zero(b.Φ); zero(b.Φ) b.Φ]
 end
-
-function Base.Matrix(b::ReducedBasis{
-        DT, <:Union{CotangentLiftSVD, CotangentLiftEVD}}) where {DT}
-    N = size(b.Φ, 1)
-    A = zeros(DT, 2N, 2b.k)
-    A[1:N, 1:b.k] .= b.Φ
-    A[(N + 1):(2N), (b.k + 1):(2b.k)] .= b.Φ
-    return A
-end
-
-function Base.Matrix(b::ReducedBasis{DT, <:ComplexSVD}) where {DT}
-    N = size(b.Φ, 1)
-    k = b.k
-    A = zeros(DT, 2N, 2k)
-    A[1:N, 1:k] .= b.Φ
-    A[1:N, (k + 1):(2k)] .= .-b.Ψ
-    A[(N + 1):(2N), 1:k] .= b.Ψ
-    A[(N + 1):(2N), (k + 1):(2k)] .= b.Φ
-    return A
-end
+Base.Matrix(b::ReducedBasis{<:Any, <:ComplexSVD}) = [b.Φ -b.Ψ; b.Ψ b.Φ]
 
 "`string(nameof(typeof(algorithm)))` back to the algorithm, or an `ArgumentError`."
 function _algorithm(name::AbstractString)
@@ -177,14 +183,13 @@ function ReducedBasis(h5::H5DataStore, path::AbstractString = "/")
 
     algorithm = _algorithm(read(group["algorithm"]))
     Λ = read(group["Λ"])
-    k = read(group["k"])
     Φ = read(group["Φ"])
     Ψ = haskey(group, "Ψ") ? read(group["Ψ"]) : nothing
 
     parameters = read_parameters(group, "parameters")
     paramspace = ParameterSpace(group, "parameterspace")
 
-    return ReducedBasis(algorithm, parameters, paramspace, Λ, k, Φ, Ψ)
+    return ReducedBasis(algorithm, parameters, paramspace, Λ, Φ, Ψ)
 end
 
 function ReducedBasis(fpath::AbstractString, path::AbstractString = "/")

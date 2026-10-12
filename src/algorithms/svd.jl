@@ -1,74 +1,42 @@
 """
-    _svd(M)
+    _svd_input(algorithm, S)
 
-The thin singular value decomposition of `M` as `(U, σ)`, from LAPACK's `gesvd!` with
-`jobu = 'S'` and `jobvt = 'N'`.
-
-The right factor is not formed because none of the reduced bases uses it, and for the snapshot
-matrices this package reduces it costs as much memory as the snapshot itself. `M` is copied to
-the element type it is asked for, since `gesvd!` overwrites its argument.
+The matrix whose thin SVD gives the basis, as the owned copy that `gesvd!` overwrites: the
+`_left_matrix` of `S` for POD and the cotangent lift, and the complex `Q + iP` of the stacked
+`S = [Q; P]` for `ComplexSVD`.
 """
-function _svd(M::AbstractMatrix{T}) where {T}
-    return _svd!(Matrix{T}(M))
+function _svd_input(algorithm::ReductionAlgorithm, S::AbstractMatrix)
+    Matrix(_left_matrix(algorithm, S))
 end
-
-"The thin left singular factor and singular values of the owned matrix `M`, overwritten by LAPACK."
-function _svd!(M::Matrix)
-    U, σ, _ = LinearAlgebra.LAPACK.gesvd!('S', 'N', M)
-    return U, σ
-end
-
-"""
-    _reduce(::PODSVD, S, parameters, paramspace, k, tolerance)
-
-The POD basis of the `N × m` snapshot `S` from its thin SVD. Its spectrum is `Λ = σ²`, and the
-basis is the first `k` left singular vectors.
-"""
-function _reduce(alg::PODSVD, S::AbstractMatrix, parameters::NamedTuple,
-        paramspace::ParameterSpace, k, tolerance)
-    U, σ = _svd(S)
-    Λ = σ .^ 2
-    k = _basis_size(Λ, k, tolerance)
-    return ReducedBasis(alg, parameters, paramspace, Λ, k, U[:, 1:k], nothing)
-end
-
-"""
-    _reduce(::CotangentLiftSVD, S, parameters, paramspace, k, tolerance)
-
-The cotangent-lift basis of the stacked `2N × m` snapshot `S = [Q; P]`, from the thin SVD of
-`[Q P]`. Its spectrum is `Λ = σ²`, and `Φ` is the first `k` left singular vectors of `[Q P]`, so
-that the basis is `diag(Φ, Φ)`.
-"""
-function _reduce(alg::CotangentLiftSVD, S::AbstractMatrix, parameters::NamedTuple,
-        paramspace::ParameterSpace, k, tolerance)
+function _svd_input(::ComplexSVD, S::AbstractMatrix)
     N = size(S, 1) ÷ 2
-    Q = @view S[1:N, :]
-    P = @view S[(N + 1):(2N), :]
-    U, σ = _svd!(hcat(Q, P))
-    Λ = σ .^ 2
-    k = _basis_size(Λ, k, tolerance)
-    return ReducedBasis(alg, parameters, paramspace, Λ, k, U[:, 1:k], nothing)
+    return complex.(view(S, 1:N, :), view(S, (N + 1):(2N), :))
 end
 
-"""
-    _reduce(::ComplexSVD, S, parameters, paramspace, k, tolerance)
+"The basis factors `(Φ, Ψ)` of the leading left singular vectors `U`."
+_factors(::ReductionAlgorithm, U::Matrix) = (U, nothing)
+_factors(::ComplexSVD, U::Matrix) = (real(U), imag(U))
 
-The complex-SVD basis of the stacked `2N × m` snapshot `S = [Q; P]`, from the thin SVD of the
-complex `C = Q + iP`. Its spectrum is `Λ = σ²`, and `Φ` and `Ψ` are the real and imaginary parts
-of the first `k` left singular vectors of `C`, so that the basis is `[Φ −Ψ; Ψ Φ]` and the lift of
-`[a; b]` is `U(a + ib)`.
+"""
+    _reduce(::Union{PODSVD, CotangentLiftSVD, ComplexSVD}, S, parameters, paramspace, k, tolerance)
+
+The basis from the thin SVD of `S` for `PODSVD`, of `[Q P]` for `CotangentLiftSVD` and of the
+complex `C = Q + iP` for `ComplexSVD`, where `S = [Q; P]`. Its spectrum is `Λ = σ²`, and the basis
+is built from the first `k` left singular vectors `U`: `Φ = U` for POD and the cotangent lift, so
+that the cotangent-lift basis is `diag(Φ, Φ)`, and `Φ = Re U`, `Ψ = Im U` for the complex SVD, so
+that its basis is `[Φ −Ψ; Ψ Φ]` and the lift of `[a; b]` is `U(a + ib)`.
 
 The imaginary part is `imag(U)` and never `conj(U)`: a basis built from `conj(U)` is symplectic
 too, but it spans `X − iV`.
+
+LAPACK's `gesvd!` runs with `jobu = 'S'` and `jobvt = 'N'`. The right factor is not formed because
+no basis uses it, and for the snapshot matrices this package reduces it costs as much memory as the
+snapshot itself.
 """
-function _reduce(alg::ComplexSVD, S::AbstractMatrix, parameters::NamedTuple,
-        paramspace::ParameterSpace, k, tolerance)
-    N = size(S, 1) ÷ 2
-    Q = @view S[1:N, :]
-    P = @view S[(N + 1):(2N), :]
-    U, σ = _svd!(Q .+ im .* P)
+function _reduce(algorithm::Union{PODSVD, CotangentLiftSVD, ComplexSVD}, S::AbstractMatrix,
+        parameters::NamedTuple, paramspace::ParameterSpace, k, tolerance)
+    U, σ, _ = LinearAlgebra.LAPACK.gesvd!('S', 'N', _svd_input(algorithm, S))
     Λ = σ .^ 2
-    k = _basis_size(Λ, k, tolerance)
-    U = U[:, 1:k]
-    return ReducedBasis(alg, parameters, paramspace, Λ, k, real(U), imag(U))
+    U = U[:, 1:_basis_size(Λ, k, tolerance)]
+    return ReducedBasis(algorithm, parameters, paramspace, Λ, _factors(algorithm, U)...)
 end
