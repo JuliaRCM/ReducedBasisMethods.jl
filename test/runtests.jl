@@ -14,4 +14,5 @@ if "core" in GROUPS
     @safetestset "Projections" include("projection.jl")
     @safetestset "DEIM" include("algorithms/deim.jl")
     @safetestset "Symplectic DEIM" include("algorithms/symplectic_deim.jl")
+    @safetestset "Reduced equations" include("reduced_equations.jl")
 end
