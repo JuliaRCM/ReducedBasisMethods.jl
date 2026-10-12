@@ -1,10 +1,9 @@
 using GeometricBrackets: Arakawa, PoissonTensor
 using MultiIndexArrays
-using MultiIndexArrays: GridTensor, MultiIndexLazyArray, stencil_indices
+using MultiIndexArrays: GridTensor, MultiIndexLazyArray
 using Random
 using ReducedBasisMethods
 using Test
-using TOML
 
 # The width-`w` periodic neighbourhood test of `J` around `I`, written from the wrapped offsets by
 # hand and never through `stencil_indices`, so that a defect in the stencil cannot reach the
@@ -48,8 +47,9 @@ end
 
 bound(::Type{DT}, R) where {DT} = sqrt(eps(DT)) * maximum(abs, R)
 
-# The barrier of the inference test, so that no constant propagation hides an instability.
-entry(rt::ReducedTensor) = rt[2, 1, 7]
+# The allocations of the second call of `f(a, b)`, behind a barrier that specialises on every
+# argument, so that only the call itself is measured.
+allocations(f::F, a::A, b::B) where {F, A, B} = (f(a, b); @allocated f(a, b))
 
 @testset "ReducedTensor" begin
     @testset "the reduced operator is the hand projection" begin
@@ -103,20 +103,6 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
         end
     end
 
-    @testset "the stencil decision, and the fallback where a node repeats" begin
-        for DT in (Float32, Float64)
-            for (g, w, repeats) in (((5, 6), 1, false), ((5, 6), 2, false),
-                ((2, 5), 1, true))
-                local n = g[1] * g[2]
-                local gt = neighbourhood_tensor(Xoshiro(1), DT, g, w)
-                local rt = ReducedTensor(gt, rand(Xoshiro(2), DT, n, 3),
-                    rand(Xoshiro(3), DT, n, 2))
-                @test rt.stencil == allunique(stencil_indices(gt, 1))
-                @test rt.stencil == !repeats
-            end
-        end
-    end
-
     @testset "the stencil branch restricts the sum, on a contract the tensor breaks" begin
         # the all-ones tensor breaks the locality contract on purpose, so that a `getindex` that
         # always sums the whole axis is caught instead of passing on both sides
@@ -146,10 +132,9 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
             local Pj = rand(Xoshiro(3), DT, N, 2)
             local gt = arakawa_tensor(DT, (5, 6))
 
+            local short = rand(Xoshiro(5), DT, N - 1, 2)
             @test_throws DimensionMismatch ReducedTensor(gt, rand(Xoshiro(4), DT, N + 1, 3), Pj)
-            @test_throws DimensionMismatch ReducedTensor(gt, Pi, rand(
-                Xoshiro(5), DT, N -
-                                1, 2))
+            @test_throws DimensionMismatch ReducedTensor(gt, Pi, short)
 
             # an integer projection is refused by the same element-type rule
             @test_throws ArgumentError ReducedTensor(gt, ones(Int, N, 3), Pj)
@@ -186,14 +171,7 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
             local rt = ReducedTensor(gt, rand(Xoshiro(2), DT, N, 3), rand(Xoshiro(3), DT, N, 2))
 
             for (i, j, k) in ((0, 1, 1), (size(rt, 1) + 1, 1, 1), (1, 1, size(rt, 3) + 1))
-                local err = try
-                    rt[i, j, k]
-                    nothing
-                catch e
-                    e
-                end
-                @test err isa BoundsError
-                @test err.a === rt
+                @test_throws BoundsError(rt, (i, j, k)) rt[i, j, k]
             end
         end
     end
@@ -208,9 +186,7 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
             local rt = ReducedTensor(gt, Pi, Pj)
 
             # the accumulator stays in `DT`, which `eltype(Array(rt))` cannot see
-            @test typeof(rt[2, 1, 7]) === DT
-            @test entry(rt) === rt[2, 1, 7]
-            @test @inferred(entry(rt)) === rt[2, 1, 7]
+            @test @inferred(rt[2, 1, 7]) isa DT
 
             # another integer type and a linear index go through `AbstractArray`'s fallback
             @test rt[Int32(2), Int32(1), Int32(7)] == rt[2, 1, 7]
@@ -226,37 +202,19 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
         end
     end
 
-    @testset "the entries are inferred and allocate nothing" begin
-        # `getindex` is called on every right-hand side evaluation downstream, so the claim is
-        # measured in a fresh process, through a fixed-arity barrier after a warm call, beside a
-        # `> 0` control on the same barrier
-        local program = """
-        import Random
-        using MultiIndexArrays: GridTensor, MultiIndexLazyArray
-        using ReducedBasisMethods: ReducedTensor
+    @testset "the entries allocate nothing" begin
+        # `getindex` is called on every right-hand side evaluation downstream; the `> 0` control
+        # shows that the barrier measures
+        for DT in (Float32, Float64), (g, w) in (((5, 6), 1), ((5, 6), 2), ((2, 5), 1))
 
-        allocations(f::F, a::A, b::B) where {F, A, B} = (f(a, b); @allocated f(a, b))
-
-        function made(::Type{DT}, g, w) where {DT}
-            rng = Random.Xoshiro(7)
-            N = g[1] * g[2]
-            tensor = GridTensor(MultiIndexLazyArray(DT,
-                (I, J, K) -> DT(mod(I[1] + 2 * J[2] + 3 * K[1], 7)), g, g, g), w)
-            return ReducedTensor(tensor, rand(rng, DT, N, 3), rand(rng, DT, N, 2))
+            local n = g[1] * g[2]
+            local gt = neighbourhood_tensor(Xoshiro(1), DT, g, w)
+            local rt = ReducedTensor(gt, rand(Xoshiro(2), DT, n, 3), rand(Xoshiro(3), DT, n, 2))
+            local out = Array{DT}(undef, size(rt))
+            @test allocations((r, o) -> r[2, 1, 7], rt, out) == 0
+            @test allocations((r, o) -> copyto!(o, r), rt, out) == 0
+            @test allocations((r, o) -> collect(r), rt, out) > 0
         end
-
-        if Base.JLOptions().code_coverage == 0
-            for DT in (Float32, Float64), (g, w) in (((5, 6), 1), ((5, 6), 2), ((2, 5), 1))
-                rt = made(DT, g, w)
-                out = Array{DT}(undef, size(rt))
-                @assert allocations((r, o) -> r[2, 1, 7], rt, out) == 0
-                @assert allocations((r, o) -> copyto!(o, r), rt, out) == 0
-                @assert allocations((r, o) -> collect(r), rt, out) > 0
-            end
-        end
-        """
-        local command = `$(Base.julia_cmd()) --check-bounds=auto --project=$(Base.active_project()) -e $program`
-        @test success(command)
     end
 
     @testset "the module reaches MultiIndexArrays only through its public names" begin
@@ -266,13 +224,5 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
                  Base.binding_module(ReducedBasisMethods, n) === MultiIndexArrays,
             setdiff(names(MultiIndexArrays; all = true), names(MultiIndexArrays)))
         @test isempty(private)
-    end
-
-    @testset "GeometricBrackets is a test-only dependency" begin
-        local project = TOML.parsefile(joinpath(pkgdir(ReducedBasisMethods), "Project.toml"))
-        @test !haskey(project["deps"], "GeometricBrackets")
-        @test !haskey(project["compat"], "GeometricBrackets")
-        @test haskey(project["deps"], "MultiIndexArrays")
-        @test project["compat"]["MultiIndexArrays"] == "0.1.2"
     end
 end

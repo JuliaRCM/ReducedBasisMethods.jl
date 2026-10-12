@@ -154,8 +154,8 @@ written.
   TOML and Test move from `[extras]` and `[targets]` of `Project.toml`, which keeps no test
   dependency and no `[compat]` bound for them. Random and SafeTestsets are new test dependencies.
   GeometricBrackets becomes a test-only dependency, and `LinearAlgebra` and
-  ReducedComplexityModeling stay in `[deps]`, with `test/Project.toml` listing them with the same
-  bounds. `deim_test.jl` becomes
+  ReducedComplexityModeling stay in `[deps]`, and `test/Project.toml` lists them without a
+  bound of its own. `deim_test.jl` becomes
   `algorithms/deim.jl`; `reducedbasis_tests.jl` splits into `reducedbasis.jl` and
   `reduced_tensor.jl`; `skeleton_tests.jl` becomes `integration/skeleton.jl`, and its Aqua check
   moves to `quality/aqua.jl`. Each file has its own `using`, and a file that draws random numbers
@@ -167,8 +167,8 @@ written.
   contains the package, so the resolver applies the root `Project.toml` bounds to every shared
   dependency; a test bound can only narrow them, and tests that run on narrower bounds than the
   package claims hide a failing version. The rule is: `test/Project.toml` and `docs/Project.toml`
-  carry no `[compat]` entry for a dependency of the root. The test-only bounds for Aqua and
-  GeometricBrackets stay.
+  carry no `[compat]` entry for a dependency of the root. The test-only bounds for Aqua,
+  ForwardDiff, GeometricBrackets and GeometricIntegrators stay.
   `docs/Project.toml` had no shared entry and is unchanged.
 
 - **The SVD routes skip the right singular vectors, and the EVD routes are rewritten.**
