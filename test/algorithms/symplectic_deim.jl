@@ -276,6 +276,11 @@ end
         sdrand = SymplecticDEIM(Arand, Lrand, b.U, stencil_test, h_test, ∇h_test)
         @test sdrand.L̃ == transpose(sdrand.L̃)
 
+        # `L` is symmetrised before the product too. A skew `L` has a zero symmetric part, so
+        # `L̃` is exactly zero, where symmetrising the product alone keeps its round-off.
+        Lskew = Lrand - transpose(Lrand)
+        @test iszero(SymplecticDEIM(Arand, Lskew, b.U, stencil_test, h_test, ∇h_test).L̃)
+
         # A non-finite U reaches the DEIM selection, which rejects it. The `Inf` stands outside
         # the rows the weight solve touches, so the `ArgumentError` here is the validator's: a
         # second index routine without the `0 < ρ < Inf` test would construct in silence.

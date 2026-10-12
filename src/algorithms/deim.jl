@@ -12,9 +12,8 @@ residual that peaks at a negative entry selects that entry; ties go to the first
 
 Throws an `ArgumentError` where `k > N`, and for a column whose largest residual magnitude `ρ`
 is not both positive and finite — `ρ == 0` for a zero column or one exactly dependent on the
-ones before it, and `NaN` or `Inf` for a `NaN` or an `Inf` in `Ψ`. Every entry of `Ψ` enters
-the residual of a later column, and column 1 is tested as it stands, so the test of each column
-covers the whole matrix.
+ones before it, and `NaN` or `Inf` for a `NaN` or an `Inf` in `Ψ`. Every entry of a column
+enters that column's residual, so the test of each column covers the whole matrix.
 """
 function _deim_indices(Ψ::AbstractMatrix)
     N, k = size(Ψ)
@@ -27,25 +26,24 @@ function _deim_indices(Ψ::AbstractMatrix)
     r = Vector{float(eltype(Ψ))}(undef, N)
 
     # One residual test per column, whether the residual is the column itself or what the
-    # interpolation of the columns already selected leaves behind: it throws where the largest
-    # magnitude of `r` is not both positive and finite, and names the column.
-    function check_residual(r, i)
-        ρ = maximum(abs, r)
+    # interpolation of the columns already selected leaves behind: it returns the row of the
+    # largest magnitude of `r`, and throws, naming the column, where that magnitude is not both
+    # positive and finite.
+    function select_row(r, i)
+        ρ, j = findmax(abs, r)
         0 < ρ < Inf || throw(ArgumentError(
             "max|r| = $ρ for column $i of the DEIM basis, so the column is zero or dependent " *
             "on the ones before it, or it holds a NaN or an Inf"))
-        return nothing
+        return j
     end
 
     r .= @view Ψ[:, 1]
-    check_residual(r, 1)
-    p[1] = last(findmax(abs, @view Ψ[:, 1]))
+    p[1] = select_row(r, 1)
 
     for i in 2:k
         c = @views (Ψ[p[1:(i - 1)], 1:(i - 1)]) \ (Ψ[p[1:(i - 1)], i])
         r .= @views Ψ[:, i] .- Ψ[:, 1:(i - 1)] * c
-        check_residual(r, i)
-        p[i] = last(findmax(abs, r))
+        p[i] = select_row(r, i)
     end
 
     return p

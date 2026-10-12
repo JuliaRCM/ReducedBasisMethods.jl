@@ -15,16 +15,18 @@ guarantee a symmetric reduced-gradient Jacobian or a Hamiltonian reduced system.
 - `L`: the `N × N` matrix of the quadratic part. Only its symmetric part enters `H̃`, which is
   exact, because `½xᵀLx = ½xᵀ·sym(L)·x`.
 - `U`: an `M × m` orthonormal basis of density snapshots, where `M` is the number of densities.
-- `stencil(i)`: the indices of `x` that the density `hᵢ` reads, as any `AbstractVector{<:Integer}`.
+- `stencil(i)`: the indices of `x` that the density `hᵢ` reads, as any 1-based
+  `AbstractVector{<:Integer}`.
 - `h(xs, i)`: the scalar `hᵢ` at the values `xs` of its stencil. `xs` is a lazy view of
   `A[stencil(i), :] * z`, which allocates nothing.
 - `∇h(xs, i)`: the gradient of `hᵢ` with respect to `xs`, as any indexable collection — a
   `Vector` or a `Tuple`.
 
-The element type is `T = float(promote_type(eltype(A), eltype(L), eltype(U)))`, and the stored
-data is in `T`. The call of the returned object and [`hamiltonian_gradient!`](@ref) are generic
-over `eltype(z)`, with no typed internal buffer, so `ForwardDiff` dual numbers pass through
-them; inputs mixed between two element types are not supported.
+The element type is `T = float(promote_type(eltype(A), eltype(L), eltype(U)))`. `L̃` and the
+weights are stored in `T`, and `A` is stored as passed. The call of the returned object and
+[`hamiltonian_gradient!`](@ref) are generic over `eltype(z)`, with no typed internal buffer, so
+`ForwardDiff` dual numbers pass through them; inputs mixed between two element types are not
+supported.
 
 Throws an `ArgumentError` where `m > M`, and for a column of the density basis `U` whose largest
 DEIM residual magnitude `ρ` is not both positive and finite: `ρ == 0` where the column is zero
@@ -53,7 +55,7 @@ function SymplecticDEIM(
     # `L̃ = Aᵀ·sym(L)·A`, symmetrised once more after the product, so that the Jacobian of the
     # gradient is symmetric to the last bit rather than to the round-off of the product.
     Ls = (L + transpose(L)) / 2
-    L̃ = Matrix{T}(A' * Ls * A)
+    L̃ = A' * Ls * A
     L̃ .= (L̃ + transpose(L̃)) / 2
 
     return SymplecticDEIM{T, typeof(A), typeof(stencil), typeof(h), typeof(∇h)}(A, L̃, p, w,

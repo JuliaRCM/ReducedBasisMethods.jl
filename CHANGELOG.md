@@ -83,9 +83,6 @@ written.
   authors state that its reduced system is "not necessarily Hamiltonian". Both the call of the
   object and `hamiltonian_gradient!` read 0 B where their callbacks allocate nothing: the density
   callbacks receive a lazy view of `A_{Sⱼ}z`, so whatever a callback allocates is the caller's.
-  `hamiltonian_gradient!` is not named `gradient!` because that clashes with `ForwardDiff` in a
-  test environment. Its test is the first use of `ForwardDiff` and `GeometricIntegrators` in
-  `test/Project.toml`.
 
 ### Bug Fixes
 
@@ -95,10 +92,13 @@ written.
   code patterns that work with generic `AbstractArray` interfaces.
 
 - **The DEIM selection follows the magnitude of the residual, and its result is no longer
-  silently `Float64`.** `get_DEIM_interpolation_matrix` took the row of the largest *value* of
-  the residual rather than of the largest magnitude, so a residual that peaks at a negative entry
-  chose a row the interpolation had already taken, and the interpolation matrix `Π` could hold
-  the same row twice. The selection now takes the largest magnitude, and where two are equal the
+  silently `Float64`.** `get_DEIM_interpolation_matrix` took the row of the largest *value* of the
+  residual rather than of the largest magnitude. Where the residual has a positive entry, the row
+  of the largest value can differ from the row of the largest magnitude: with normalised columns,
+  `Ψ = [1 0; 0 -2; 0 1]` selected rows `[1, 3]` instead of `[1, 2]`. Where no entry is positive, the
+  largest value is the smallest magnitude, and the selection could take a row already taken, so the
+  interpolation matrix `Π` held the same row twice: `Ψ = [1 0; 0 -1; 0 -1]` normalised gave rows
+  `[1, 1]`. The selection now takes the largest magnitude, and where two are equal the
   first of them. `Π` takes the element type of its input, `float(eltype(Ψ))`, where it was always
   `Float64`, so a `Float32` basis stays in `Float32`. This closes KI-1: the Example 1 error is a
   `@test` rather than an `@assert`, and `Π` is compared against the rows a hand-computed case
@@ -113,8 +113,9 @@ written.
   `ArgumentError` where `k > N`, and where a column's largest residual magnitude is not both
   positive and finite — `0` for a zero column or one exactly dependent on the ones before it,
   the first column included, and `NaN` or `Inf` for a `NaN` or an `Inf` in the basis. Before,
-  the argument was never validated: a `k > N` basis reached the solve, which threw a
-  `SingularException` for a random basis, and a zero, dependent, `NaN` or `Inf` column was
+  the argument was never validated: a `k > N` basis reached the solve. At `k = N + 1` it returned
+  silently with a repeated row (a random `3 × 4` basis gave rows `[2, 3, 1, 1]`), and at `k ≥ N + 2`
+  it threw a `SingularException` (a random `3 × 5` basis). A zero, dependent, `NaN` or `Inf` column was
   accepted with no diagnostic of its own. A zero first column was returned as a unit vector
   when `k = 1`, and reached that same singular solve when `k ≥ 2`.
 
