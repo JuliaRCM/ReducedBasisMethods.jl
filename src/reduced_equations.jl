@@ -47,18 +47,20 @@ function _reduced_vector_field(
 end
 
 # The `T` pair is the callable's own; any other element type takes a pair from the per-type
-# cache, so that only its first call allocates.
+# cache, so that only its first call allocates. The pair is one entry, so a lookup cannot hand
+# the lift buffer back as the gradient buffer.
 @inline function _work(vf::_ReducedVectorField{F, BT, T}, ::Type{S}) where {F, BT, T, S}
     S === T && return vf.x, vf.g
-    return _cached_buffer(vf.cache, vf.x, S), _cached_buffer(vf.cache, vf.g, S)
+    return _cached_pair(vf.cache, vf.x, S)
 end
 
-@inline function _cached_buffer(cache::IdDict{DataType, Any}, x::Vector{T},
+@inline function _cached_pair(cache::IdDict{DataType, Any}, x::Vector{T},
         ::Type{S}) where {T, S}
     if haskey(cache, S)
-        return cache[S]::Vector{S}
+        return cache[S]::Tuple{Vector{S}, Vector{S}}
     else
-        return cache[S] = similar(x, S)::Vector{S}
+        pair = (similar(x, S), similar(x, S))
+        return cache[S] = pair::Tuple{Vector{S}, Vector{S}}
     end
 end
 
@@ -172,9 +174,12 @@ _lifted_dimension(b::ReducedBasis{<:Any, <:SymplecticAlgorithm}) = 2 * size(b.Φ
 _lifted_dimension(b::ReducedBasis{<:Any, <:PODAlgorithm}) = size(b.Φ, 1)
 _lifted_dimension(sd::SymplecticDEIM) = size(sd.A, 2)
 
-"The whole reduced vector field: `ż = J_k Aᵀ ∇H(Az)`, or the Galerkin form of a POD basis."
+# The whole reduced vector field: `ż = J_k Aᵀ ∇H(Az)` for a symplectic basis and
+# `ż = J₂ₖ ∇H̃(z)` for a hyper-reduced system, which write their halves through the same
+# dispatch, or the Galerkin form of a POD basis.
 @inline function _field!(ω::AbstractVector,
-        b::ReducedBasis{<:Any, <:SymplecticAlgorithm}, g::AbstractVector)
+        b::Union{ReducedBasis{<:Any, <:SymplecticAlgorithm}, SymplecticDEIM},
+        g::AbstractVector)
     k = _half_size(b)
     _half!(view(ω, 1:k), b, g, Val(1))
     _half!(view(ω, (k + 1):2k), b, g, Val(2))
@@ -186,13 +191,6 @@ end
     N = size(b.Φ, 1) ÷ 2
     mul!(ω, adjoint(view(b.Φ, 1:N, :)), view(g, (N + 1):2N))
     mul!(ω, adjoint(view(b.Φ, (N + 1):2N, :)), view(g, 1:N), -1, 1)
-    return ω
-end
-
-@inline function _field!(ω::AbstractVector, sd::SymplecticDEIM, g::AbstractVector)
-    k = _half_size(sd)
-    _half!(view(ω, 1:k), sd, g, Val(1))
-    _half!(view(ω, (k + 1):2k), sd, g, Val(2))
     return ω
 end
 

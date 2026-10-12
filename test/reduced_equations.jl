@@ -23,6 +23,10 @@ const N = 100
 # The 100 seeded points of checks 4, 5 and 6.
 const NPTS = 100
 
+# The subset of them the `Dual` value checks use: each is a nested-dual gradient of `H`, not
+# one pass of the field, so the reading stays a fraction of the real-state one.
+const NPTS_DUAL = 10
+
 # The five tags, split as the two forms.
 const POD_TAGS = (PODSVD(), PODEVD())
 const SYMPLECTIC_TAGS = (CotangentLiftSVD(), CotangentLiftEVD(), ComplexSVD())
@@ -54,15 +58,13 @@ solver_tolerance(::Type{Float64}, k::Int) = 1e-14
 solver_tolerance(::Type{Float32}, k::Int) = max(8, 2k) * eps(Float32)
 
 """
-The seeded snapshot, the initial state and the 100 points of the section's inputs, in `T`.
+The seeded snapshot and the initial state of the section's inputs, in `T`.
 
 `S` is the `2N × 30` stacked snapshot `[Q; P]`, which every tag accepts: a POD basis of it is
 `2N × k`, and a cotangent-lift or complex basis is `N × k` with a `2N × 2k` assembly.
 """
 function fixtures(::Type{T}) where {T}
-    (; S = randn(Xoshiro(1), T, 2N, 30),
-        x₀ = randn(Xoshiro(2), T, 2N),
-        X = randn(Xoshiro(3), T, 2N, NPTS))
+    (; S = randn(Xoshiro(1), T, 2N, 30), x₀ = randn(Xoshiro(2), T, 2N))
 end
 
 "`J_n = [0 I; −I 0]`, in `T`, dense."
@@ -140,14 +142,38 @@ end
 "`‖w − ref‖_∞ / ‖ref‖_∞`, the relative bound of checks 4–6."
 relative_error(w, ref) = norm(w - ref, Inf) / norm(ref, Inf)
 
-"The reduced points of the 100 seeded states, as `project(b, x₀)` gives them."
-reduced_points(b, X) = [project(b, X[:, n]) for n in 1:NPTS]
+"The 100 seeded reduced points of the section's inputs: a direct draw in reduced coordinates."
+function reduced_points(::Type{T}, n::Int) where {T}
+    rng = Xoshiro(3)
+    return [randn(rng, T, n) for _ in 1:NPTS]
+end
 
-"`length(z)` `ForwardDiff` states of the type Newton's `JacobianAutodiff` passes."
-function dual_state(::Type{T}, n::Int) where {T}
-    [ForwardDiff.Dual{Nothing, T, 2}(T(0.3 + 0.01i), ForwardDiff.Partials((
-         one(T), zero(T))))
-     for i in 1:n]
+"""
+`z`, lifted to `ForwardDiff` states of the type Newton's `JacobianAutodiff` passes, with both
+partials non-zero and varying over the components.
+"""
+function dual_state(z::AbstractVector{T}) where {T}
+    n = length(z)
+    return [ForwardDiff.Dual{Nothing, T, 2}(z[i],
+                ForwardDiff.Partials((T(1 + i) / n, -T(i) / (2n)))) for i in 1:n]
+end
+
+"`ForwardDiff.value` of every element of a `Dual` state."
+dual_values(w) = ForwardDiff.value.(w)
+
+"Partial `p` of every element of a `Dual` state."
+dual_partials(w, p) = [ForwardDiff.partials(x, p) for x in w]
+
+"""
+The dense reference field of checks 4–6: `L·J_N·∇H(Az)`, at whatever element type `z` carries.
+
+`L` is `A⁺ = J_kᵀAᵀJ_N` for a symplectic basis and `Uᵀ` for a POD one. At a `Dual` state the
+reference is itself `Dual`-valued — `ForwardDiff.gradient` of a `Dual` input returns the
+gradient in that input's own type — so its `ForwardDiff.value` is the field's value and its
+partials are the field's derivatives, and one call checks both.
+"""
+function reference_field(L, JN, A, z, ps)
+    L * (JN * ForwardDiff.gradient(y -> hamiltonian2(y, ps), A * z))
 end
 
 "The time argument as the `Dual` of the same type."
@@ -200,7 +226,7 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
             @test sol.q[0] == z₀
             # The solver status is not read — `check_solver_status` is silent — so every saved
             # state is asserted finite, and the bound below is what guards convergence.
-            @test all(isfinite, sol.q[0])
+            @test all(n -> all(isfinite, sol.q[n]), eachindex(sol.q))
 
             local h₀ = oscillator_h(z₀)
             local worst = maximum(n -> abs(oscillator_h(sol.q[n]) - h₀) / h₀, eachindex(sol.q))
@@ -263,14 +289,19 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
 
                 @testset "$(nameof(typeof(tag))), k = $k, $T" begin
                     local b = ReducedBasis(tag, f.S, NamedTuple(), testparamspace(); k = k)
-                    local zs = reduced_points(b, f.X)
+                    local zs = reduced_points(T, 2k)
                     local prob = reduced_ode(
                         b, gradient2!, (0.0, 1.0), 0.01, project(b, f.x₀);
                         parameters = ps)
                     local v = equation(prob).v
+                    # The integrator calls the field with `parameters(prob)`, and the test does
+                    # too: an emitter that dropped the caller's object fails here.
+                    local pp = parameters(prob)
+                    @test pp === ps
                     # The basis is read from the problem's own callable, never built here.
                     local A = Matrix(v.basis)
                     local Jk = symplectic_form(T, k)
+                    local A⁺ = Jk' * A' * JN
 
                     # The symplectic inverse identity holds inside the constructed problem.
                     @test norm(A' * JN * A - Jk, Inf) ≤ sqrt(eps(T))
@@ -278,18 +309,34 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
                     # that drops `Ψ` is a change and not a coincidence.
                     tag isa ComplexSVD && @test norm(b.Ψ) > 0
 
-                    # The emitted field equals `A⁺ J_N ∇H(Az)`, `A⁺ = J_kᵀ Aᵀ J_N`.
+                    # The emitted field equals `A⁺ J_N ∇H(Az)`.
                     local ws = [zeros(T, length(z)) for z in zs]
                     for n in 1:NPTS
-                        v(ws[n], 0.0, zs[n], ps)
+                        v(ws[n], 0.0, zs[n], pp)
                     end
-                    local A⁺ = Jk' * A' * JN
-                    local refs = [A⁺ *
-                                  (JN * ForwardDiff.gradient(y -> hamiltonian2(y, ps),
-                                      A * z)) for z in zs]
+                    local refs = [reference_field(A⁺, JN, A, z, ps) for z in zs]
                     @test all(ref -> norm(ref, Inf) > 0, refs)
                     @test maximum(n -> relative_error(ws[n], refs[n]), 1:NPTS) ≤
                           sqrt(eps(T))
+
+                    # The same field at the `Dual` states Newton's `JacobianAutodiff` passes: a
+                    # callable whose lift and gradient buffers are one array is wrong here, in
+                    # value and in partials. The reference is `Dual`-valued, so its
+                    # `ForwardDiff.value` carries the value and its partials the derivatives.
+                    local DualT = ForwardDiff.Dual{Nothing, T, 2}
+                    for n in 1:NPTS_DUAL
+                        local zd = dual_state(zs[n])
+                        local wd = zeros(DualT, 2k)
+                        local refd = reference_field(A⁺, JN, A, zd, ps)
+                        v(wd, 0.0, zd, pp)
+                        @test norm(ForwardDiff.value.(refd), Inf) > 0
+                        @test relative_error(dual_values(wd), dual_values(refd)) ≤
+                              sqrt(eps(T))
+                        for p in 1:2
+                            @test relative_error(dual_partials(wd, p),
+                                dual_partials(refd, p)) ≤ sqrt(eps(T))
+                        end
+                    end
                 end
             end
 
@@ -297,11 +344,13 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
 
                 @testset "$(nameof(typeof(tag))), k = $k, $T" begin
                     local b = ReducedBasis(tag, f.S, NamedTuple(), testparamspace(); k = k)
-                    local zs = reduced_points(b, f.X)
+                    local zs = reduced_points(T, k)
                     local prob = reduced_ode(
                         b, gradient2!, (0.0, 1.0), 0.01, project(b, f.x₀);
                         parameters = ps)
                     local v = equation(prob).v
+                    local pp = parameters(prob)
+                    @test pp === ps
                     local U = Matrix(v.basis)
 
                     # A POD basis is not a symplectic one: at `k = 10`, where the shapes match,
@@ -312,14 +361,28 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
 
                     local ws = [zeros(T, length(z)) for z in zs]
                     for n in 1:NPTS
-                        v(ws[n], 0.0, zs[n], ps)
+                        v(ws[n], 0.0, zs[n], pp)
                     end
-                    local refs = [U' * (JN *
-                                   ForwardDiff.gradient(y -> hamiltonian2(y, ps), U * z))
-                                  for z in zs]
+                    local refs = [reference_field(U', JN, U, z, ps) for z in zs]
                     @test all(ref -> norm(ref, Inf) > 0, refs)
                     @test maximum(n -> relative_error(ws[n], refs[n]), 1:NPTS) ≤
                           sqrt(eps(T))
+
+                    # The Galerkin field at the `Dual` states too.
+                    local DualT = ForwardDiff.Dual{Nothing, T, 2}
+                    for n in 1:NPTS_DUAL
+                        local zd = dual_state(zs[n])
+                        local wd = zeros(DualT, k)
+                        local refd = reference_field(U', JN, U, zd, ps)
+                        v(wd, 0.0, zd, pp)
+                        @test norm(ForwardDiff.value.(refd), Inf) > 0
+                        @test relative_error(dual_values(wd), dual_values(refd)) ≤
+                              sqrt(eps(T))
+                        for p in 1:2
+                            @test relative_error(dual_partials(wd, p),
+                                dual_partials(refd, p)) ≤ sqrt(eps(T))
+                        end
+                    end
                 end
             end
         end
@@ -337,30 +400,32 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
                 @testset "$(nameof(typeof(tag))), $T" begin
                     local b = ReducedBasis(tag, f.S, NamedTuple(), testparamspace(); k = 10)
                     local k = b.k
-                    local zs = reduced_points(b, f.X)
-                    local ode = reduced_ode(
-                        b, gradient2!, (0.0, 1.0), 0.01, project(b, f.x₀);
+                    local zs = reduced_points(T, 2k)
+                    local z₀ = project(b, f.x₀)
+                    local ode = reduced_ode(b, gradient2!, (0.0, 1.0), 0.01, z₀;
                         parameters = ps)
-                    local pode = reduced_pode(
-                        b, gradient2!, (0.0, 1.0), 0.01, project(b, f.x₀);
+                    local pode = reduced_pode(b, gradient2!, (0.0, 1.0), 0.01, z₀;
                         parameters = ps)
                     local reference = equation(ode).v
                     local eq = equation(pode)
+                    # The integrator hands both fields `parameters(pode)`, and the test does too.
+                    local pp = parameters(pode)
+                    @test pp === ps
 
                     # `v` at all 100 points first, `f` at all 100 afterwards: an `f` that reuses
                     # the last `v`'s gradient fails at 99 of them.
                     local vs = [zeros(T, k) for _ in 1:NPTS]
                     local fs = [zeros(T, k) for _ in 1:NPTS]
                     for n in 1:NPTS
-                        eq.v(vs[n], 0.0, zs[n][1:k], zs[n][(k + 1):2k], ps)
+                        eq.v(vs[n], 0.0, zs[n][1:k], zs[n][(k + 1):2k], pp)
                     end
                     for n in 1:NPTS
-                        eq.f(fs[n], 0.0, zs[n][1:k], zs[n][(k + 1):2k], ps)
+                        eq.f(fs[n], 0.0, zs[n][1:k], zs[n][(k + 1):2k], pp)
                     end
 
                     local ws = [zeros(T, 2k) for _ in 1:NPTS]
                     for n in 1:NPTS
-                        reference(ws[n], 0.0, zs[n], ps)
+                        reference(ws[n], 0.0, zs[n], pp)
                     end
                     @test all(n -> norm(ws[n], Inf) > 0, 1:NPTS)
                     @test maximum(n -> relative_error(vs[n], ws[n][1:k]), 1:NPTS) ≤
@@ -368,10 +433,37 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
                     @test maximum(n -> relative_error(fs[n], ws[n][(k + 1):2k]), 1:NPTS) ≤
                           sqrt(eps(T))
 
+                    # The two halves at the `Dual` states too, against the dense reference: a
+                    # callable whose lift and gradient buffers are one array is wrong here.
+                    local JN = symplectic_form(T, N)
+                    local A = Matrix(reference.basis)
+                    local A⁺ = symplectic_form(T, k)' * A' * JN
+                    local DualT = ForwardDiff.Dual{Nothing, T, 2}
+                    for n in 1:NPTS_DUAL
+                        local zd = dual_state(zs[n])
+                        local refd = reference_field(A⁺, JN, A, zd, ps)
+                        local vd = zeros(DualT, k)
+                        local fd = zeros(DualT, k)
+                        eq.v(vd, 0.0, zd[1:k], zd[(k + 1):2k], pp)
+                        eq.f(fd, 0.0, zd[1:k], zd[(k + 1):2k], pp)
+                        @test norm(dual_values(refd), Inf) > 0
+                        @test relative_error(dual_values(vd), dual_values(refd)[1:k]) ≤
+                              sqrt(eps(T))
+                        @test relative_error(dual_values(fd),
+                            dual_values(refd)[(k + 1):2k]) ≤ sqrt(eps(T))
+                        for p in 1:2
+                            @test relative_error(dual_partials(vd, p),
+                                dual_partials(refd, p)[1:k]) ≤ sqrt(eps(T))
+                            @test relative_error(dual_partials(fd, p),
+                                dual_partials(refd, p)[(k + 1):2k]) ≤ sqrt(eps(T))
+                        end
+                    end
+
                     # The initial state is split, and compared exactly. `ImplicitMidpoint` is a
-                    # PODE method; `ExplicitEuler` is not.
-                    local z₀ = project(b, f.x₀)
-                    local sol = integrate(pode, ImplicitMidpoint())
+                    # PODE method; `ExplicitEuler` is not. It gets the section's explicit
+                    # `f_abstol`, so the run does not rest on a default.
+                    local sol = integrate(pode, ImplicitMidpoint();
+                        f_abstol = solver_tolerance(T, k))
                     @test sol.q[0] == z₀[1:k]
                     @test sol.p[0] == z₀[(k + 1):2k]
                 end
@@ -386,6 +478,9 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
                 local prob = reduced_pode(b, oscillator!, w.span, w.dt, z₀)
                 local sol = integrate(prob, ImplicitMidpoint();
                     f_abstol = solver_tolerance(T, b.k))
+                # Every saved state of both halves is finite, as in check 1.
+                @test all(n -> all(isfinite, sol.q[n]), eachindex(sol.q))
+                @test all(n -> all(isfinite, sol.p[n]), eachindex(sol.p))
                 local h₀ = oscillator_h(z₀)
                 local worst = maximum(n -> abs(oscillator_h(pode_state(sol, n)) - h₀) / h₀,
                     eachindex(sol.q))
@@ -414,24 +509,25 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
 
             # An odd `k = 5`: `J_5` does not exist, and the POD form asks for no `J_k`. And
             # `k = 10`, where one exists and the two forms differ. And the smallest, `k = 1`.
-            for k in (5, 10, 1)
-                @testset "PODSVD, k = $k, $T" begin
+            # Both POD tags, so that a branch only one of them reaches is still caught.
+            for k in (5, 10, 1), tag in POD_TAGS
+
+                @testset "$(nameof(typeof(tag))), k = $k, $T" begin
                     local b = ReducedBasis(
-                        PODSVD(), f.S, NamedTuple(), testparamspace(); k = k)
-                    local zs = reduced_points(b, f.X)
+                        tag, f.S, NamedTuple(), testparamspace(); k = k)
+                    local zs = reduced_points(T, k)
                     local prob = reduced_ode(
                         b, gradient2!, (0.0, 1.0), 0.01, project(b, f.x₀);
                         parameters = ps)
                     local v = equation(prob).v
+                    local pp = parameters(prob)
                     local U = Matrix(v.basis)
 
                     local ws = [zeros(T, length(z)) for z in zs]
                     for n in 1:NPTS
-                        v(ws[n], 0.0, zs[n], ps)
+                        v(ws[n], 0.0, zs[n], pp)
                     end
-                    local refs = [U' * (JN *
-                                   ForwardDiff.gradient(y -> hamiltonian2(y, ps), U * z))
-                                  for z in zs]
+                    local refs = [reference_field(U', JN, U, z, ps) for z in zs]
                     @test all(ref -> norm(ref, Inf) > 0, refs)
                     @test maximum(n -> relative_error(ws[n], refs[n]), 1:NPTS) ≤
                           sqrt(eps(T))
@@ -457,7 +553,7 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
                 @testset "the two forms agree for a cotangent lift, k = $k, $T" begin
                     local b = ReducedBasis(CotangentLiftSVD(), f.S, NamedTuple(),
                         testparamspace(); k = k)
-                    local zs = reduced_points(b, f.X)
+                    local zs = reduced_points(T, 2k)
                     local prob = reduced_ode(
                         b, gradient2!, (0.0, 1.0), 0.01, project(b, f.x₀);
                         parameters = ps)
@@ -506,7 +602,8 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
             @test_throws DimensionMismatch reduced_pode(cot, gradient2!, (0.0, 1.0), 0.01,
                 zeros(T, 2 * cot.k + 1); parameters = ps)
 
-            # A state of another element type is refused, and so is an integer state.
+            # A state of another element type is refused, and so is an integer state: the PSD
+            # emitters here, the POD ones too.
             local f32 = ReducedBasis(
                 CotangentLiftSVD(), randn(Xoshiro(4), Float32, 2N, 30),
                 NamedTuple(), testparamspace(); k = 10)
@@ -514,6 +611,13 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
                 zeros(Float64, 20); parameters = ps)
             @test_throws ArgumentError reduced_ode(cot, gradient2!, (0.0, 1.0), 0.01,
                 zeros(Int, 2 * cot.k); parameters = ps)
+            local pod32 = ReducedBasis(
+                PODSVD(), randn(Xoshiro(4), Float32, 2N, 30),
+                NamedTuple(), testparamspace(); k = 10)
+            @test_throws ArgumentError reduced_ode(pod32, gradient2!, (0.0, 1.0), 0.01,
+                zeros(Float64, pod32.k); parameters = ps)
+            @test_throws ArgumentError reduced_ode(pod, gradient2!, (0.0, 1.0), 0.01,
+                zeros(Int, pod.k); parameters = ps)
 
             # A POD basis has no `q` and `p` halves, so it has no PODE form at all.
             @test_throws MethodError reduced_pode(pod, gradient2!, (0.0, 1.0), 0.01,
@@ -529,9 +633,16 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
             local k = 6
             local sd = deim_system(T, 32, k, 4)
             @test size(sd.A, 2) == 2k
+            local J2k = symplectic_form(T, k)
+            local z₀ = randn(Xoshiro(21), T, 2k)
 
-            local zs = [randn(Xoshiro(100 + i), T, 2k) for i in 1:NPTS]
-            local prob = reduced_ode(sd, (0.0, 1.0), 0.01, randn(Xoshiro(21), T, 2k))
+            # The system's own element type and state length are guarded.
+            local other = T === Float64 ? Float32 : Float64
+            @test_throws ArgumentError reduced_ode(sd, (0.0, 1.0), 0.01, zeros(other, 2k))
+            @test_throws ArgumentError reduced_ode(sd, (0.0, 1.0), 0.01, zeros(Int, 2k))
+
+            local zs = reduced_points(T, 2k)
+            local prob = reduced_ode(sd, (0.0, 1.0), 0.01, z₀)
             local v = equation(prob).v
             local ws = [zeros(T, 2k) for _ in 1:NPTS]
             for i in 1:NPTS
@@ -541,9 +652,38 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
             @test all(ref -> norm(ref, Inf) > 0, refs)
             @test maximum(i -> relative_error(ws[i], refs[i]), 1:NPTS) ≤ sqrt(eps(T))
 
-            # The PODE's halves are the halves of the same field.
-            local pode = reduced_pode(sd, (0.0, 1.0), 0.01, randn(Xoshiro(22), T, 2k))
+            # The same field at the `Dual` states Newton's `JacobianAutodiff` passes:
+            # `hamiltonian_gradient!` gives no guarantee for an aliased array, so a callable
+            # that hands it its own lift buffer is wrong here, in value and in partials.
+            local DualT = ForwardDiff.Dual{Nothing, T, 2}
+            for i in 1:NPTS_DUAL
+                local zd = dual_state(zs[i])
+                local wd = zeros(DualT, 2k)
+                local refd = J2k * ForwardDiff.gradient(sd, zd)
+                v(wd, 0.0, zd, NullParameters())
+                @test norm(ForwardDiff.value.(refd), Inf) > 0
+                @test relative_error(dual_values(wd), dual_values(refd)) ≤ sqrt(eps(T))
+                for p in 1:2
+                    @test relative_error(dual_partials(wd, p), dual_partials(refd, p)) ≤
+                          sqrt(eps(T))
+                end
+            end
+
+            # The initial state is the reduced one, exactly; the PODE's is split. Both
+            # integrations get the section's explicit `f_abstol`, as the others do.
+            local sol = integrate(
+                reduced_ode(sd, (0.0, 0.1), 0.01, z₀), ImplicitMidpoint();
+                f_abstol = solver_tolerance(T, k))
+            @test sol.q[0] == z₀
+            local pode = reduced_pode(sd, (0.0, 1.0), 0.01, z₀)
             local eq = equation(pode)
+            local solpode = integrate(reduced_pode(sd, (0.0, 0.1), 0.01, z₀),
+                ImplicitMidpoint(); f_abstol = solver_tolerance(T, k))
+            @test solpode.q[0] == z₀[1:k]
+            @test solpode.p[0] == z₀[(k + 1):2k]
+
+            # The PODE's halves are the halves of the same field, and the two halves at the
+            # `Dual` states are the halves of that reference.
             local vs = [zeros(T, k) for _ in 1:NPTS]
             local fs = [zeros(T, k) for _ in 1:NPTS]
             for i in 1:NPTS
@@ -555,6 +695,25 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
             @test maximum(i -> relative_error(vs[i], refs[i][1:k]), 1:NPTS) ≤ sqrt(eps(T))
             @test maximum(i -> relative_error(fs[i], refs[i][(k + 1):2k]), 1:NPTS) ≤
                   sqrt(eps(T))
+
+            for i in 1:NPTS_DUAL
+                local zd = dual_state(zs[i])
+                local refd = J2k * ForwardDiff.gradient(sd, zd)
+                local vd = zeros(DualT, k)
+                local fd = zeros(DualT, k)
+                eq.v(vd, 0.0, zd[1:k], zd[(k + 1):2k], NullParameters())
+                eq.f(fd, 0.0, zd[1:k], zd[(k + 1):2k], NullParameters())
+                @test relative_error(dual_values(vd), dual_values(refd)[1:k]) ≤
+                      sqrt(eps(T))
+                @test relative_error(dual_values(fd), dual_values(refd)[(k + 1):2k]) ≤
+                      sqrt(eps(T))
+                for p in 1:2
+                    @test relative_error(dual_partials(vd, p),
+                        dual_partials(refd, p)[1:k]) ≤ sqrt(eps(T))
+                    @test relative_error(dual_partials(fd, p),
+                        dual_partials(refd, p)[(k + 1):2k]) ≤ sqrt(eps(T))
+                end
+            end
 
             # An odd column count has no split into two halves for `J_2k`.
             local odd = deim_system(T, 32, k, 4; columns = 2k - 1)
@@ -573,67 +732,100 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
         for T in (Float32, Float64)
             local f = fixtures(T)
             local ps = params2(T)
-            local cot = ReducedBasis(
-                CotangentLiftSVD(), f.S, NamedTuple(), testparamspace();
-                k = 10)
-            local pod = ReducedBasis(PODSVD(), f.S, NamedTuple(), testparamspace(); k = 10)
-            local k = cot.k
+            local k = 10
             local DualT = ForwardDiff.Dual{Nothing, T, 2}
-
-            local ode = reduced_ode(cot, gradient2!, (0.0, 1.0), 0.01, project(cot, f.x₀);
-                parameters = ps)
-            local pode = reduced_pode(
-                cot, gradient2!, (0.0, 1.0), 0.01, project(cot, f.x₀);
-                parameters = ps)
-            local galerkin = reduced_ode(
-                pod, gradient2!, (0.0, 1.0), 0.01, project(pod, f.x₀);
-                parameters = ps)
-            local sd = deim_system(T, 32, 6, 4)
-            local deim = reduced_ode(sd, (0.0, 1.0), 0.01, zeros(T, 12))
-
-            local zt = fill(T(0.3), 2k)
-            local zd = dual_state(T, 2k)
-            local qt = fill(T(0.3), k)
-            local qd = dual_state(T, k)
-            local wt = zeros(T, 2k)
-            local wd = zeros(DualT, 2k)
-            local ut = zeros(T, k)
-            local ud = zeros(DualT, k)
             local dur = dual_time(T)
-            local st = fill(T(0.1), 12)
-            local sd_dual = dual_state(T, 12)
-
-            # The callback is a type parameter, so the call is inferred and statically
-            # dispatched.
-            @test @inferred(equation(ode).v(wt, 0.0, zt, ps)) === wt
-            @test @inferred(equation(ode).v(wd, dur, zd, ps)) === wd
-            @test @inferred(equation(galerkin).v(ut, 0.0, qt, ps)) === ut
-            @test @inferred(equation(pode).v(ut, 0.0, qt, qt, ps)) === ut
-            @test @inferred(equation(pode).f(ut, 0.0, qt, qt, ps)) === ut
-            @test @inferred(equation(pode).v(ud, dur, qd, qd, ps)) === ud
-            @test @inferred(equation(pode).f(ud, dur, qd, qd, ps)) === ud
-            @test @inferred(equation(deim).v(wt, 0.0, st, NullParameters())) === wt
-            @test @inferred(equation(deim).v(wd, dur, sd_dual, NullParameters())) === wd
+            local ct = fill(T(0.3), 2k)
 
             # Coverage instrumentation allocates on its own account, so the readings are taken
-            # only where the runner does not instrument the code.
+            # only where the runner does not instrument the code. The control shows that the
+            # barrier sees an allocation at all.
             if Base.JLOptions().code_coverage == 0
-                # The control shows that the barrier sees an allocation at all.
-                @test field_allocations(control_field, wt, 0.0, zt, ps) > 0
-                @test field_allocations(equation(ode).v, wt, 0.0, zt, ps) == 0
-                @test field_allocations(equation(ode).v, wd, dur, zd, ps) == 0
-                @test field_allocations(equation(galerkin).v, ut, 0.0, qt, ps) == 0
+                @test field_allocations(control_field, zeros(T, 2k), 0.0, ct, ps) > 0
+                @test pode_allocations(control_pode, zeros(T, 2k), 0.0, ct, ct, ps) > 0
+            end
 
-                @test pode_allocations(control_pode, wt, 0.0, qt, qt, ps) > 0
-                @test pode_allocations(equation(pode).v, ut, 0.0, qt, qt, ps) == 0
-                @test pode_allocations(equation(pode).f, ut, 0.0, qt, qt, ps) == 0
-                @test pode_allocations(equation(pode).v, ud, dur, qd, qd, ps) == 0
-                @test pode_allocations(equation(pode).f, ud, dur, qd, qd, ps) == 0
+            # Every emitted field of the part: the ODE `v` of all five tags, the PODE `v` and
+            # `f` of the three symplectic ones, and R3's ODE `v` and PODE `v` and `f`. The
+            # callback is a type parameter, so each is inferred and statically dispatched, and
+            # each reads 0 B after a warm call, for `T` and for `Dual`.
+            for tag in TAGS
+                local b = ReducedBasis(tag, f.S, NamedTuple(), testparamspace(); k = k)
+                local n = length(project(b, f.x₀))
+                local vf = equation(reduced_ode(b, gradient2!, (0.0, 1.0), 0.01,
+                    project(b, f.x₀); parameters = ps)).v
+                local zt = fill(T(0.3), n)
+                local zd = dual_state(zt)
+                local wt = zeros(T, n)
+                local wd = zeros(DualT, n)
 
-                @test field_allocations(equation(deim).v, wt, 0.0, st, NullParameters()) ==
-                      0
-                @test field_allocations(equation(deim).v, wd, dur, sd_dual,
-                    NullParameters()) == 0
+                @testset "$(nameof(typeof(tag)))" begin
+                    @test @inferred(vf(wt, 0.0, zt, ps)) === wt
+                    @test @inferred(vf(wd, dur, zd, ps)) === wd
+                    if Base.JLOptions().code_coverage == 0
+                        @test field_allocations(vf, wt, 0.0, zt, ps) == 0
+                        @test field_allocations(vf, wd, dur, zd, ps) == 0
+                    end
+                end
+            end
+
+            for tag in SYMPLECTIC_TAGS
+                local b = ReducedBasis(tag, f.S, NamedTuple(), testparamspace(); k = k)
+                local eq = equation(reduced_pode(b, gradient2!, (0.0, 1.0), 0.01,
+                    project(b, f.x₀); parameters = ps))
+                local qt = fill(T(0.3), k)
+                local qd = dual_state(qt)
+                local ut = zeros(T, k)
+                local ud = zeros(DualT, k)
+
+                @testset "$(nameof(typeof(tag))) PODE" begin
+                    @test @inferred(eq.v(ut, 0.0, qt, qt, ps)) === ut
+                    @test @inferred(eq.f(ut, 0.0, qt, qt, ps)) === ut
+                    @test @inferred(eq.v(ud, dur, qd, qd, ps)) === ud
+                    @test @inferred(eq.f(ud, dur, qd, qd, ps)) === ud
+                    if Base.JLOptions().code_coverage == 0
+                        @test pode_allocations(eq.v, ut, 0.0, qt, qt, ps) == 0
+                        @test pode_allocations(eq.f, ut, 0.0, qt, qt, ps) == 0
+                        @test pode_allocations(eq.v, ud, dur, qd, qd, ps) == 0
+                        @test pode_allocations(eq.f, ud, dur, qd, qd, ps) == 0
+                    end
+                end
+            end
+
+            @testset "the hyper-reduced system" begin
+                local ksd = 6
+                local sd = deim_system(T, 32, ksd, 4)
+                local st = fill(T(0.1), 2ksd)
+                local sd_dual = dual_state(st)
+                local wt = zeros(T, 2ksd)
+                local wd = zeros(DualT, 2ksd)
+                local ut = zeros(T, ksd)
+                local ud = zeros(DualT, ksd)
+                local df = equation(reduced_ode(sd, (0.0, 1.0), 0.01, st))
+                local dp = equation(reduced_pode(sd, (0.0, 1.0), 0.01, st))
+
+                @test @inferred(df.v(wt, 0.0, st, NullParameters())) === wt
+                @test @inferred(df.v(wd, dur, sd_dual, NullParameters())) === wd
+                @test @inferred(dp.v(ut, 0.0, st[1:ksd], st[(ksd + 1):2ksd],
+                    NullParameters())) === ut
+                @test @inferred(dp.f(ut, 0.0, st[1:ksd], st[(ksd + 1):2ksd],
+                    NullParameters())) === ut
+                @test @inferred(dp.v(ud, dur, sd_dual[1:ksd], sd_dual[(ksd + 1):2ksd],
+                    NullParameters())) === ud
+                @test @inferred(dp.f(ud, dur, sd_dual[1:ksd], sd_dual[(ksd + 1):2ksd],
+                    NullParameters())) === ud
+                if Base.JLOptions().code_coverage == 0
+                    @test field_allocations(df.v, wt, 0.0, st, NullParameters()) == 0
+                    @test field_allocations(df.v, wd, dur, sd_dual, NullParameters()) == 0
+                    @test pode_allocations(dp.v, ut, 0.0, st[1:ksd], st[(ksd + 1):2ksd],
+                        NullParameters()) == 0
+                    @test pode_allocations(dp.f, ut, 0.0, st[1:ksd], st[(ksd + 1):2ksd],
+                        NullParameters()) == 0
+                    @test pode_allocations(dp.v, ud, dur, sd_dual[1:ksd],
+                        sd_dual[(ksd + 1):2ksd], NullParameters()) == 0
+                    @test pode_allocations(dp.f, ud, dur, sd_dual[1:ksd],
+                        sd_dual[(ksd + 1):2ksd], NullParameters()) == 0
+                end
             end
         end
     end
