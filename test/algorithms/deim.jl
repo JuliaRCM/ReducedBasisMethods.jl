@@ -76,9 +76,9 @@ end
     # Each numbered case runs in both precisions: the rule is the magnitude of the residual, and
     # the element type must not change which row it picks.
     for T in (Float32, Float64)
-        # The residual of the second column peaks at its most negative entry. Selecting the row
-        # of the largest value rather than of the largest magnitude picks row 3, which the first
-        # pick has already taken.
+        # The residual of the second column peaks at its most negative entry. The largest value
+        # selects row 3, while the largest magnitude selects row 2.
+        # The first pick is row 1, so neither selection repeats it.
         Ψ₁ = T[1 0; 0 -2; 0 1] ./ T[1 sqrt(5)]
         @test _deim_indices(Ψ₁) == [1, 2]
         @test get_DEIM_interpolation_matrix(Ψ₁) == T[1 0; 0 1; 0 0]
