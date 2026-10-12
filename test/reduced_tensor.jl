@@ -90,8 +90,8 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
     end
 
     @testset "the entries the width-1 stencil of k alone would drop exist" begin
-        # check 2's premise is asserted, not assumed: entries whose `K` lies outside the width-1
-        # neighbourhood of `J`, where the stencil of `k` alone also reaches them
+        # Nonzero entries with `K` outside the width-1 neighbourhood of `J` distinguish the
+        # nested neighbourhoods from restricting both summation indices to the stencil of `k`.
         for DT in (Float32, Float64), g in ((5, 6), (2, 5))
 
             local A = Array(neighbourhood_tensor(Xoshiro(1), DT, g, 1))
@@ -162,7 +162,7 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
         @test_throws ArgumentError ReducedTensor(gt32, Float64.(Pi32), Pj32)
         @test_throws ArgumentError ReducedTensor(gt32, Pi32, Float64.(Pj32))
 
-        # the breaking change of the part: only a rank-3 `GridTensor` is a `ReducedTensor`
+        # only a rank-3 `GridTensor` is a `ReducedTensor`
         local Pi = rand(Xoshiro(2), Float64, 30, 3)
         local Pj = rand(Xoshiro(3), Float64, 30, 2)
         local a = Arakawa(5, 6, 0.7, 1.3)
@@ -268,7 +268,7 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
         @test isempty(private)
     end
 
-    @testset "GeometricBrackets has left the dependencies" begin
+    @testset "GeometricBrackets is a test-only dependency" begin
         local project = TOML.parsefile(joinpath(pkgdir(ReducedBasisMethods), "Project.toml"))
         @test !haskey(project["deps"], "GeometricBrackets")
         @test !haskey(project["compat"], "GeometricBrackets")
