@@ -54,15 +54,15 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
 @testset "ReducedTensor" begin
     @testset "the reduced operator is the hand projection" begin
         for DT in (Float32, Float64)
-            nx, nv = 5, 6
-            N = nx * nv
-            Pi = rand(Xoshiro(2), DT, N, 3)
-            Pj = rand(Xoshiro(3), DT, N, 2)
+            local nx, nv = 5, 6
+            local N = nx * nv
+            local Pi = rand(Xoshiro(2), DT, N, 3)
+            local Pj = rand(Xoshiro(3), DT, N, 2)
 
             # the bracket case runs on 5 × 6 only: `Arakawa` needs nx, nv ≥ 3
-            gt = arakawa_tensor(DT, (nx, nv))
-            rt = ReducedTensor(gt, Pi, Pj)
-            R = dense_projection(Array(gt), Pi, Pj)
+            local gt = arakawa_tensor(DT, (nx, nv))
+            local rt = ReducedTensor(gt, Pi, Pj)
+            local R = dense_projection(Array(gt), Pi, Pj)
 
             @test size(rt) == (3, 2, N)
             @test maximum(abs, R) > 0
@@ -75,12 +75,12 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
 
             # the second, non-bracket tensor: one caller does not demonstrate generality
             for (g, w) in (((5, 6), 1), ((5, 6), 2), ((2, 5), 1))
-                n = g[1] * g[2]
-                Qi = rand(Xoshiro(2), DT, n, 3)
-                Qj = rand(Xoshiro(3), DT, n, 2)
-                gt2 = neighbourhood_tensor(Xoshiro(1), DT, g, w)
-                rt2 = ReducedTensor(gt2, Qi, Qj)
-                R2 = dense_projection(Array(gt2), Qi, Qj)
+                local n = g[1] * g[2]
+                local Qi = rand(Xoshiro(2), DT, n, 3)
+                local Qj = rand(Xoshiro(3), DT, n, 2)
+                local gt2 = neighbourhood_tensor(Xoshiro(1), DT, g, w)
+                local rt2 = ReducedTensor(gt2, Qi, Qj)
+                local R2 = dense_projection(Array(gt2), Qi, Qj)
 
                 @test size(rt2) == (3, 2, n)
                 @test maximum(abs, R2) > 0
@@ -94,9 +94,10 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
         # neighbourhood of `J`, where the stencil of `k` alone also reaches them
         for DT in (Float32, Float64), g in ((5, 6), (2, 5))
 
-            A = Array(neighbourhood_tensor(Xoshiro(1), DT, g, 1))
-            L = CartesianIndices(g)
-            displaced = count(!iszero(A[i, j, k]) && !in_neighbourhood(L[j], L[k], 1, g)
+            local A = Array(neighbourhood_tensor(Xoshiro(1), DT, g, 1))
+            local L = CartesianIndices(g)
+            local displaced = count(!iszero(A[i, j, k]) &&
+                                        !in_neighbourhood(L[j], L[k], 1, g)
             for i in axes(A, 1), j in axes(A, 2), k in axes(A, 3))
             @test displaced > 0
         end
@@ -106,9 +107,9 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
         for DT in (Float32, Float64)
             for (g, w, repeats) in (((5, 6), 1, false), ((5, 6), 2, false),
                 ((2, 5), 1, true))
-                n = g[1] * g[2]
-                gt = neighbourhood_tensor(Xoshiro(1), DT, g, w)
-                rt = ReducedTensor(gt, rand(Xoshiro(2), DT, n, 3),
+                local n = g[1] * g[2]
+                local gt = neighbourhood_tensor(Xoshiro(1), DT, g, w)
+                local rt = ReducedTensor(gt, rand(Xoshiro(2), DT, n, 3),
                     rand(Xoshiro(3), DT, n, 2))
                 @test rt.stencil == allunique(stencil_indices(gt, 1))
                 @test rt.stencil == !repeats
@@ -120,15 +121,17 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
         # the all-ones tensor breaks the locality contract on purpose, so that a `getindex` that
         # always sums the whole axis is caught instead of passing on both sides
         for DT in (Float32, Float64)
-            g = (5, 6)
-            N = g[1] * g[2]
-            Pi = rand(Xoshiro(2), DT, N, 3)
-            Pj = rand(Xoshiro(3), DT, N, 2)
-            ones_gt = GridTensor(MultiIndexLazyArray(DT, (I, J, K) -> one(DT), g, g, g), 1)
-            rt = ReducedTensor(ones_gt, Pi, Pj)
-            A = Array(ones_gt)
-            restricted = contract_projection(A, Pi, Pj, 1, g)
-            dense = dense_projection(A, Pi, Pj)
+            local g = (5, 6)
+            local N = g[1] * g[2]
+            local Pi = rand(Xoshiro(2), DT, N, 3)
+            local Pj = rand(Xoshiro(3), DT, N, 2)
+            local ones_gt = GridTensor(
+                MultiIndexLazyArray(
+                    DT, (I, J, K) -> one(DT), g, g, g), 1)
+            local rt = ReducedTensor(ones_gt, Pi, Pj)
+            local A = Array(ones_gt)
+            local restricted = contract_projection(A, Pi, Pj, 1, g)
+            local dense = dense_projection(A, Pi, Pj)
 
             # the test cannot be vacuous: the restricted reference differs from the dense sum
             @test maximum(abs, restricted .- dense) > sqrt(eps(DT)) * maximum(abs, dense)
@@ -138,10 +141,10 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
 
     @testset "the constructor refuses what it cannot project" begin
         for DT in (Float32, Float64)
-            N = 30
-            Pi = rand(Xoshiro(2), DT, N, 3)
-            Pj = rand(Xoshiro(3), DT, N, 2)
-            gt = arakawa_tensor(DT, (5, 6))
+            local N = 30
+            local Pi = rand(Xoshiro(2), DT, N, 3)
+            local Pj = rand(Xoshiro(3), DT, N, 2)
+            local gt = arakawa_tensor(DT, (5, 6))
 
             @test_throws DimensionMismatch ReducedTensor(gt, rand(Xoshiro(4), DT, N + 1, 3), Pj)
             @test_throws DimensionMismatch ReducedTensor(gt, Pi, rand(
@@ -153,16 +156,16 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
         end
 
         # the element type of the projections is the tensor's, not a promoted one
-        gt32 = arakawa_tensor(Float32, (5, 6))
-        Pi32 = rand(Xoshiro(2), Float32, 30, 3)
-        Pj32 = rand(Xoshiro(3), Float32, 30, 2)
+        local gt32 = arakawa_tensor(Float32, (5, 6))
+        local Pi32 = rand(Xoshiro(2), Float32, 30, 3)
+        local Pj32 = rand(Xoshiro(3), Float32, 30, 2)
         @test_throws ArgumentError ReducedTensor(gt32, Float64.(Pi32), Pj32)
         @test_throws ArgumentError ReducedTensor(gt32, Pi32, Float64.(Pj32))
 
         # the breaking change of the part: only a rank-3 `GridTensor` is a `ReducedTensor`
-        Pi = rand(Xoshiro(2), Float64, 30, 3)
-        Pj = rand(Xoshiro(3), Float64, 30, 2)
-        a = Arakawa(5, 6, 0.7, 1.3)
+        local Pi = rand(Xoshiro(2), Float64, 30, 3)
+        local Pj = rand(Xoshiro(3), Float64, 30, 2)
+        local a = Arakawa(5, 6, 0.7, 1.3)
         @test_throws MethodError ReducedTensor(PoissonTensor(Float64, 5, 6, a), Pi, Pj)
         @test_throws MethodError ReducedTensor(zeros(Float64, 30, 30, 30), Pi, Pj)
         @test_throws MethodError ReducedTensor(
@@ -178,12 +181,12 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
 
     @testset "an index off the grid throws the reduced tensor's own BoundsError" begin
         for DT in (Float32, Float64)
-            N = 30
-            gt = arakawa_tensor(DT, (5, 6))
-            rt = ReducedTensor(gt, rand(Xoshiro(2), DT, N, 3), rand(Xoshiro(3), DT, N, 2))
+            local N = 30
+            local gt = arakawa_tensor(DT, (5, 6))
+            local rt = ReducedTensor(gt, rand(Xoshiro(2), DT, N, 3), rand(Xoshiro(3), DT, N, 2))
 
             for (i, j, k) in ((0, 1, 1), (size(rt, 1) + 1, 1, 1), (1, 1, size(rt, 3) + 1))
-                err = try
+                local err = try
                     rt[i, j, k]
                     nothing
                 catch e
@@ -197,12 +200,12 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
 
     @testset "the entries, their type and their index forms" begin
         for DT in (Float32, Float64)
-            N = 30
-            g = (5, 6)
-            gt = arakawa_tensor(DT, g)
-            Pi = rand(Xoshiro(2), DT, N, 3)
-            Pj = rand(Xoshiro(3), DT, N, 2)
-            rt = ReducedTensor(gt, Pi, Pj)
+            local N = 30
+            local g = (5, 6)
+            local gt = arakawa_tensor(DT, g)
+            local Pi = rand(Xoshiro(2), DT, N, 3)
+            local Pj = rand(Xoshiro(3), DT, N, 2)
+            local rt = ReducedTensor(gt, Pi, Pj)
 
             # the accumulator stays in `DT`, which `eltype(Array(rt))` cannot see
             @test typeof(rt[2, 1, 7]) === DT
@@ -214,10 +217,10 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
             @test rt[7] == Array(rt)[7]
 
             # any `AbstractMatrix` of `DT` is a projection
-            wide = rand(Xoshiro(6), DT, N, 4)
+            local wide = rand(Xoshiro(6), DT, N, 4)
             @test ReducedTensor(gt, view(wide, :, 1:3), Pj)[2, 1, 7] ==
                   ReducedTensor(gt, wide[:, 1:3], Pj)[2, 1, 7]
-            Q = rand(Xoshiro(7), DT, 2, N)
+            local Q = rand(Xoshiro(7), DT, 2, N)
             @test ReducedTensor(gt, Pi, adjoint(Q))[2, 1, 7] ==
                   ReducedTensor(gt, Pi, copy(adjoint(Q)))[2, 1, 7]
         end
@@ -227,7 +230,7 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
         # `getindex` is called on every right-hand side evaluation downstream, so the claim is
         # measured in a fresh process, through a fixed-arity barrier after a warm call, beside a
         # `> 0` control on the same barrier
-        program = """
+        local program = """
         import Random
         using MultiIndexArrays: GridTensor, MultiIndexLazyArray
         using ReducedBasisMethods: ReducedTensor
@@ -252,13 +255,13 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
             end
         end
         """
-        command = `$(Base.julia_cmd()) --check-bounds=auto --project=$(Base.active_project()) -e $program`
+        local command = `$(Base.julia_cmd()) --check-bounds=auto --project=$(Base.active_project()) -e $program`
         @test success(command)
     end
 
     @testset "the module reaches MultiIndexArrays only through its public names" begin
         @test !isdefined(ReducedBasisMethods, :MultiIndexArrays)
-        private = filter(
+        local private = filter(
             n -> isdefined(ReducedBasisMethods, n) &&
                  Base.binding_module(ReducedBasisMethods, n) === MultiIndexArrays,
             setdiff(names(MultiIndexArrays; all = true), names(MultiIndexArrays)))
@@ -266,7 +269,7 @@ entry(rt::ReducedTensor) = rt[2, 1, 7]
     end
 
     @testset "GeometricBrackets has left the dependencies" begin
-        project = TOML.parsefile(joinpath(pkgdir(ReducedBasisMethods), "Project.toml"))
+        local project = TOML.parsefile(joinpath(pkgdir(ReducedBasisMethods), "Project.toml"))
         @test !haskey(project["deps"], "GeometricBrackets")
         @test !haskey(project["compat"], "GeometricBrackets")
         @test haskey(project["deps"], "MultiIndexArrays")
