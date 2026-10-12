@@ -118,6 +118,9 @@ The write allocates nothing of its own: `∇h` receives a lazy view of `A_{Sⱼ}
 any indexable collection, a `Vector` or a `Tuple`, so where `stencil` and `∇h` allocate nothing
 the write reads 0 B, and anything a callback allocates is the caller's.
 
+The write gives no guarantee for an aliased array: `g` and `z` must be distinct, because the
+quadratic part is written with `mul!`, which requires its output and its input to differ.
+
 It throws nothing itself. The `ArgumentError`s are the constructor's, from
 [`_deim_indices`](@ref): `m > M`, and a column of the density basis whose largest DEIM residual
 magnitude `ρ` is `0` — a zero column or one exactly dependent on the ones before it — or `NaN`,

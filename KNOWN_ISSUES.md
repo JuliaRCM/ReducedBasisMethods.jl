@@ -30,13 +30,17 @@ evidence.
 ### K4 · No test separates the two symmetrisation stages of `L̃`
 
 - **Location:** `src/algorithms/symplectic_deim.jl`, `SymplecticDEIM`.
-- **Evidence:** `sym(AᵀLA) = Aᵀ·sym(L)·A` as matrices, so dropping the first symmetrisation
-  (`Ls = L`) while the product is symmetrised once more leaves `L̃` correct to the round-off of
-  the product, and no test at the plan's `√eps` tolerance tells the two stages apart. The mutant
-  `Ls = L` (S1 of the round-1 lists, B2 of the fix round) SURVIVED. The probe
-  `equivalent-mutants.jl` of this fix round measures the two constructions: both exactly
-  symmetric, `‖a − b‖∞ ≤ 4·eps(T)·‖b‖∞`. Removing both stages is caught, by the plan's skew-`L`
-  test.
+- **Evidence:** no test separates the two stages, so dropping the first symmetrisation (`Ls = L`)
+  while the product is symmetrised once more leaves the mutant (S1 of the round-1 lists, B2 of the
+  fix round) SURVIVED. The tests are what is missing, not the effect: the identity
+  `sym(AᵀLA) = Aᵀ·sym(L)·A` holds in exact arithmetic, and in floating point the mutant reproduces
+  `L̃` only to the round-off of the product. On the pure skew `L = K − Kᵀ`, where `sym(L)` is
+  exactly zero, the retained construction gives `L̃ = 0` exactly while the mutant gives a symmetric
+  round-off, and `cancellation-equivalence.jl` of the verify-2 round measures
+  `‖a − b‖∞ = 1.0835201e-6` in Float32 and `8.881784197001252e-16` in Float64 against that zero.
+  The probe `equivalent-mutants.jl` of the fix round covers 36 other matrices, where the two
+  constructions are both exactly symmetric and `‖a − b‖∞ ≤ 4·eps(T)·‖b‖∞`. Removing both stages is
+  caught, by the plan's skew-`L` test.
 - **Kind:** missing test.
 - **Found:** 2026-10-12.
 
