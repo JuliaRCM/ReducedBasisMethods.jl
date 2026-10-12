@@ -55,14 +55,9 @@ struct ReducedTensor{DT, GT <: GridTensor{DT, 3}, PM1, PM2} <: AbstractArray{DT,
         eltype(Pj) == DT || throw(ArgumentError(
             "Pj needs the element type $DT of the tensor, got $(eltype(Pj))"))
         return new{DT, typeof(tensor), typeof(Pi), typeof(Pj)}(tensor, Pi, Pj,
-            _stencil(tensor))
+            allunique(stencil_indices(tensor, 1)))
     end
 end
-
-# The sums may be restricted to the tensor's stencil only where the stencil names no node twice,
-# which a periodic uniform stencil does at every node; a direction shorter than `2w + 1` repeats
-# one, and the repeated node would be counted twice.
-_stencil(gt::GridTensor) = allunique(stencil_indices(gt, 1))
 
 function Base.size(rt::ReducedTensor)
     (size(rt.projection_i, 2), size(rt.projection_j, 2), size(rt.tensor, 3))
