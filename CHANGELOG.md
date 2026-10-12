@@ -72,6 +72,17 @@ written.
 - **`scripts/reference_spectra.jl` regenerates the paper's reference spectra.**
   It rebuilds the reference data from the closed form in `reference/Vlasov_Analytic.jl`, and
   prints the singular values and the energy-selected basis size of the three SVD routes.
+- **`SymplecticDEIM` and `hamiltonian_gradient!`.** Structure-preserving DEIM for a Hamiltonian
+  `H(x) = ½xᵀLx + Σᵢ hᵢ(x)`, after Peng and Mohseni,
+  [doi:10.1137/140978922](https://doi.org/10.1137/140978922). DEIM is applied to the densities
+  `hᵢ`, not to the gradient `∇H`, and the reduced gradient is then obtained by differentiating the
+  reduced Hamiltonian exactly. It is therefore the gradient of a scalar, and its Jacobian is
+  symmetric by construction, which is what makes the reduced Hamiltonian an exact invariant of the
+  reduced system. The plain DEIM reduction of the same paper, eq. (5.8), gives neither: its
+  `W = AᵀΨ(ΠᵀΨ)⁻¹` is not symmetric, and the authors state that its reduced system is "not
+  necessarily Hamiltonian". `hamiltonian_gradient!` is not named `gradient!` because that clashes
+  with `ForwardDiff` in a test environment. Its test is the first use of `ForwardDiff` and
+  `GeometricIntegrators` in `test/Project.toml`.
 
 ### Bug Fixes
 
@@ -80,10 +91,26 @@ written.
   aligning with standard Julia array behavior. Previously these raised `BoundsError`. This fixes
   code patterns that work with generic `AbstractArray` interfaces.
 
+- **The DEIM selection follows the magnitude of the residual, and its result is no longer
+  silently `Float64`.** `get_DEIM_interpolation_matrix` took the row of the largest *value* of
+  the residual rather than of the largest magnitude, so a residual that peaks at a negative entry
+  chose a row the interpolation had already taken, and the interpolation matrix `Π` could hold
+  the same row twice. The selection now takes the largest magnitude, and where two are equal the
+  first of them. `Π` takes the element type of its input, `float(eltype(Ψ))`, where it was always
+  `Float64`, so a `Float32` basis stays in `Float32`. This closes KI-1: the Example 1 error is a
+  `@test` rather than an `@assert`, and `Π` is compared against the rows a hand-computed case
+  selects.
+
 ### Changed
 
 - CI uploads coverage from the `Julia 1 - ubuntu-latest` job instead of `Julia min`, and a test
   job saves the Julia cache only when it succeeds.
+
+- **`get_DEIM_interpolation_matrix` rejects a basis it cannot interpolate.** It throws an
+  `ArgumentError` where `k > N`, and where a column's largest residual magnitude is not both
+  positive and finite — `0` for a column that is exactly dependent on the ones before it, and
+  `NaN` or `Inf` for a `NaN` or an `Inf` in the basis. Before, each of these returned a matrix
+  with a repeated row in silence.
 
 - **`[deps]` is now generic infrastructure only.** Removed from `[deps]`, with their `[compat]`
   entries where present: `ParticleMethods`, `PoissonSolvers`, `Distances`, `LaTeXStrings`,

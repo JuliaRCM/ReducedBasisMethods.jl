@@ -13,4 +13,5 @@ if "core" in GROUPS
     @safetestset "Cross-route checks" include("algorithms/routes.jl")
     @safetestset "Projections" include("projection.jl")
     @safetestset "DEIM" include("algorithms/deim.jl")
+    @safetestset "Symplectic DEIM" include("algorithms/symplectic_deim.jl")
 end
