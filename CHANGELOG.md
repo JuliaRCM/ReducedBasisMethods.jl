@@ -22,7 +22,8 @@ written.
   the reduced equation the basis carries: `ż = J_k Aᵀ ∇H(Az)` for the symplectic bases
   `CotangentLiftSVD`, `CotangentLiftEVD` and `ComplexSVD`, where `A = Matrix(b)`, and the Galerkin
   form `ż = Uᵀ J_N ∇H(Uz)` for the POD bases `PODSVD` and `PODEVD`, where `U = Φ`. A POD basis
-  forms no `J_k`, which exists only for an even dimension, so its `k` may be odd.
+  forms no canonical symplectic matrix in its reduced coordinates, so its reduced dimension `k`
+  may be odd.
   `reduced_pode(b, ∇H!, timespan, timestep, z₀; parameters)` is the partitioned problem of the
   symplectic bases, whose two fields are the first and the last `k` rows of the same form; a POD
   basis has no `q` and `p` halves to split, and no method. A `SymplecticDEIM` emits `ż = J_2k ∇H̃(z)`
@@ -30,8 +31,9 @@ written.
   `∇H(x)` into `g`, in the argument order of a vector field, and `parameters` reaches it unchanged.
   The state is in reduced coordinates — `project(b, x₀)` gives it — and its element type must be
   the basis's. Integration stays the caller's: these functions emit a problem and no integrator is
-  a dependency. A vector field call allocates 0 B, for basis states and for the `ForwardDiff.Dual`
-  states Newton's `JacobianAutodiff` passes; whatever `∇H!` allocates is the caller's.
+  a dependency. A vector field call allocates 0 B for basis states, and for the `ForwardDiff.Dual`
+  states Newton's `JacobianAutodiff` passes after the first call for that element type, which fills
+  a per-type pair of work buffers; whatever `∇H!` allocates is the caller's.
 
 - **`GeometricEquations` joins `[deps]`, at `"0.21"`.** The two emitters above build
   `ODEProblem` and `PODEProblem`, and import `ODEProblem`, `PODEProblem` and `NullParameters` by
