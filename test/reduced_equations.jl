@@ -1,9 +1,9 @@
 #
-# The reduced equation forms of T7.11: the symplectic form `ż = J_k Aᵀ ∇H(Az)`, the Galerkin form
+# The reduced equation forms: the symplectic form `ż = J_k Aᵀ ∇H(Az)`, the Galerkin form
 # `ż = Uᵀ X_H(Uz)` of a POD basis, and the split PODE variant, emitted as `GeometricEquations`
 # problems.
 #
-# Every behavioural check integrates with GeometricIntegrators' own `integrate`. The references
+# Integration checks use GeometricIntegrators' own `integrate`. The field references
 # are dense — `J_N`, `J_k` and `A = Matrix(<the problem's basis>)` — and use no `project`, no
 # `lift` and no blockwise helper of the package.
 #
@@ -745,8 +745,8 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
                 @test pode_allocations(control_pode, zeros(T, 2k), 0.0, ct, ct, ps) > 0
             end
 
-            # Every emitted field of the part: the ODE `v` of all five tags, the PODE `v` and
-            # `f` of the three symplectic ones, and R3's ODE `v` and PODE `v` and `f`. The
+            # Every emitted field: the ODE `v` of all five tags, the PODE `v` and `f` of the
+            # three symplectic ones, and the hyper-reduced system's ODE `v`, PODE `v` and `f`. The
             # callback is a type parameter, so each is inferred and statically dispatched, and
             # each reads 0 B after a warm call, for `T` and for `Dual`.
             for tag in TAGS
