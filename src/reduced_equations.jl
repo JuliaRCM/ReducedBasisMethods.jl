@@ -276,9 +276,9 @@ where `J_k = [0 I_k; -I_k 0]`. For `PODSVD` and `PODEVD` it is the Galerkin form
 \\dot z = U^{\\mathsf T} J_N ∇H(Uz) , \\qquad U = Φ ,
 ```
 
-with `J_N = [0 I_N; -I_N 0]`. A POD basis forms no `J_k`, which exists only for an even
-dimension, so its `k` may be odd. A `SymplecticDEIM` emits `ż = J_2k ∇H̃(z)` through
-[`hamiltonian_gradient!`](@ref), which is the gradient of its own reduced Hamiltonian.
+with `J_N = [0 I_N; -I_N 0]`. A POD basis forms no canonical symplectic matrix in its reduced
+coordinates, so its reduced dimension `k` may be odd. A `SymplecticDEIM` emits `ż = J_2k ∇H̃(z)`
+through [`hamiltonian_gradient!`](@ref), which is the gradient of its own reduced Hamiltonian.
 
 `∇H!` is the caller's gradient of the Hamiltonian, in the argument order of a vector field:
 `∇H!(g, t, x, params)` writes `∇H(x)` into `g`, and may read `x` while it writes `g`. `params` is

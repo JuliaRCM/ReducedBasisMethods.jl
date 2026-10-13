@@ -24,7 +24,7 @@ const N = 100
 const NPTS = 100
 
 # The subset of them the `Dual` value checks use: each is a nested-dual gradient of `H`, not
-# one pass of the field, so the reading stays a fraction of the real-state one.
+# one pass of the field, so only ten points use this more expensive reference.
 const NPTS_DUAL = 10
 
 # The five tags, split as the two forms.
@@ -53,12 +53,12 @@ integration_window(::Type{Float32}) = (; span = (0.0f0, 10.0f0), dt = 0.01f0, st
 conservation_bound(::Type{Float64}) = 1e-10
 conservation_bound(::Type{Float32}) = 10^3 * eps(Float32)
 
-"The solver tolerance of check 1: the section's value, or `max(8, 2k)·eps` in a small type."
+"The solver tolerance: `1e-14` in `Float64`, or `max(8, 2k)·eps` in `Float32`."
 solver_tolerance(::Type{Float64}, k::Int) = 1e-14
 solver_tolerance(::Type{Float32}, k::Int) = max(8, 2k) * eps(Float32)
 
 """
-The seeded snapshot and the initial state of the section's inputs, in `T`.
+The seeded snapshot and the initial state, in `T`.
 
 `S` is the `2N × 30` stacked snapshot `[Q; P]`, which every tag accepts: a POD basis of it is
 `2N × k`, and a cotangent-lift or complex basis is `N × k` with a `2N × 2k` assembly.
@@ -73,8 +73,8 @@ function symplectic_form(::Type{T}, n::Int) where {T}
     return [zeros(T, n, n) Iₙ; -Iₙ zeros(T, n, n)]
 end
 
-# The first Hamiltonian: the section's oscillator with `ω = 1`, `H(x) = ½xᵀx`, whose gradient is
-# the identity. Its `∇H!` is elementwise, so it survives an `x` and `g` that are the same array.
+# The oscillator has `ω = 1` and `H(x) = ½xᵀx`, whose gradient is the identity. Its `∇H!` is
+# elementwise, so it survives an `x` and `g` that are the same array.
 oscillator!(g, t, x, params) = (g .= x)
 oscillator_h(x) = sum(abs2, x) / 2
 
@@ -142,7 +142,7 @@ end
 "`‖w − ref‖_∞ / ‖ref‖_∞`, the relative bound of checks 4–6."
 relative_error(w, ref) = norm(w - ref, Inf) / norm(ref, Inf)
 
-"The 100 seeded reduced points of the section's inputs: a direct draw in reduced coordinates."
+"The 100 seeded reduced points: a direct draw in reduced coordinates."
 function reduced_points(::Type{T}, n::Int) where {T}
     rng = Xoshiro(3)
     return [randn(rng, T, n) for _ in 1:NPTS]
@@ -210,7 +210,7 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
     # ---------------------------------------------------------------------------------------
     # Check 1: `ImplicitMidpoint` conserves a quadratic `H`, and every state is finite.
     # ---------------------------------------------------------------------------------------
-    @testset "check 1: the symplectic method conserves the oscillator" begin
+    @testset "check 1: ImplicitMidpoint conserves the oscillator" begin
         for T in (Float32, Float64)
             local f = fixtures(T)
             local w = integration_window(T)
@@ -238,7 +238,7 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
     # ---------------------------------------------------------------------------------------
     # Check 2: `ExplicitEuler` multiplies `H` by exactly `1 + dt²` a step.
     # ---------------------------------------------------------------------------------------
-    @testset "check 2: the explicit method drifts by 1 + dt² a step" begin
+    @testset "check 2: ExplicitEuler multiplies H by 1 + dt² a step" begin
         for T in (Float32, Float64)
             local f = fixtures(T)
             local w = integration_window(T)
@@ -253,7 +253,7 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
             # The ratio is compared in `Float64`, against the Float64 of the Float32 `dt`.
             local ratio = Float64(oscillator_h(sol.q[steps]) / oscillator_h(z₀))
             local reference = (1 + Float64(w.dt)^2)^steps
-            # The horizon separates the two methods by ten orders of magnitude.
+            # The horizons give distinct energy growth factors in the two element types.
             @test reference ≈ (T === Float32 ? 1.1051653876631566 : 2.7181459268249255) atol = 1e-9
             @test abs(ratio - reference) / reference ≤ conservation_bound(T)
         end
@@ -277,9 +277,9 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
     end
 
     # ---------------------------------------------------------------------------------------
-    # Check 4: the field is `J_k Aᵀ ∇H(Az)`, on all five tags.
+    # Check 4: the symplectic and Galerkin fields, on their respective tags.
     # ---------------------------------------------------------------------------------------
-    @testset "check 4: the field is the symplectic form" begin
+    @testset "check 4: the symplectic and Galerkin vector fields" begin
         for T in (Float32, Float64)
             local f = fixtures(T)
             local ps = params2(T)
@@ -460,8 +460,8 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
                     end
 
                     # The initial state is split, and compared exactly. `ImplicitMidpoint` is a
-                    # PODE method; `ExplicitEuler` is not. It gets the section's explicit
-                    # `f_abstol`, so the run does not rest on a default.
+                    # PODE method; `ExplicitEuler` is not. The integration uses the explicit
+                    # `f_abstol` from `solver_tolerance`, rather than a default.
                     local sol = integrate(pode, ImplicitMidpoint();
                         f_abstol = solver_tolerance(T, k))
                     @test sol.q[0] == z₀[1:k]
@@ -507,9 +507,9 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
             local ps = params2(T)
             local JN = symplectic_form(T, N)
 
-            # An odd `k = 5`: `J_5` does not exist, and the POD form asks for no `J_k`. And
-            # `k = 10`, where one exists and the two forms differ. And the smallest, `k = 1`.
-            # Both POD tags, so that a branch only one of them reaches is still caught.
+            # An odd reduced dimension `k = 5` has no canonical symplectic matrix of size `k × k`.
+            # At `k = 10`, that matrix exists and the two forms differ; `k = 1` is the smallest.
+            # Both POD tags run, so a branch only one of them reaches is still caught.
             for k in (5, 10, 1), tag in POD_TAGS
 
                 @testset "$(nameof(typeof(tag))), k = $k, $T" begin
@@ -670,7 +670,7 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
             end
 
             # The initial state is the reduced one, exactly; the PODE's is split. Both
-            # integrations get the section's explicit `f_abstol`, as the others do.
+            # integrations use the explicit `f_abstol` from `solver_tolerance`, as the others do.
             local sol = integrate(
                 reduced_ode(sd, (0.0, 0.1), 0.01, z₀), ImplicitMidpoint();
                 f_abstol = solver_tolerance(T, k))
