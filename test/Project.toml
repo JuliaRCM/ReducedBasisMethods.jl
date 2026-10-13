@@ -4,6 +4,7 @@ ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 GeometricBrackets = "2a9ffa85-4e0d-473f-b05e-278d80d8d306"
 GeometricIntegrators = "dcce2d33-59f6-5b8d-9047-0defad88ae06"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MultiIndexArrays = "2f7e0951-2673-41f4-a6a8-e6772a4b2a08"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 ReducedBasisMethods = "91da5cd7-58ae-4d67-87db-f03d1c8da121"
 ReducedComplexityModeling = "abb4722c-1d8e-48eb-a3bd-45b3116bfaba"
@@ -17,4 +18,5 @@ ReducedBasisMethods = {path = ".."}
 [compat]
 Aqua = "0.8.18"
 ForwardDiff = "1.4.6"
+GeometricBrackets = "0.1.1, 0.2"
 GeometricIntegrators = "0.18.5"

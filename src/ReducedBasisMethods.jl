@@ -3,16 +3,11 @@ module ReducedBasisMethods
 using HDF5
 using HDF5: H5DataStore
 using LinearAlgebra
-using MultiIndexArrays: _stencil_indices
+using MultiIndexArrays: GridTensor, stencil_indices
 using ReducedComplexityModeling
 using GeometricEquations: ODEProblem, PODEProblem, NullParameters
 using ReducedComplexityModeling: read_parameters, save_parameters, _create_group
 import ReducedComplexityModeling: h5save, h5load, project
-
-# `ReducedTensor` wraps the grid tensor that lives in GeometricBrackets, and extends the
-# `_nx`/`_nv` accessors rather than redefining them, so one generic covers both packages.
-using GeometricBrackets: PoissonTensor
-import GeometricBrackets: _nx, _nv
 
 include("utils.jl")
 
