@@ -13,6 +13,32 @@ because a changelog assembled after the fact loses exactly the reasoning that ma
 keeping. The `[Unreleased]` target below is provisional — confirm it when the first entry is
 written.
 
+## [Unreleased] — targeting 0.3.0
+
+### New Features
+
+- **`reduced_ode` and `reduced_pode` emit the reduced equation forms as `GeometricEquations`
+  problems.** `reduced_ode(b, ∇H!, timespan, timestep, z₀; parameters)` is the ordinary problem of
+  the reduced equation the basis carries: `ż = J_k Aᵀ ∇H(Az)` for the symplectic bases
+  `CotangentLiftSVD`, `CotangentLiftEVD` and `ComplexSVD`, where `A = Matrix(b)`, and the Galerkin
+  form `ż = Uᵀ J_N ∇H(Uz)` for the POD bases `PODSVD` and `PODEVD`, where `U = Φ`. A POD basis
+  forms no `J_k`, which exists only for an even dimension, so its `k` may be odd.
+  `reduced_pode(b, ∇H!, timespan, timestep, z₀; parameters)` is the partitioned problem of the
+  symplectic bases, whose two fields are the first and the last `k` rows of the same form; a POD
+  basis has no `q` and `p` halves to split, and no method. A `SymplecticDEIM` emits `ż = J_2k ∇H̃(z)`
+  through `hamiltonian_gradient!` by the same two functions. `∇H!(g, t, x, params)` writes
+  `∇H(x)` into `g`, in the argument order of a vector field, and `parameters` reaches it unchanged.
+  The state is in reduced coordinates — `project(b, x₀)` gives it — and its element type must be
+  the basis's. Integration stays the caller's: these functions emit a problem and no integrator is
+  a dependency. A vector field call allocates 0 B, for basis states and for the `ForwardDiff.Dual`
+  states Newton's `JacobianAutodiff` passes; whatever `∇H!` allocates is the caller's.
+
+- **`GeometricEquations` joins `[deps]`, at `"0.21"`.** The two emitters above build
+  `ODEProblem` and `PODEProblem`, and import `ODEProblem`, `PODEProblem` and `NullParameters` by
+  name rather than through the package's whole export list. `GeometricIntegrators` and
+  `GeometricIntegratorsBase` do not join `[deps]`: an integrator is the caller's, and the test
+  dependencies supply one.
+
 ## [0.2.0] — 2026-10-12
 
 ### New Features
@@ -86,28 +112,6 @@ written.
 - **`ReducedTensor` wraps any rank-3 `GridTensor`, of any width its grid holds.** Its sum reads
   the tensor's own stencil, so it no longer needs the width-1 `Arakawa` the `PoissonTensor` bound
   stood for, and `getindex` allocates nothing after the first call rather than a `Vector` per call.
-
-- **`reduced_ode` and `reduced_pode` emit the reduced equation forms as `GeometricEquations`
-  problems.** `reduced_ode(b, ∇H!, timespan, timestep, z₀; parameters)` is the ordinary problem of
-  the reduced equation the basis carries: `ż = J_k Aᵀ ∇H(Az)` for the symplectic bases
-  `CotangentLiftSVD`, `CotangentLiftEVD` and `ComplexSVD`, where `A = Matrix(b)`, and the Galerkin
-  form `ż = Uᵀ J_N ∇H(Uz)` for the POD bases `PODSVD` and `PODEVD`, where `U = Φ`. A POD basis
-  forms no `J_k`, which exists only for an even dimension, so its `k` may be odd.
-  `reduced_pode(b, ∇H!, timespan, timestep, z₀; parameters)` is the partitioned problem of the
-  symplectic bases, whose two fields are the first and the last `k` rows of the same form; a POD
-  basis has no `q` and `p` halves to split, and no method. A `SymplecticDEIM` emits `ż = J_2k ∇H̃(z)`
-  through `hamiltonian_gradient!` by the same two functions. `∇H!(g, t, x, params)` writes
-  `∇H(x)` into `g`, in the argument order of a vector field, and `parameters` reaches it unchanged.
-  The state is in reduced coordinates — `project(b, x₀)` gives it — and its element type must be
-  the basis's. Integration stays the caller's: these functions emit a problem and no integrator is
-  a dependency. A vector field call allocates 0 B, for basis states and for the `ForwardDiff.Dual`
-  states Newton's `JacobianAutodiff` passes; whatever `∇H!` allocates is the caller's.
-
-- **`GeometricEquations` joins `[deps]`, at `"0.21"`.** The two emitters above build
-  `ODEProblem` and `PODEProblem`, and import `ODEProblem`, `PODEProblem` and `NullParameters` by
-  name rather than through the package's whole export list. `GeometricIntegrators` and
-  `GeometricIntegratorsBase` do not join `[deps]`: an integrator is the caller's, and the test
-  dependencies supply one.
 
 ### Bug Fixes
 
