@@ -14,36 +14,32 @@ struct _VelocityForm <: _ReducedForm end
 struct _ForceForm <: _ReducedForm end
 
 """
-    _ReducedVectorField{F, BT, T, H, X, G, C} <: Function
+    _ReducedVectorField{F, BT, T, H} <: Function
 
 The vector field of an emitted reduced problem, in the form `F ∈ (_ODEForm, _VelocityForm,
 _ForceForm)`.
 
 It holds the basis `BT` — a [`ReducedBasis`](@ref), or the [`SymplecticDEIM`](@ref) whose system
-is already in reduced coordinates — the caller's `∇H!` as the type parameter `H`, and its work
-buffers: `x = A·z` and `g = ∇H(x)` in the basis's element type `T`, which are distinct because
-`∇H!` may read `x` after it writes `g`. A state of any other element type `S` — which is what
-Newton's `JacobianAutodiff` passes — takes its pair from `C`, an `IdDict` keyed by `S`.
+is already in reduced coordinates — the gradient `∇H!(g, t, x, params)` as the type parameter
+`H`, and its work buffers: `x = A·z` and `g = ∇H(x)` in the basis's element type `T`, which are
+distinct because `∇H!` may read `x` after it writes `g`. A state of any other element type `S` —
+which is what Newton's `JacobianAutodiff` passes — takes its pair from `cache`, keyed by `S`.
 
 The basis is a field and not an entry of the caller's `parameters`, so `parameters` reaches
 `∇H!` unchanged.
 """
-struct _ReducedVectorField{F <: _ReducedForm, BT, T, H, X <: AbstractVector{T},
-    G <: AbstractVector{T}, C <: IdDict{DataType, Any}} <: Function
+struct _ReducedVectorField{F <: _ReducedForm, BT, T, H} <: Function
     basis::BT
     ∇H!::H
-    x::X
-    g::G
-    cache::C
+    x::Vector{T}
+    g::Vector{T}
+    cache::IdDict{DataType, Any}
 end
 
 function _reduced_vector_field(
         basis, ∇H!, ::Type{T}, n::Int, ::F) where {T, F <: _ReducedForm}
-    x = Vector{T}(undef, n)
-    g = Vector{T}(undef, n)
-    cache = IdDict{DataType, Any}()
-    return _ReducedVectorField{F, typeof(basis), T, typeof(∇H!), typeof(x), typeof(g),
-        typeof(cache)}(basis, ∇H!, x, g, cache)
+    return _ReducedVectorField{F, typeof(basis), T, typeof(∇H!)}(
+        basis, ∇H!, Vector{T}(undef, n), Vector{T}(undef, n), IdDict{DataType, Any}())
 end
 
 # The `T` pair is the callable's own; any other element type takes a pair from the per-type
@@ -51,17 +47,8 @@ end
 # the lift buffer back as the gradient buffer.
 @inline function _work(vf::_ReducedVectorField{F, BT, T}, ::Type{S}) where {F, BT, T, S}
     S === T && return vf.x, vf.g
-    return _cached_pair(vf.cache, vf.x, S)
-end
-
-@inline function _cached_pair(cache::IdDict{DataType, Any}, x::Vector{T},
-        ::Type{S}) where {T, S}
-    if haskey(cache, S)
-        return cache[S]::Tuple{Vector{S}, Vector{S}}
-    else
-        pair = (similar(x, S), similar(x, S))
-        return cache[S] = pair::Tuple{Vector{S}, Vector{S}}
-    end
+    return get!(() -> (similar(vf.x, S), similar(vf.x, S)), vf.cache,
+        S)::Tuple{Vector{S}, Vector{S}}
 end
 
 # `x = A·z`, blockwise over the two halves of a symplectic basis.
@@ -104,19 +91,8 @@ end
     return _lift!(x, b, view(z, 1:k), view(z, (k + 1):2k))
 end
 
-# The gradient at the lifted point: the caller's `∇H!`.
-@inline function _gradient!(g::AbstractVector, vf::_ReducedVectorField{F, BT}, t, x,
-        params) where {F, BT <: ReducedBasis}
-    vf.∇H!(g, t, x, params)
-    return g
-end
-
-# The reduced gradient of a hyper-reduced system, whose system's own write is the gradient.
-@inline function _gradient!(g::AbstractVector, vf::_ReducedVectorField{F, BT}, t, x,
-        params) where {F, BT <: SymplecticDEIM}
-    vf.∇H!(g, vf.basis, x)
-    return g
-end
+# The reduced gradient of a hyper-reduced system, in the argument order of a vector field.
+_deim_gradient(sd::SymplecticDEIM) = (g, t, x, params) -> hamiltonian_gradient!(g, sd, x)
 
 # The first and the last `k` rows of `J_k Aᵀ g`, `k = size(Φ, 2)`.
 @inline function _half!(out::AbstractVector,
@@ -130,9 +106,7 @@ end
         b::ReducedBasis{<:Any, <:Union{CotangentLiftSVD, CotangentLiftEVD}},
         g::AbstractVector, ::Val{2})
     N = size(b.Φ, 1)
-    mul!(out, adjoint(b.Φ), view(g, 1:N))
-    rmul!(out, -1)
-    return out
+    return mul!(out, adjoint(b.Φ), view(g, 1:N), -1, 0)
 end
 
 @inline function _half!(out::AbstractVector, b::ReducedBasis{<:Any, <:ComplexSVD},
@@ -146,30 +120,26 @@ end
 @inline function _half!(out::AbstractVector, b::ReducedBasis{<:Any, <:ComplexSVD},
         g::AbstractVector, ::Val{2})
     N = size(b.Φ, 1)
-    mul!(out, adjoint(b.Φ), view(g, 1:N))
-    mul!(out, adjoint(b.Ψ), view(g, (N + 1):2N), 1, 1)
-    rmul!(out, -1)
-    return out
+    mul!(out, adjoint(b.Φ), view(g, 1:N), -1, 0)
+    return mul!(out, adjoint(b.Ψ), view(g, (N + 1):2N), -1, 1)
 end
 
 # The reduced gradient of the hyper-reduced system, which reads no basis.
 @inline function _half!(out::AbstractVector, sd::SymplecticDEIM, g::AbstractVector, ::Val{1})
-    k = size(sd.A, 2) ÷ 2
+    k = _half_size(sd)
     return copyto!(out, view(g, (k + 1):2k))
 end
 
 @inline function _half!(out::AbstractVector, sd::SymplecticDEIM, g::AbstractVector, ::Val{2})
-    k = size(sd.A, 2) ÷ 2
-    copyto!(out, view(g, 1:k))
-    rmul!(out, -1)
-    return out
+    k = _half_size(sd)
+    return out .= .-view(g, 1:k)
 end
 
 "The half-size `k` of the reduced state: the basis's `k`, and the DEIM basis's column count ÷ 2."
 _half_size(b::ReducedBasis) = b.k
 _half_size(sd::SymplecticDEIM) = size(sd.A, 2) ÷ 2
 
-"The lifted dimension: `2N` for a symplectic basis, `N` for a POD basis, `2k` for a DEIM system."
+"The lifted dimension: the row count of `Matrix(b)`, and `2k` for a DEIM system."
 _lifted_dimension(b::ReducedBasis{<:Any, <:SymplecticAlgorithm}) = 2 * size(b.Φ, 1)
 _lifted_dimension(b::ReducedBasis{<:Any, <:PODAlgorithm}) = size(b.Φ, 1)
 _lifted_dimension(sd::SymplecticDEIM) = size(sd.A, 2)
@@ -199,23 +169,23 @@ end
         params)
     x, g = _work(vf, eltype(z))
     _lift!(x, vf.basis, z)
-    _gradient!(g, vf, t, x, params)
+    vf.∇H!(g, t, x, params)
     return _field!(ω, vf.basis, g)
 end
 
 @inline function (vf::_ReducedVectorField{_VelocityForm})(v::AbstractVector, t,
         q::AbstractVector, p::AbstractVector, params)
-    x, g = _work(vf, eltype(q))
+    x, g = _work(vf, promote_type(eltype(q), eltype(p)))
     _lift!(x, vf.basis, q, p)
-    _gradient!(g, vf, t, x, params)
+    vf.∇H!(g, t, x, params)
     return _half!(v, vf.basis, g, Val(1))
 end
 
 @inline function (vf::_ReducedVectorField{_ForceForm})(f::AbstractVector, t,
         q::AbstractVector, p::AbstractVector, params)
-    x, g = _work(vf, eltype(q))
+    x, g = _work(vf, promote_type(eltype(q), eltype(p)))
     _lift!(x, vf.basis, q, p)
-    _gradient!(g, vf, t, x, params)
+    vf.∇H!(g, t, x, params)
     return _half!(f, vf.basis, g, Val(2))
 end
 
@@ -267,18 +237,20 @@ problem, then hand it to an integrator of the caller's own.
 For `CotangentLiftSVD`, `CotangentLiftEVD` and `ComplexSVD` the vector field is
 
 ```math
-\\dot z = J_k A^{\\mathsf T} ∇H(Az) , \\qquad A = `Matrix(b)` ,
+\\dot z = J_k A^{\\mathsf T} ∇H(Az) ,
 ```
 
-where `J_k = [0 I_k; -I_k 0]`. For `PODSVD` and `PODEVD` it is the Galerkin form
+where `A = Matrix(b)` and `J_k = [0 I_k; -I_k 0]`. For `PODSVD` and `PODEVD` it is the Galerkin
+form
 
 ```math
 \\dot z = U^{\\mathsf T} J_N ∇H(Uz) , \\qquad U = Φ ,
 ```
 
-with `J_N = [0 I_N; -I_N 0]`. A POD basis forms no canonical symplectic matrix in its reduced
-coordinates, so its reduced dimension `k` may be odd. A `SymplecticDEIM` emits `ż = J_2k ∇H̃(z)`
-through [`hamiltonian_gradient!`](@ref), which is the gradient of its own reduced Hamiltonian.
+with `J_N = [0 I_N; -I_N 0]`, where `Φ` has `2N` rows. A POD basis forms no canonical
+symplectic matrix in its reduced coordinates, so its reduced dimension `k` may be odd. A
+`SymplecticDEIM` emits `ż = J_2k ∇H̃(z)` through [`hamiltonian_gradient!`](@ref), which is the
+gradient of its own reduced Hamiltonian.
 
 `∇H!` is the caller's gradient of the Hamiltonian, in the argument order of a vector field:
 `∇H!(g, t, x, params)` writes `∇H(x)` into `g`, and may read `x` while it writes `g`. `params` is
@@ -330,7 +302,7 @@ end
 
 function reduced_ode(sd::SymplecticDEIM, timespan, timestep, z₀::AbstractVector)
     _check_reduced_state(sd, z₀)
-    v = _reduced_vector_field(sd, hamiltonian_gradient!, eltype(z₀), _lifted_dimension(sd),
+    v = _reduced_vector_field(sd, _deim_gradient(sd), eltype(z₀), _lifted_dimension(sd),
         _ODEForm())
     return ODEProblem(v, timespan, timestep, z₀)
 end
@@ -400,9 +372,9 @@ end
 
 function reduced_pode(sd::SymplecticDEIM, timespan, timestep, z₀::AbstractVector)
     _check_reduced_state(sd, z₀)
-    n = size(sd.A, 2)
-    k = n ÷ 2
-    v = _reduced_vector_field(sd, hamiltonian_gradient!, eltype(z₀), n, _VelocityForm())
-    f = _reduced_vector_field(sd, hamiltonian_gradient!, eltype(z₀), n, _ForceForm())
-    return PODEProblem(v, f, timespan, timestep, z₀[1:k], z₀[(k + 1):n])
+    k = _half_size(sd)
+    ∇H̃! = _deim_gradient(sd)
+    v = _reduced_vector_field(sd, ∇H̃!, eltype(z₀), 2k, _VelocityForm())
+    f = _reduced_vector_field(sd, ∇H̃!, eltype(z₀), 2k, _ForceForm())
+    return PODEProblem(v, f, timespan, timestep, z₀[1:k], z₀[(k + 1):2k])
 end

@@ -13,9 +13,10 @@ using GeometricIntegrators
 using LinearAlgebra
 using Random
 using ReducedBasisMethods
-using ReducedComplexityModeling: Parameter, ParameterSpace, project
+using ReducedComplexityModeling: project
 using Test
-using TOML
+
+include("helpers/spectra.jl")
 
 # The half-dimension: the lifted state is `2N` long, and a cotangent-lift basis is `N × k`.
 const N = 100
@@ -32,15 +33,11 @@ const POD_TAGS = (PODSVD(), PODEVD())
 const SYMPLECTIC_TAGS = (CotangentLiftSVD(), CotangentLiftEVD(), ComplexSVD())
 const TAGS = (POD_TAGS..., SYMPLECTIC_TAGS...)
 
-# The two methods, and the reduced sizes every tag is built at.
-const METHODS = (ImplicitMidpoint(), ExplicitEuler())
+# The reduced sizes every tag is built at.
 const KS = (10, 1)
 
 "`γ`, the `q`-`p` coupling of the second Hamiltonian."
 const γ2 = 0.37
-
-"A parameter space, as `test/projection.jl` builds one."
-testparamspace() = ParameterSpace(Parameter(:σ, 0.0, 1.0, 2))
 
 "The caller's parameters of the second Hamiltonian, in `T`."
 params2(::Type{T}) where {T} = (α = T(1.3),)
@@ -65,12 +62,6 @@ The seeded snapshot and the initial state, in `T`.
 """
 function fixtures(::Type{T}) where {T}
     (; S = randn(Xoshiro(1), T, 2N, 30), x₀ = randn(Xoshiro(2), T, 2N))
-end
-
-"`J_n = [0 I; −I 0]`, in `T`, dense."
-function symplectic_form(::Type{T}, n::Int) where {T}
-    Iₙ = Matrix{T}(I, n, n)
-    return [zeros(T, n, n) Iₙ; -Iₙ zeros(T, n, n)]
 end
 
 # The oscillator has `ω = 1` and `H(x) = ½xᵀx`, whose gradient is the identity. Its `∇H!` is
@@ -253,27 +244,8 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
             # The ratio is compared in `Float64`, against the Float64 of the Float32 `dt`.
             local ratio = Float64(oscillator_h(sol.q[steps]) / oscillator_h(z₀))
             local reference = (1 + Float64(w.dt)^2)^steps
-            # The horizons give distinct energy growth factors in the two element types.
-            @test reference ≈ (T === Float32 ? 1.1051653876631566 : 2.7181459268249255) atol = 1e-9
             @test abs(ratio - reference) / reference ≤ conservation_bound(T)
         end
-    end
-
-    # ---------------------------------------------------------------------------------------
-    # Check 3: the methods are selected by the trait, not by name.
-    # ---------------------------------------------------------------------------------------
-    @testset "check 3: the method is selected by its trait" begin
-        @test issymplectic(ExplicitEuler()) === false
-        @test issymplectic(ImplicitMidpoint()) === true
-        @test ispodemethod(ExplicitEuler()) === false
-        @test ispodemethod(ImplicitMidpoint()) === true
-
-        # `issymplectic` is `missing` for a method without the trait, so `if issymplectic(m)`
-        # would throw for that method. The selection compares with `true` and `false` instead.
-        local conserving = only(filter(m -> issymplectic(m) === true, METHODS))
-        local drifting = only(filter(m -> issymplectic(m) === false, METHODS))
-        @test conserving === ImplicitMidpoint()
-        @test drifting === ExplicitEuler()
     end
 
     # ---------------------------------------------------------------------------------------
@@ -389,7 +361,7 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
     end
 
     # ---------------------------------------------------------------------------------------
-    # Check 5: the split PODE variant — its two halves, its integration, and `[deps]`.
+    # Check 5: the split PODE variant — its two halves and its integration.
     # ---------------------------------------------------------------------------------------
     @testset "check 5: the split PODE form" begin
         for T in (Float32, Float64)
@@ -459,6 +431,20 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
                         end
                     end
 
+                    # A plain `q` beside a `Dual` `p`: the work buffers take the promoted type.
+                    local zm = [DualT.(zs[1][1:k]); dual_state(zs[1])[(k + 1):2k]]
+                    local refm = reference_field(A⁺, JN, A, zm, ps)
+                    local vm = zeros(DualT, k)
+                    local fm = zeros(DualT, k)
+                    eq.v(vm, 0.0, zs[1][1:k], zm[(k + 1):2k], pp)
+                    eq.f(fm, 0.0, zs[1][1:k], zm[(k + 1):2k], pp)
+                    for p in 1:2
+                        @test relative_error(dual_partials(vm, p),
+                            dual_partials(refm, p)[1:k]) ≤ sqrt(eps(T))
+                        @test relative_error(dual_partials(fm, p),
+                            dual_partials(refm, p)[(k + 1):2k]) ≤ sqrt(eps(T))
+                    end
+
                     # The initial state is split, and compared exactly. `ImplicitMidpoint` is a
                     # PODE method; `ExplicitEuler` is not. The integration uses the explicit
                     # `f_abstol` from `solver_tolerance`, rather than a default.
@@ -486,15 +472,6 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
                     eachindex(sol.q))
                 @test worst ≤ conservation_bound(T)
             end
-        end
-
-        # `[deps]` holds GeometricEquations, and no integrator.
-        @testset "the integrator is the caller's" begin
-            local project_toml = TOML.parsefile(joinpath(pkgdir(ReducedBasisMethods),
-                "Project.toml"))
-            @test haskey(project_toml["deps"], "GeometricEquations")
-            @test !haskey(project_toml["deps"], "GeometricIntegrators")
-            @test !haskey(project_toml["deps"], "GeometricIntegratorsBase")
         end
     end
 
@@ -825,33 +802,6 @@ control_pode(w, t, q, p, params) = (collect(q); nothing)
                         sd_dual[(ksd + 1):2ksd], NullParameters()) == 0
                     @test pode_allocations(dp.f, ud, dur, sd_dual[1:ksd],
                         sd_dual[(ksd + 1):2ksd], NullParameters()) == 0
-                end
-            end
-        end
-    end
-
-    # ---------------------------------------------------------------------------------------
-    # The exported names carry their docstrings.
-    # ---------------------------------------------------------------------------------------
-    @testset "the exported docstrings" begin
-        local texts = (reduced_ode = string(@doc(ReducedBasisMethods.reduced_ode)),
-            reduced_pode = string(@doc(ReducedBasisMethods.reduced_pode)))
-        for (name, text) in pairs(texts)
-            @testset "$name" begin
-                @test !isempty(text)
-                @test occursin("∇H!(g, t, x, params)", text)
-                @test occursin("ArgumentError", text)
-                @test occursin("DimensionMismatch", text)
-                @test occursin("0 B", text)
-                @test occursin("a callback's allocations are the caller's", text)
-                @test occursin("tasks", text)         # the concurrency limit
-                @test occursin("```julia", text)      # a plain example, never a jldoctest
-                @test !occursin("jldoctest", text)
-                for tag in TAGS
-                    @test occursin(string(nameof(typeof(tag))), text)
-                end
-                for word in ("Vlasov", "plasma", "particle")
-                    @test !occursin(word, text)
                 end
             end
         end

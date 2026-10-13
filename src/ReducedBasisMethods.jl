@@ -6,7 +6,6 @@ using LinearAlgebra
 using MultiIndexArrays: GridTensor, stencil_indices
 using ReducedComplexityModeling
 using GeometricEquations: ODEProblem, PODEProblem, NullParameters
-using LinearAlgebra: rmul!
 using ReducedComplexityModeling: read_parameters, save_parameters, _create_group
 import ReducedComplexityModeling: h5save, h5load, project
 
