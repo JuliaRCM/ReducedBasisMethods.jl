@@ -1,9 +1,13 @@
 """
-    _deim_indices(Ψ)
+    get_DEIM_indices(Ψ)
 
-The rows selected by the greedy DEIM algorithm (Algorithm 1 of
-[doi:10.1137/090766498](https://doi.org/10.1137/090766498)) on the basis `Ψ`, whose `N × k`
-columns are the basis vectors.
+Returns the `k` rows that the greedy DEIM algorithm (Algorithm 1 of
+[doi:10.1137/090766498](https://doi.org/10.1137/090766498)) selects on the basis `Ψ`, whose
+`N × k` columns are the basis vectors.
+
+This is the index form of [`get_DEIM_interpolation_matrix`](@ref): for
+`p = get_DEIM_indices(Ψ)` and `Π = get_DEIM_interpolation_matrix(Ψ)`, `Π' * A == A[p, :]` for
+every finite `N`-row matrix `A`, so `A[p, :]` evaluates `Π' * A` without forming `Π`.
 
 The index of column `i` is the row of the largest magnitude of the residual
 `r = Ψ[:, i] - Ψ[:, 1:i-1] * c`, where `c` solves the interpolation problem of the columns
@@ -15,7 +19,7 @@ is not both positive and finite — `ρ == 0` for a zero column or one exactly d
 ones before it, and `NaN` or `Inf` for a `NaN` or an `Inf` in `Ψ`. Every entry of a column
 enters that column's residual, so the test of each column covers the whole matrix.
 """
-function _deim_indices(Ψ::AbstractMatrix)
+function get_DEIM_indices(Ψ::AbstractMatrix)
     N, k = size(Ψ)
     k ≤ N || throw(ArgumentError(
         "the DEIM basis has $k columns but only $N rows, so k ≤ N is required"))
@@ -57,11 +61,11 @@ Calculates the DEIM interpolation matrix as described in Algorithm 1 in
 
 The input matrix Ψ holds the eigenvectors of the snapshot matrix fᵢ(xⱼ), 1 ≤ i ≤ N, 1 ≤ j ≤ k.
 Returns the `N × k` matrix `Π` whose column `i` is the unit vector of the row that
-[`_deim_indices`](@ref) selects for that column, so that `f(x) ≈ Ψ * inv(Π' * Ψ) * Π' * f(x)`.
+[`get_DEIM_indices`](@ref) selects for that column, so that `f(x) ≈ Ψ * inv(Π' * Ψ) * Π' * f(x)`.
 
 Its element type is `float(eltype(Ψ))`, so a `Float32` basis gives a `Float32` interpolation
 matrix. The selection, and with it the `ArgumentError` for `k > N` and for a column whose
-largest residual magnitude is not finite and positive, is [`_deim_indices`](@ref)'s.
+largest residual magnitude is not finite and positive, is [`get_DEIM_indices`](@ref)'s.
 
 ```jldoctest
 julia> using ReducedBasisMethods
@@ -74,7 +78,7 @@ julia> get_DEIM_interpolation_matrix([1 1; 2 -1])
 """
 function get_DEIM_interpolation_matrix(Ψ::AbstractMatrix)
     N, k = size(Ψ)
-    p = _deim_indices(Ψ)
+    p = get_DEIM_indices(Ψ)
     Π = zeros(float(eltype(Ψ)), N, k)
     for i in 1:k
         Π[p[i], i] = one(eltype(Π))

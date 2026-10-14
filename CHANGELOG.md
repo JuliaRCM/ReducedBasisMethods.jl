@@ -13,7 +13,28 @@ because a changelog assembled after the fact loses exactly the reasoning that ma
 keeping. The `[Unreleased]` target below is provisional — confirm it when the first entry is
 written.
 
-## [Unreleased] — targeting 0.3.0
+## [Unreleased] — targeting 0.2.2
+
+### New Features
+
+- **`spectrumplot` plots a reduced basis's spectrum, and `CairoMakie` joins `[weakdeps]` at
+  `"0.15"`.** `spectrumplot(σ::AbstractVector{<:Real}; title = "", resolution = (620, 380))` draws
+  `σ` against its index on a log10 axis, in `Float64`, and returns a `Makie.FigureAxisPlot`;
+  `save("spectrum.png", spectrumplot(σ))` writes it to a file. The values are drawn as given, never
+  squared or rooted, so `spectrumplot(b.Λ)` plots the Gram eigenvalues and a vector of singular
+  values plots as singular values. Every value below `eps(Float64) * maximum(σ)` is lifted onto
+  that floor, so the exact zeros of a rank-deficient snapshot and the round-off negatives of a Gram
+  spectrum stay visible on the axis. A `NaN`, an `Inf`, an empty spectrum and a spectrum with no
+  positive value each throw an `ArgumentError`. The method lives in the package extension
+  `ReducedBasisMethodsCairoMakieExt`: `src/diagnostics.jl` holds only a stub, so
+  `using ReducedBasisMethods` loads no plotting stack, and `spectrumplot` raises a `MethodError`
+  until `CairoMakie` is loaded.
+
+  The package's first `jldoctest` is in `get_DEIM_interpolation_matrix`. `Weave` leaves
+  `docs/make.jl` and `docs/Project.toml`, and `Plots` leaves `docs/Project.toml`: no page used
+  either.
+
+## [0.2.1] — 2026-10-14
 
 ### New Features
 
@@ -41,22 +62,11 @@ written.
   `GeometricIntegratorsBase` do not join `[deps]`: an integrator is the caller's, and the test
   dependencies supply one.
 
-- **`spectrumplot` plots a reduced basis's spectrum, and `CairoMakie` joins `[weakdeps]` at
-  `"0.15"`.** `spectrumplot(σ::AbstractVector{<:Real}; title = "", resolution = (620, 380))` draws
-  `σ` against its index on a log10 axis, in `Float64`, and returns a `Makie.FigureAxisPlot`;
-  `save("spectrum.png", spectrumplot(σ))` writes it to a file. The values are drawn as given, never
-  squared or rooted, so `spectrumplot(b.Λ)` plots the Gram eigenvalues and a vector of singular
-  values plots as singular values. Every value below `eps(Float64) * maximum(σ)` is lifted onto
-  that floor, so the exact zeros of a rank-deficient snapshot and the round-off negatives of a Gram
-  spectrum stay visible on the axis. A `NaN`, an `Inf`, an empty spectrum and a spectrum with no
-  positive value each throw an `ArgumentError`. The method lives in the package extension
-  `ReducedBasisMethodsCairoMakieExt`: `src/diagnostics.jl` holds only a stub, so
-  `using ReducedBasisMethods` loads no plotting stack, and `spectrumplot` raises a `MethodError`
-  until `CairoMakie` is loaded.
-
-  The package's first `jldoctest` is in `get_DEIM_interpolation_matrix`. `Weave` leaves
-  `docs/make.jl` and `docs/Project.toml`, and `Plots` leaves `docs/Project.toml`: no page used
-  either.
+- **`get_DEIM_indices(Ψ)` is exported.** It returns the `k` rows that the greedy DEIM algorithm
+  selects on the basis `Ψ`, and is the index form of `get_DEIM_interpolation_matrix`:
+  `Π' * A == A[p, :]` for `p = get_DEIM_indices(Ψ)`, so a caller samples the rows without forming
+  the `N × k` matrix `Π`. It was internal under another name; its selection and its
+  `ArgumentError`s are unchanged.
 
 ## [0.2.0] — 2026-10-12
 
