@@ -21,8 +21,8 @@ function save_png(fap)
 end
 
 "`FigureAxisPlot` keeps its series in its `plot` field, and `Lines` keeps its converted positional
-argument as one vector of points: the element type of those points is the precision the plot holds,
-and that is where the comparison of check 2 is made."
+argument as one vector of points: these helpers expose the values and their storage precision
+for exact comparison."
 plotted_y(fap) = [q[2] for q in fap.plot.positions[]]
 plotted_eltype(fap) = eltype(eltype(fap.plot.positions[]))
 
@@ -129,8 +129,8 @@ plotted_eltype(fap) = eltype(eltype(fap.plot.positions[]))
     end
 
     @testset "a spectrum finer than the plot stores is drawn in `Float64`" begin
-        # the plot stores `Float64`, and a spectrum finer than that is drawn in it: it is that
-        # widening which makes the comparisons above plain `Vector{Float64}` comparisons
+        # The BigFloat inputs are converted to the plot's Float64 storage before comparison;
+        # these dyadic values remain exactly representable.
         fap = render(big.([1.0, 0.5, 0.25]))
         @test plotted_eltype(fap) == Float64
         @test plotted_y(fap) == [1.0, 0.5, 0.25]

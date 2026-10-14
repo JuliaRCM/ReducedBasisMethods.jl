@@ -7,7 +7,7 @@ using TOML
 # greps the sources. Including it here keeps the two from drifting apart.
 include(joinpath(pkgdir(ReducedBasisMethods), "docs", "grep_physical_words.jl"))
 
-"How many `jldoctest` blocks the tree under `dir` holds."
+"How many files under `dir` contain at least one `jldoctest` block."
 function jldoctest_blocks(dir)
     count(file -> occursin("```jldoctest", read(file, String)),
         [joinpath(root, name) for (root, _, names) in walkdir(dir) for name in names])
@@ -33,8 +33,8 @@ end
     end
 
     @testset "the docs environment holds no Weave and no Plots" begin
-        # `docs/make.jl` no longer loads `Weave` and no page uses either, so the docs environment
-        # does not resolve them.
+        # Neither the docs build nor the manual uses Weave or Plots, so neither package
+        # belongs in the docs environment.
         @test isempty(intersect(["Plots", "Weave"],
             keys(TOML.parsefile(joinpath(root, "docs", "Project.toml"))["deps"])))
         @test !occursin("Weave", make)
@@ -50,8 +50,7 @@ end
     end
 
     @testset "the changelog names the extension and the function" begin
-        # check 6: one entry under the unreleased heading. `[Unreleased]` holds the entries of the
-        # parts that precede this one as well, so the section is cut at the next version heading.
+        # Search only the unreleased section, ending at the next version heading.
         changelog = read(joinpath(root, "CHANGELOG.md"), String)
         head = findfirst("## [Unreleased]", changelog)
         @test head !== nothing
