@@ -63,11 +63,6 @@ Its element type is `float(eltype(Ψ))`, so a `Float32` basis gives a `Float32` 
 matrix. The selection, and with it the `ArgumentError` for `k > N` and for a column whose
 largest residual magnitude is not finite and positive, is [`_deim_indices`](@ref)'s.
 
-Each column of `Π` is a unit vector, so the output is exact whatever the input: the `jldoctest`
-below prints the matrix itself rather than a rounded form of it. A column of `Ψ` that is an exact
-combination of the ones before it is refused instead — its residual is zero, which is the
-`ArgumentError` the note above names.
-
 ```jldoctest
 julia> using ReducedBasisMethods
 

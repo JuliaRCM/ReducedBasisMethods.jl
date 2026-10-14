@@ -1,9 +1,8 @@
 using ReducedBasisMethods
 using Documenter: DocMeta, doctest
-using Test
 
-# Run the package's docstring doctests, matching the CI Doctests job.
-# `manual = false` excludes manual doctests; `docs/make.jl` checks them during the build.
+# Run the package's docstring doctests. `manual = false` excludes the manual's doctests, which
+# `docs/make.jl` runs during the build.
 # Documenter evaluates page metadata in Main, so import the package there as well.
 @eval Main import ReducedBasisMethods
 

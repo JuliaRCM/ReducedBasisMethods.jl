@@ -42,32 +42,21 @@ written.
   dependencies supply one.
 
 - **`spectrumplot` plots a reduced basis's spectrum, and `CairoMakie` joins `[weakdeps]` at
-  `"0.15"`.** `spectrumplot(σ::AbstractVector{<:Real}; title, resolution)` draws a spectrum against
-  its index on a log-scaled axis and returns a `Makie.FigureAxisPlot`, whose `plot` field holds the
-  series, and `save(path, spectrumplot(σ))` writes it to a file. It accepts a singular-value or
-  eigenvalue spectrum, including the squared-singular-value (Gram) spectrum a `ReducedBasis`
-  stores in `b.Λ`, and draws the values as given, never squared and never rooted: an eigenvalue
-  spectrum from a Gram matrix `MᵀM` and a singular-value spectrum of `M` differ by a square, and
-  reading one as the other flatters the decay by a factor of two. The spectrum is drawn in
-  `Float64`, the precision the plot stores, and is lifted onto the floor `eps(Float64) *
-  maximum(σ)` first: an exact zero of a rank-deficient
-  snapshot, and the slightly negative eigenvalue the Gram route returns, belong on the axis rather
-  than below it. An empty spectrum, one holding a `NaN` or an `Inf`, and one holding no positive
-  value at all — which leaves a log-scaled axis no scale to draw on — each throw an
-  `ArgumentError`. The method lives in the package extension
-  `ReducedBasisMethodsCairoMakieExt`: `src/diagnostics.jl` holds the stub, so
-  `using ReducedBasisMethods` needs no plotting stack at all and `spectrumplot` raises the usual
-  `MethodError` until `CairoMakie` is loaded.
+  `"0.15"`.** `spectrumplot(σ::AbstractVector{<:Real}; title = "", resolution = (620, 380))` draws
+  `σ` against its index on a log10 axis, in `Float64`, and returns a `Makie.FigureAxisPlot`;
+  `save("spectrum.png", spectrumplot(σ))` writes it to a file. The values are drawn as given, never
+  squared or rooted, so `spectrumplot(b.Λ)` plots the Gram eigenvalues and a vector of singular
+  values plots as singular values. Every value below `eps(Float64) * maximum(σ)` is lifted onto
+  that floor, so the exact zeros of a rank-deficient snapshot and the round-off negatives of a Gram
+  spectrum stay visible on the axis. A `NaN`, an `Inf`, an empty spectrum and a spectrum with no
+  positive value each throw an `ArgumentError`. The method lives in the package extension
+  `ReducedBasisMethodsCairoMakieExt`: `src/diagnostics.jl` holds only a stub, so
+  `using ReducedBasisMethods` loads no plotting stack, and `spectrumplot` raises a `MethodError`
+  until `CairoMakie` is loaded.
 
-  `Aqua.test_all` now runs inside a `@testset` of its own, as check 4 asks, so each check carries
-  its own passes and failures in the suite's summary; `stale_deps`, `undefined_exports` and
-  `deps_compat` — the last of which now also holds `CairoMakie`'s `[compat]` entry — are among them.
-
-  The docs build sets `doctest = true`, `get_DEIM_interpolation_matrix` carries the package's
-  first `jldoctest`, `Weave` leaves `docs/make.jl` and `docs/Project.toml`, and `Plots` leaves
-  `docs/Project.toml`: no page used either. The build also greps its own output for a physical word
-  and fails on a match, so a name that reaches the site alone is red in the Documentation workflow
-  rather than published.
+  The package's first `jldoctest` is in `get_DEIM_interpolation_matrix`. `Weave` leaves
+  `docs/make.jl` and `docs/Project.toml`, and `Plots` leaves `docs/Project.toml`: no page used
+  either.
 
 ## [0.2.0] — 2026-10-12
 
