@@ -1,10 +1,10 @@
-module ReducedBasisMethodsCairoMakieExt
+module ReducedBasisMethodsMakieExt
 
-using CairoMakie
+using Makie
 using ReducedBasisMethods
 
 function ReducedBasisMethods.spectrumplot(σ::AbstractVector{<:Real};
-        title = "", resolution = (620, 380))
+        title = "", ylabel = "", size = (620, 380))
     all(isfinite, σ) || throw(ArgumentError("the spectrum holds a NaN or an Inf"))
     any(>(0), σ) || throw(ArgumentError("the spectrum holds no positive value"))
 
@@ -12,8 +12,8 @@ function ReducedBasisMethods.spectrumplot(σ::AbstractVector{<:Real};
     # round-off negatives of a Gram spectrum, so every value below the floor is lifted onto it.
     y = max.(Float64.(σ), eps(Float64) * Float64(maximum(σ)))
 
-    return lines(y; figure = (; size = resolution),
-        axis = (; title, titlealign = :left, xlabel = "i", yscale = log10))
+    return lines(y; figure = (; size),
+        axis = (; title, titlealign = :left, xlabel = "i", ylabel, yscale = log10))
 end
 
 end

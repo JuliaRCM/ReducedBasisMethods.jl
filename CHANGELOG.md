@@ -17,22 +17,17 @@ written.
 
 ### New Features
 
-- **`spectrumplot` plots a reduced basis's spectrum, and `CairoMakie` joins `[weakdeps]` at
-  `"0.15"`.** `spectrumplot(σ::AbstractVector{<:Real}; title = "", resolution = (620, 380))` draws
-  `σ` against its index on a log10 axis, in `Float64`, and returns a `Makie.FigureAxisPlot`;
-  `save("spectrum.png", spectrumplot(σ))` writes it to a file. The values are drawn as given, never
-  squared or rooted, so `spectrumplot(b.Λ)` plots the Gram eigenvalues and a vector of singular
-  values plots as singular values. Every value below `eps(Float64) * maximum(σ)` is lifted onto
-  that floor, so the exact zeros of a rank-deficient snapshot and the round-off negatives of a Gram
-  spectrum stay visible on the axis. A `NaN`, an `Inf`, an empty spectrum and a spectrum with no
-  positive value each throw an `ArgumentError`. The method lives in the package extension
-  `ReducedBasisMethodsCairoMakieExt`: `src/diagnostics.jl` holds only a stub, so
-  `using ReducedBasisMethods` loads no plotting stack, and `spectrumplot` raises a `MethodError`
-  until `CairoMakie` is loaded.
+- **`spectrumplot` draws a reduced basis's spectrum, and `Makie` joins `[weakdeps]`, at `"0.24"`.**
+  `spectrumplot(σ::AbstractVector{<:Real}; title = "", ylabel = "", size = (620, 380))` draws `σ`
+  against its index on a log10 axis and returns a `Makie.FigureAxisPlot`. It lives in the extension
+  `ReducedBasisMethodsMakieExt`, which loads with `Makie`, so without `Makie` the call is a
+  `MethodError`; `save` needs a backend such as `CairoMakie`.
 
-  The package's first `jldoctest` is in `get_DEIM_interpolation_matrix`. `Weave` leaves
-  `docs/make.jl` and `docs/Project.toml`, and `Plots` leaves `docs/Project.toml`: no page used
-  either.
+### Changed
+
+- **The docs environment drops `Weave` and `Plots`, and `get_DEIM_interpolation_matrix` carries a
+  `jldoctest`.** No page used either package. This is the only `jldoctest` in the package;
+  `test/quality/doctests.jl` runs it in the `doctests` group.
 
 ## [0.2.1] — 2026-10-14
 
