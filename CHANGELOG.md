@@ -63,10 +63,10 @@ written.
   `deps_compat` — the last of which now also holds `CairoMakie`'s `[compat]` entry — are among them.
 
   The docs build sets `doctest = true`, `get_DEIM_interpolation_matrix` carries the package's
-  first `jldoctest`, and `Weave` and `Plots` leave both `docs/make.jl` and `docs/Project.toml`: no
-  page used either. The build also greps its own output for a physical word and fails on a match,
-  so a name that reaches the site alone is red in the Documentation workflow rather than
-  published.
+  first `jldoctest`, `Weave` leaves `docs/make.jl` and `docs/Project.toml`, and `Plots` leaves
+  `docs/Project.toml`: no page used either. The build also greps its own output for a physical word
+  and fails on a match, so a name that reaches the site alone is red in the Documentation workflow
+  rather than published.
 
 ## [0.2.0] — 2026-10-12
 
