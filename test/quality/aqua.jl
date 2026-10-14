@@ -8,9 +8,8 @@ using Test
 # structurally unable to see — it exercises behaviour, and every one of them is a property of the
 # package as a whole.
 #
-# `Aqua.test_all` is called inside a testset of its own on purpose. It adds no enclosing testset, so
-# a bare call at file scope records none of the passes of the checks it runs and prints the same
-# silence whichever of them goes red.
+# Check 4 asks for the call inside a `@testset`, so each check's own passes and failures carry a
+# name and a line in the suite's summary instead of one anonymous failure in the run's output.
 aqua = @testset "Aqua" begin
     Aqua.test_all(ReducedBasisMethods)
 end

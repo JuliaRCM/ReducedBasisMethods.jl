@@ -41,7 +41,7 @@ using TOML
         println("STUB=", error isa MethodError)
     end
     """
-    output = String(read(setenv(
+    output = String(read(addenv(
         `$(Base.julia_cmd()) --startup-file=no --color=no -e $code`,
         "JULIA_LOAD_PATH" => "@:@stdlib")))
     reported = Dict(strip.(split(l, '='; limit = 2))

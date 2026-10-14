@@ -43,26 +43,30 @@ written.
 
 - **`spectrumplot` plots a reduced basis's spectrum, and `CairoMakie` joins `[weakdeps]` at
   `"0.15"`.** `spectrumplot(σ::AbstractVector{<:Real}; title, resolution)` draws a spectrum against
-  its index on a log-scaled axis and returns a `Makie.Figure`. It is the singular-value or
+  its index on a log-scaled axis and returns a `Makie.FigureAxisPlot`, whose `plot` field holds the
+  series, and `save(path, spectrumplot(σ))` writes it to a file. It is the singular-value or
   eigenvalue spectrum a `ReducedBasis` stores in `b.Λ`, so it draws the values as they are given,
   never squared and never rooted: an eigenvalue spectrum from a Gram matrix `MᵀM` and a
   singular-value spectrum of `M` differ by a square, and reading one as the other flatters the
-  decay by a factor of two. A value at or below zero — an exact zero of a rank-deficient snapshot,
-  or the slightly negative eigenvalue the Gram route returns — is lifted to the floor
-  `eps(T) * maximum(σ)`, taken in the spectrum's own precision, so a log-scaled axis draws the
-  whole spectrum. An empty spectrum, and one holding a `NaN` or an `Inf`, throws an
+  decay by a factor of two. The spectrum is drawn in `Float64`, the precision the plot stores, and
+  is lifted onto the floor `eps(Float64) * maximum(σ)` first: an exact zero of a rank-deficient
+  snapshot, and the slightly negative eigenvalue the Gram route returns, belong on the axis rather
+  than below it. An empty spectrum, one holding a `NaN` or an `Inf`, and one holding no positive
+  value at all — which leaves a log-scaled axis no scale to draw on — each throw an
   `ArgumentError`. The method lives in the package extension
   `ReducedBasisMethodsCairoMakieExt`: `src/diagnostics.jl` holds the stub, so
   `using ReducedBasisMethods` needs no plotting stack at all and `spectrumplot` raises the usual
   `MethodError` until `CairoMakie` is loaded.
 
-  `Aqua.test_all` now runs inside a `@testset` of its own, which is what makes the passes of its
-  checks visible in the suite's summary; `stale_deps`, `undefined_exports` and `deps_compat` — the
-  last of which now also holds `CairoMakie`'s `[compat]` entry — are among them.
+  `Aqua.test_all` now runs inside a `@testset` of its own, as check 4 asks, so each check carries
+  its own passes and failures in the suite's summary; `stale_deps`, `undefined_exports` and
+  `deps_compat` — the last of which now also holds `CairoMakie`'s `[compat]` entry — are among them.
 
   The docs build sets `doctest = true`, `get_DEIM_interpolation_matrix` carries the package's
   first `jldoctest`, and `Weave` and `Plots` leave both `docs/make.jl` and `docs/Project.toml`: no
-  page used either.
+  page used either. The build also greps its own output for a physical word and fails on a match,
+  so a name that reaches the site alone is red in the Documentation workflow rather than
+  published.
 
 ## [0.2.0] — 2026-10-12
 
