@@ -1,10 +1,5 @@
 using ReducedBasisMethods
 using Documenter
-using Weave
-
-# weave("src/poisson.jmd",
-#          out_path = "src",
-#          doctype = "github")
 
 makedocs(;
     modules = [ReducedBasisMethods],

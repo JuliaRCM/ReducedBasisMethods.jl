@@ -11,10 +11,17 @@ MultiIndexArrays = "2f7e0951-2673-41f4-a6a8-e6772a4b2a08"
 ReducedComplexityModeling = "abb4722c-1d8e-48eb-a3bd-45b3116bfaba"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
+[weakdeps]
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+
+[extensions]
+ReducedBasisMethodsMakieExt = "Makie"
+
 [compat]
 GeometricEquations = "0.21"
 HDF5 = "0.16, 0.17"
 LinearAlgebra = "1"
+Makie = "0.24"
 MultiIndexArrays = "0.1.2"
 ReducedComplexityModeling = "0.1.1"
 Statistics = "1"

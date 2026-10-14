@@ -39,6 +39,10 @@ include("reduced_equations.jl")
 
 export reduced_ode, reduced_pode
 
+include("diagnostics.jl")
+
+export spectrumplot
+
 export h5save, h5load
 
 include("reduced_tensor.jl")

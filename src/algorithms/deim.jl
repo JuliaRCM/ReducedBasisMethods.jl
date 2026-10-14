@@ -66,6 +66,15 @@ Returns the `N × k` matrix `Π` whose column `i` is the unit vector of the row 
 Its element type is `float(eltype(Ψ))`, so a `Float32` basis gives a `Float32` interpolation
 matrix. The selection, and with it the `ArgumentError` for `k > N` and for a column whose
 largest residual magnitude is not finite and positive, is [`get_DEIM_indices`](@ref)'s.
+
+```jldoctest
+julia> using ReducedBasisMethods
+
+julia> get_DEIM_interpolation_matrix([1 1; 2 -1])
+2×2 Matrix{Float64}:
+ 0.0  1.0
+ 1.0  0.0
+```
 """
 function get_DEIM_interpolation_matrix(Ψ::AbstractMatrix)
     N, k = size(Ψ)

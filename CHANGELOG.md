@@ -13,6 +13,22 @@ because a changelog assembled after the fact loses exactly the reasoning that ma
 keeping. The `[Unreleased]` target below is provisional — confirm it when the first entry is
 written.
 
+## [Unreleased] — targeting 0.2.2
+
+### New Features
+
+- **`spectrumplot` draws a reduced basis's spectrum, and `Makie` joins `[weakdeps]`, at `"0.24"`.**
+  `spectrumplot(σ::AbstractVector{<:Real}; title = "", ylabel = "", size = (620, 380))` draws `σ`
+  against its index on a log10 axis and returns a `Makie.FigureAxisPlot`. It lives in the extension
+  `ReducedBasisMethodsMakieExt`, which loads with `Makie`, so without `Makie` the call is a
+  `MethodError`; `save` needs a backend such as `CairoMakie`.
+
+### Changed
+
+- **The docs environment drops `Weave` and `Plots`, and `get_DEIM_interpolation_matrix` carries a
+  `jldoctest`.** No page used either package. This is the only `jldoctest` in the package;
+  `test/quality/doctests.jl` runs it in the `doctests` group.
+
 ## [0.2.1] — 2026-10-14
 
 ### New Features
