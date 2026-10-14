@@ -7,7 +7,7 @@ Returns the `k` rows that the greedy DEIM algorithm (Algorithm 1 of
 
 This is the index form of [`get_DEIM_interpolation_matrix`](@ref): for
 `p = get_DEIM_indices(Ψ)` and `Π = get_DEIM_interpolation_matrix(Ψ)`, `Π' * A == A[p, :]` for
-every `N`-row matrix `A`, so `A[p, :]` evaluates `Π' * A` without forming `Π`.
+every finite `N`-row matrix `A`, so `A[p, :]` evaluates `Π' * A` without forming `Π`.
 
 The index of column `i` is the row of the largest magnitude of the residual
 `r = Ψ[:, i] - Ψ[:, 1:i-1] * c`, where `c` solves the interpolation problem of the columns

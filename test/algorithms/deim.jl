@@ -173,7 +173,7 @@ end
 end
 
 @testset "indices are the index form of the interpolation matrix" begin
-    # Π' * A samples the rows of A that get_DEIM_indices selects, for any basis and any A.
+    # Π' * A samples the rows of A that get_DEIM_indices selects, for any basis and any finite A.
     for T in (Float32, Float64)
         rng = Xoshiro(7)
         Ψ = Matrix(qr(randn(rng, T, 50, 8)).Q)
