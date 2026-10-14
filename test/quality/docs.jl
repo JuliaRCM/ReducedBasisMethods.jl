@@ -2,46 +2,34 @@ using ReducedBasisMethods
 using Test
 using TOML
 
-# The words a generic package must not write: ReducedBasisMethods knows no model, so a physical
-# word in its sources or its documentation is a physical example that does not belong to it (T7.15,
-# section 3.6 of the plan).
-const FORBIDDEN = r"vlasov|plasma|particle"i
-
-"Every file of the tree, recursively, in sorted order."
-function walkfiles(dir)
-    isdir(dir) || return String[]
-    files = String[]
-    for (root, _, names) in walkdir(dir)
-        append!(files, joinpath.(root, names))
-    end
-    return sort!(files)
-end
-
-"Every file under `dir` whose text holds one of `FORBIDDEN`, as paths relative to `dir`."
-function forbidden_files(dir)
-    return String[relpath(p, dir)
-                  for p in walkfiles(dir)
-                  if isfile(p) && occursin(FORBIDDEN, String(read(p)))]
-end
+# The words a generic package must not write, and the search over a tree that holds them, are
+# defined once for the package and used twice: `docs/make.jl` greps the site it builds, this file
+# greps the sources. Including it here keeps the two from drifting apart.
+include(joinpath(pkgdir(ReducedBasisMethods), "docs", "grep_physical_words.jl"))
 
 "How many `jldoctest` blocks the tree under `dir` holds."
 function jldoctest_blocks(dir)
-    count(p -> occursin("```jldoctest", String(read(p))), walkfiles(dir))
+    count(file -> occursin("```jldoctest", read(file, String)),
+        [joinpath(root, name) for (root, _, names) in walkdir(dir) for name in names])
 end
 
 @testset "Docs and changelog" begin
     root = pkgdir(ReducedBasisMethods)
+    make = read(joinpath(root, "docs", "make.jl"), String)
 
-    @testset "no physical word in `src`, `docs/src` or the built docs" begin
-        # check 5, on the sources and the manual. `CHANGELOG.md` and `reference/` may name the
-        # model, and are left out on purpose.
-        for dir in ("src", "docs/src")
-            @test isempty(forbidden_files(joinpath(root, dir)))
+    @testset "no physical word in the sources or the build's configuration" begin
+        # check 5, on the sources, the manual and the build's own configuration: `sitename`,
+        # `authors` and the page titles are the words that reach the site and appear nowhere else,
+        # and `docs/make.jl` is where they are written. `CHANGELOG.md` and `reference/` may name
+        # the model, and are left out on purpose.
+        for path in ("src", "docs/src", "docs/make.jl")
+            @test isempty(forbidden_files(joinpath(root, path)))
         end
-        # the built site is searched where it exists: `docs/build` is a build artefact, so a run
-        # that has built no docs searches nothing and the build itself is the evidence
-        build = joinpath(root, "docs", "build")
-        isdir(build) && @test isempty(forbidden_files(build))
+        # What the build itself renders is grepped by the build, once the site exists: the grep of
+        # its `build` runs after `makedocs` and fails the Documentation workflow, so the assertion
+        # is that the build holds that grep rather than a repeat of it here.
+        @test occursin(r"""forbidden_files\(joinpath\(@__DIR__, "build"\)\)""", make)
+        @test occursin(r"""isempty\(forbidden\)\s*\|\|\s*error\(""", make)
     end
 
     @testset "the docs environment holds no Weave and no Plots" begin
@@ -49,7 +37,6 @@ end
         # does not resolve them.
         @test isempty(intersect(["Plots", "Weave"],
             keys(TOML.parsefile(joinpath(root, "docs", "Project.toml"))["deps"])))
-        make = read(joinpath(root, "docs", "make.jl"), String)
         @test !occursin("Weave", make)
         @test !occursin("Plots", make)
         @test occursin("doctest = true", make)
