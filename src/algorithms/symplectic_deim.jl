@@ -31,7 +31,7 @@ supported.
 Throws an `ArgumentError` where `m > M`, and for a column of the density basis `U` whose largest
 DEIM residual magnitude `ρ` is not both positive and finite: `ρ == 0` where the column is zero
 or exactly dependent on the ones before it, and `ρ` is `NaN` or `Inf` where the column holds a
-`NaN` or an `Inf`. [`_deim_indices`](@ref) is the check.
+`NaN` or an `Inf`. [`get_DEIM_indices`](@ref) is the check.
 """
 struct SymplecticDEIM{T, AT <: AbstractMatrix, ST, HT, GT}
     A::AT
@@ -49,7 +49,7 @@ function SymplecticDEIM(
 
     # The weights express the sum of the DEIM-interpolated densities using sampled values:
     # 𝟙ᵀU(ΠᵀU)⁻¹Πᵀh = wᵀh[p].
-    p = _deim_indices(U)
+    p = get_DEIM_indices(U)
     w = convert(Vector{T}, (U[p, :])' \ (U' * ones(T, size(U, 1))))
 
     # `L̃ = Aᵀ·sym(L)·A`, symmetrised once more after the product, so that the Jacobian of the
@@ -123,7 +123,7 @@ the write reads 0 B, and anything a callback allocates is the caller's.
 The write gives no guarantee for an aliased array: `g` and `z` must be distinct, because the
 quadratic part is written with `mul!`, which requires its output and its input to differ.
 
-The constructor validates the density basis through [`_deim_indices`](@ref): `m > M`, and a
+The constructor validates the density basis through [`get_DEIM_indices`](@ref): `m > M`, and a
 column whose largest DEIM residual magnitude is zero or non-finite, raise `ArgumentError`.
 This write propagates errors from array operations and callbacks. A `NaN` or an `Inf` in `z`,
 or from `∇h`, enters `g` with no check.
