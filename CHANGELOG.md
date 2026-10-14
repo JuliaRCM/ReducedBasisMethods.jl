@@ -41,6 +41,12 @@ written.
   `GeometricIntegratorsBase` do not join `[deps]`: an integrator is the caller's, and the test
   dependencies supply one.
 
+- **`get_DEIM_indices(Ψ)` is exported.** It returns the `k` rows that the greedy DEIM algorithm
+  selects on the basis `Ψ`, and is the index form of `get_DEIM_interpolation_matrix`:
+  `Π' * A == A[p, :]` for `p = get_DEIM_indices(Ψ)`, so a caller samples the rows without forming
+  the `N × k` matrix `Π`. It was internal under another name; its selection and its
+  `ArgumentError`s are unchanged.
+
 ## [0.2.0] — 2026-10-12
 
 ### New Features

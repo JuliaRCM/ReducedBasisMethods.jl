@@ -3,7 +3,6 @@ using GeometricIntegrators
 using LinearAlgebra
 using Random
 using ReducedBasisMethods
-using ReducedBasisMethods: _deim_indices
 using ReducedComplexityModeling: Parameter, ParameterSpace
 using Test
 
@@ -178,7 +177,7 @@ end
         # At m = M the interpolation is exact for the densities: w = 𝟙 and H̃(z) = H(Az).
         sd = SymplecticDEIM(b.A, b.L, U, stencil_test, h_test, ∇h_test)
 
-        @test _deim_indices(U) != 1:NQ
+        @test get_DEIM_indices(U) != 1:NQ
         @test norm(sd.w .- one(T), Inf) ≤ sqrt(eps(T))
 
         for z in eachslice(randn(Xoshiro(4), T, 2KT, 20); dims = 2)
@@ -213,7 +212,7 @@ end
         ∇hᵢ(xs, i) = [(1 + i / NQ) * sin(xs[1])]
         sdᵢ = SymplecticDEIM(b.A, b.L, U, stencil_test, hᵢ, ∇hᵢ)
 
-        @test _deim_indices(U) != 1:NQ
+        @test get_DEIM_indices(U) != 1:NQ
 
         for z in eachslice(randn(Xoshiro(5), T, 2KT, 20); dims = 2)
             Az = b.A * z
