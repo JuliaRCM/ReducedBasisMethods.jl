@@ -44,12 +44,13 @@ written.
 - **`spectrumplot` plots a reduced basis's spectrum, and `CairoMakie` joins `[weakdeps]` at
   `"0.15"`.** `spectrumplot(σ::AbstractVector{<:Real}; title, resolution)` draws a spectrum against
   its index on a log-scaled axis and returns a `Makie.FigureAxisPlot`, whose `plot` field holds the
-  series, and `save(path, spectrumplot(σ))` writes it to a file. It is the singular-value or
-  eigenvalue spectrum a `ReducedBasis` stores in `b.Λ`, so it draws the values as they are given,
-  never squared and never rooted: an eigenvalue spectrum from a Gram matrix `MᵀM` and a
-  singular-value spectrum of `M` differ by a square, and reading one as the other flatters the
-  decay by a factor of two. The spectrum is drawn in `Float64`, the precision the plot stores, and
-  is lifted onto the floor `eps(Float64) * maximum(σ)` first: an exact zero of a rank-deficient
+  series, and `save(path, spectrumplot(σ))` writes it to a file. It accepts a singular-value or
+  eigenvalue spectrum, including the squared-singular-value (Gram) spectrum a `ReducedBasis`
+  stores in `b.Λ`, and draws the values as given, never squared and never rooted: an eigenvalue
+  spectrum from a Gram matrix `MᵀM` and a singular-value spectrum of `M` differ by a square, and
+  reading one as the other flatters the decay by a factor of two. The spectrum is drawn in
+  `Float64`, the precision the plot stores, and is lifted onto the floor `eps(Float64) *
+  maximum(σ)` first: an exact zero of a rank-deficient
   snapshot, and the slightly negative eigenvalue the Gram route returns, belong on the axis rather
   than below it. An empty spectrum, one holding a `NaN` or an `Inf`, and one holding no positive
   value at all — which leaves a log-scaled axis no scale to draw on — each throw an
