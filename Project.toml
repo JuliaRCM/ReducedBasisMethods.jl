@@ -11,7 +11,14 @@ MultiIndexArrays = "2f7e0951-2673-41f4-a6a8-e6772a4b2a08"
 ReducedComplexityModeling = "abb4722c-1d8e-48eb-a3bd-45b3116bfaba"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
+[weakdeps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+
+[extensions]
+ReducedBasisMethodsCairoMakieExt = "CairoMakie"
+
 [compat]
+CairoMakie = "0.15"
 GeometricEquations = "0.21"
 HDF5 = "0.16, 0.17"
 LinearAlgebra = "1"
