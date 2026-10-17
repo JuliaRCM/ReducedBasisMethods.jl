@@ -13,7 +13,11 @@ because a changelog assembled after the fact loses exactly the reasoning that ma
 keeping. The `[Unreleased]` target below is provisional — confirm it when the first entry is
 written.
 
-## [Unreleased] — targeting 0.2.2
+## [0.2.2] — 2026-10-17
+
+A new drawing function for a reduced basis's spectrum, in a `Makie` extension. Nothing existing
+changes shape, so this is a patch release; it adds a weak dependency, so a user who already loads
+`Makie` gains one method and everyone else is unaffected.
 
 ### New Features
 
