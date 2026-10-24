@@ -19,7 +19,7 @@ ReducedBasisMethodsMakieExt = "Makie"
 
 [compat]
 GeometricEquations = "0.21"
-HDF5 = "0.16, 0.17"
+HDF5 = "0.16.15, 0.17"
 LinearAlgebra = "1"
 Makie = "0.24"
 MultiIndexArrays = "0.1.2"
