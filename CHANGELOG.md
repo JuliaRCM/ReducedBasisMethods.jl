@@ -13,6 +13,18 @@ because a changelog assembled after the fact loses exactly the reasoning that ma
 keeping. The `[Unreleased]` target below is provisional — confirm it when the first entry is
 written.
 
+## [Unreleased] — targeting 0.3.0
+
+### Changed
+
+- **Julia 1.12 is the floor** (`[compat] julia = "1.12"`, from 1.11). A breaking change under
+  this package's pre-1.0 convention: a caller on Julia 1.11 can no longer install this version.
+  Nothing in the package's code changes, and no workaround for the older floor existed to delete.
+
+- **The `HDF5` lower bound rises from `0.16.0` to `0.16.15`.** `HDF5` is `"0.16.15, 0.17"` now.
+  The `Downgrade` job resolves every lower bound at once and reported `HDF5` as unreachable at
+  `0.16.0`; it failed the same way on `main` before the raise, so the old bound was already false.
+
 ## [0.2.2] — 2026-10-17
 
 A new drawing function for a reduced basis's spectrum, in a `Makie` extension. Nothing existing
