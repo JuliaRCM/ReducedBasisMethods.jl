@@ -6,12 +6,24 @@ This package is pre-1.0, so *every* minor release is potentially breaking in the
 [SemVer](https://semver.org) for `0.x` versions. The sections below name what actually
 changed, so that a compat-only bump can be told apart from a rename or a change in results.
 
-This file was started on 2026-08-31 and deliberately holds no entries. 2 versions were
-released before it, the most recent `v0.1.0`, and neither is written up here: the record of
-that history is `git log` and the tags. It is named as a gap rather than reconstructed,
-because a changelog assembled after the fact loses exactly the reasoning that makes it worth
-keeping. The `[Unreleased]` target below is provisional — confirm it when the first entry is
-written.
+This file was started on 2026-08-31. 2 versions were released before it, the most recent
+`v0.1.0`, and neither is written up here: the record of that history is `git log` and the
+tags. It is named as a gap rather than reconstructed, because a changelog assembled after the
+fact loses exactly the reasoning that makes it worth keeping. Every release from `v0.2.0` on
+is written up below, newest first.
+
+## [Unreleased] — targeting 0.3.0
+
+### Breaking Changes
+
+- **`get_regression_αβ` is removed, with `find_maxima` and `src/regression.jl`.** The fit of a
+  growth rate from a Vlasov run belongs to the model that runs it, and this package holds no
+  model. `VlasovMethods` computes the growth rate itself, as `growth_rate`; code that called
+  `get_regression_αβ` has to fit its own.
+
+- **`Statistics` leaves `[deps]` and `[compat]`.** Its one use was the `using` line of the
+  deleted regression file: no other file of `src/` named it, and `[compat]` bounded it only
+  because it was a dependency.
 
 ## [0.2.3] — 2026-10-24
 

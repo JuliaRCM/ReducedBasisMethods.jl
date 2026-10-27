@@ -11,10 +11,6 @@ import ReducedComplexityModeling: h5save, h5load, project
 
 include("utils.jl")
 
-include("regression.jl")
-
-export get_regression_αβ
-
 include("reducedbasis.jl")
 
 include("algorithms/svd.jl")
