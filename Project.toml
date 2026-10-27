@@ -1,6 +1,6 @@
 name = "ReducedBasisMethods"
 uuid = "91da5cd7-58ae-4d67-87db-f03d1c8da121"
-version = "0.2.3"
+version = "0.3.0"
 authors = ["Michael Kraus"]
 
 [deps]
