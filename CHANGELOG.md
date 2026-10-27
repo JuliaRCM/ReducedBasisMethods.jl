@@ -21,9 +21,9 @@ is written up below, newest first.
   model. `VlasovMethods` computes the growth rate itself, as `growth_rate`; code that called
   `get_regression_αβ` has to fit its own.
 
-- **`Statistics` leaves `[deps]` and `[compat]`.** Its one use was the `using` line of the
-  deleted regression file: no other file of `src/` named it, and `[compat]` bounded it only
-  because it was a dependency.
+- **`Statistics` leaves `[deps]` and `[compat]`.** Its only user was the deleted regression
+  file, which called `cov`, `var` and `mean` through it. No other file of `src/` named it, and
+  `[compat]` bounded it only because it was a dependency.
 
 ## [0.2.3] — 2026-10-24
 
