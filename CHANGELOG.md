@@ -12,6 +12,17 @@ tags. It is named as a gap rather than reconstructed, because a changelog assemb
 fact loses exactly the reasoning that makes it worth keeping. Every release from `v0.2.0` on
 is written up below, newest first.
 
+## [Unreleased] — targeting 0.3.1
+
+### Changed
+
+- **`ReducedComplexityModeling` is `"0.5"`**, from `"0.1.1"`. This package reads `ParameterSpace`,
+  `project`, `h5save`, `h5load`, `save_parameters`, `read_parameters` and `_create_group` from it,
+  its tests also `Parameter`, and the suite passes on 0.5. ReducedComplexityModeling 0.5 requires
+  `AbstractNeuralNetworks` 0.9.1, `GeometricBase` 0.15 and Julia 1.12, so an environment that holds
+  ReducedComplexityModeling 0.1–0.4 no longer resolves this release. No function of this package
+  changes.
+
 ## [0.3.0] — 2026-10-27
 
 ### Breaking Changes
