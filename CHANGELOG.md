@@ -12,25 +12,28 @@ tags. It is named as a gap rather than reconstructed, because a changelog assemb
 fact loses exactly the reasoning that makes it worth keeping. Every release from `v0.2.0` on
 is written up below, newest first.
 
-## [Unreleased] — targeting 0.3.1
+## [Unreleased] — targeting 0.4.0
 
-### Changed
+### Breaking Changes
 
 - **`ReducedComplexityModeling` is `"0.5"`**, from `"0.1.1"`. This package reads `ParameterSpace`,
   `project`, `h5save`, `h5load`, `save_parameters`, `read_parameters` and `_create_group` from it,
   its tests also `Parameter`, and the suite passes on 0.5. ReducedComplexityModeling 0.5 requires
   `AbstractNeuralNetworks` 0.9.1, `GeometricBase` 0.15 and Julia 1.12, so an environment that holds
-  ReducedComplexityModeling 0.1 does not resolve this release.
+  ReducedComplexityModeling 0.1 does not resolve this release. `ReducedBasis` takes a
+  ReducedComplexityModeling `ParameterSpace`, and `h5save` and `h5load` are that package's generics,
+  so a caller moves across its breaking releases 0.2 to 0.5 with this one.
 
 - **The floors of `GeometricEquations` and `HDF5` rise with it.** `GeometricEquations` is `"0.21.5"`,
   from `"0.21"`, and `HDF5` is `"0.17"`, from `"0.16.15, 0.17"`. ReducedComplexityModeling 0.5
   requires GeometricEquations 0.21.5 and GeometricSolutions 0.6.6, and every GeometricSolutions
-  release from 0.6.6 on requires HDF5 0.17, so the old floors could not be resolved with it.
+  release from 0.6.6 on bounds HDF5 to 0.17, so the old floors could not be resolved with it.
 
 - **An HDF5 round trip of a `ReducedBasis` keeps the order of its parameters.**
   `h5load(ReducedBasis, file)` returns `parameters` and the keys of `paramspace` in the order that
   `h5save` wrote them. With ReducedComplexityModeling 0.1 they came back in alphabetical order, so
-  `==` and positional destructuring of a loaded basis can give a different result. A file that 0.3.0
+  `==` on its `parameters` or `paramspace`, positional destructuring of `parameters`, and the type
+  of a loaded basis differ from 0.3.0 when the keys are not in alphabetical order. A file that 0.3.0
   wrote still loads, with its keys in alphabetical order.
 
 ## [0.3.0] — 2026-10-27
