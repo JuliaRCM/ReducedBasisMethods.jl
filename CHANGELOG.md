@@ -20,8 +20,18 @@ is written up below, newest first.
   `project`, `h5save`, `h5load`, `save_parameters`, `read_parameters` and `_create_group` from it,
   its tests also `Parameter`, and the suite passes on 0.5. ReducedComplexityModeling 0.5 requires
   `AbstractNeuralNetworks` 0.9.1, `GeometricBase` 0.15 and Julia 1.12, so an environment that holds
-  ReducedComplexityModeling 0.1–0.4 no longer resolves this release. No function of this package
-  changes.
+  ReducedComplexityModeling 0.1 does not resolve this release.
+
+- **The floors of `GeometricEquations` and `HDF5` rise with it.** `GeometricEquations` is `"0.21.5"`,
+  from `"0.21"`, and `HDF5` is `"0.17"`, from `"0.16.15, 0.17"`. ReducedComplexityModeling 0.5
+  requires GeometricEquations 0.21.5 and GeometricSolutions 0.6.6, and every GeometricSolutions
+  release from 0.6.6 on requires HDF5 0.17, so the old floors could not be resolved with it.
+
+- **An HDF5 round trip of a `ReducedBasis` keeps the order of its parameters.**
+  `h5load(ReducedBasis, file)` returns `parameters` and the keys of `paramspace` in the order that
+  `h5save` wrote them. With ReducedComplexityModeling 0.1 they came back in alphabetical order, so
+  `==` and positional destructuring of a loaded basis can give a different result. A file that 0.3.0
+  wrote still loads, with its keys in alphabetical order.
 
 ## [0.3.0] — 2026-10-27
 

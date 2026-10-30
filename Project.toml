@@ -17,8 +17,8 @@ Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 ReducedBasisMethodsMakieExt = "Makie"
 
 [compat]
-GeometricEquations = "0.21"
-HDF5 = "0.16.15, 0.17"
+GeometricEquations = "0.21.5"
+HDF5 = "0.17"
 LinearAlgebra = "1"
 Makie = "0.24"
 MultiIndexArrays = "0.1.2"
