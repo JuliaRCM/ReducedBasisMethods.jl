@@ -12,6 +12,16 @@ tags. It is named as a gap rather than reconstructed, because a changelog assemb
 fact loses exactly the reasoning that makes it worth keeping. Every release from `v0.2.0` on
 is written up below, newest first.
 
+## [Unreleased] — targeting 0.4.1
+
+### Changed
+
+- **The allocation readings of `ReducedTensor` are taken only where the runner does not instrument
+  coverage**, as the other `== 0` readings of the suite are. The `== 0` readings of `getindex` and
+  `copyto!` and their `> 0` control in `test/reduced_tensor.jl` sit behind
+  `Base.JLOptions().code_coverage == 0`, because coverage instrumentation allocates on its own
+  account. Tests only; nothing in the package changes.
+
 ## [0.4.0] — 2026-10-30
 
 ### Breaking Changes

@@ -225,9 +225,14 @@ allocations(f::F, a::A, b::B) where {F, A, B} = (f(a, b); @allocated f(a, b))
             local gt = neighbourhood_tensor(Xoshiro(1), DT, g, w)
             local rt = ReducedTensor(gt, rand(Xoshiro(2), DT, n, 3), rand(Xoshiro(3), DT, n, 2))
             local out = Array{DT}(undef, size(rt))
-            @test allocations((r, o) -> r[2, 1, 7], rt, out) == 0
-            @test allocations((r, o) -> copyto!(o, r), rt, out) == 0
-            @test allocations((r, o) -> collect(r), rt, out) > 0
+
+            # Coverage instrumentation allocates on its own account, so the readings are taken
+            # only where the runner does not instrument the code.
+            if Base.JLOptions().code_coverage == 0
+                @test allocations((r, o) -> r[2, 1, 7], rt, out) == 0
+                @test allocations((r, o) -> copyto!(o, r), rt, out) == 0
+                @test allocations((r, o) -> collect(r), rt, out) > 0
+            end
         end
     end
 
