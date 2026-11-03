@@ -14,6 +14,16 @@ is written up below, newest first.
 
 ## [Unreleased] — targeting 0.4.1
 
+### New Features
+
+- **The DEIM interpolation matrix has an HDF5 round trip.**
+  `save_DEIM_interpolation_matrix(h5, Π; path = "/")` writes `Π` as the dense dataset `"Π"` of the
+  group at `path`, and `load_DEIM_interpolation_matrix(h5; path = "/")` returns it. A `Float32` or
+  a `Float64` element type is kept. Both take an open HDF5 file or group, and the dataset can share
+  a file or a group with a saved `ReducedBasis`. A `path` that starts with `/`, the default
+  included, starts at the root of the file also where the store is a group. A second save to the
+  same `path` raises HDF5's error.
+
 ### Changed
 
 - **The allocation readings of `ReducedTensor` are taken only where the runner does not instrument
