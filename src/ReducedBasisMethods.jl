@@ -26,6 +26,7 @@ export lift, projection_error, reduction_error
 include("algorithms/deim.jl")
 
 export get_DEIM_interpolation_matrix, get_DEIM_indices
+export save_DEIM_interpolation_matrix, load_DEIM_interpolation_matrix
 
 include("algorithms/symplectic_deim.jl")
 

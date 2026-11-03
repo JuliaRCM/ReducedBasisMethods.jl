@@ -1,6 +1,7 @@
 using LinearAlgebra
 using Random
 using ReducedBasisMethods
+using ReducedBasisMethods.HDF5: h5open
 using ReducedComplexityModeling: Parameter, ParameterSpace
 using Test
 
@@ -183,5 +184,94 @@ end
         @test length(p) == 8
         @test allunique(p)
         @test get_DEIM_interpolation_matrix(Ψ)' * A == A[p, :]
+    end
+end
+
+"""
+Saves `Π` into the new file `fpath` with the keywords `kw`, closes the file, and returns what
+`load_DEIM_interpolation_matrix` reads from it with the same keywords.
+"""
+function deim_roundtrip(fpath, Π; kw...)
+    h5open(h5 -> save_DEIM_interpolation_matrix(h5, Π; kw...), fpath, "w")
+    return h5open(h5 -> load_DEIM_interpolation_matrix(h5; kw...), fpath, "r")
+end
+
+@testset "HDF5 round trip of the interpolation matrix" begin
+    @test Base.isexported(ReducedBasisMethods, :save_DEIM_interpolation_matrix)
+    @test Base.isexported(ReducedBasisMethods, :load_DEIM_interpolation_matrix)
+
+    mktempdir() do dir
+        fpath = joinpath(dir, "deim.h5")
+
+        for T in (Float32, Float64)
+            S = example1_training(T)
+            basis = ReducedBasis(PODEVD(), S, NamedTuple(),
+                ParameterSpace(Parameter(:μ, 1.0, 3.0, 51)); k = 20)
+            Ψ = basis.Φ
+            Π = get_DEIM_interpolation_matrix(Ψ)
+            p = get_DEIM_indices(Ψ)
+
+            # The empty keyword list reaches the default path, which is the root.
+            for (kw, dataset) in (((;), "/Π"), ((; path = "deim"), "/deim/Π"),
+                ((; path = "reduction/deim"), "/reduction/deim/Π"))
+                loaded = deim_roundtrip(fpath, Π; kw...)
+                @test loaded == Π
+                @test eltype(loaded) === T
+                @test loaded' * S == S[p, :]
+
+                # The dataset has the name and the group that the file format fixes.
+                @test h5open(h5 -> read(h5[dataset]), fpath, "r") == Π
+
+                # A second save to the same path keeps HDF5's error and the first matrix.
+                h5open(fpath, "r+") do h5
+                    @test_throws ErrorException save_DEIM_interpolation_matrix(h5, 2 .* Π; kw...)
+                    @test load_DEIM_interpolation_matrix(h5; kw...) == Π
+                end
+            end
+
+            # k = 0: the N × 0 matrix keeps its size and its element type.
+            Π₀ = deim_roundtrip(fpath, get_DEIM_interpolation_matrix(zeros(T, 3, 0)))
+            @test size(Π₀) == (3, 0)
+            @test eltype(Π₀) === T
+
+            # A lazy wrapper reaches the file as the dense matrix it stands for.
+            loaded = deim_roundtrip(fpath, Π')
+            @test loaded == Matrix(Π')
+            @test size(loaded) == (20, 100)
+            @test eltype(loaded) === T
+
+            # The matrix and a basis share one file, in one group or in two, whichever is
+            # written first.
+            for (path_b, path_Π) in (("/", "/"), ("/", "deim"), ("reduction", "/"),
+                    ("reduction", "reduction"), ("reduction", "deim")),
+                save_Π_first in (true, false)
+
+                h5open(fpath, "w") do h5
+                    save_Π_first && save_DEIM_interpolation_matrix(h5, Π; path = path_Π)
+                    h5save(h5, basis; path = path_b)
+                    save_Π_first || save_DEIM_interpolation_matrix(h5, Π; path = path_Π)
+                end
+
+                # Each read runs once after a read of the other.
+                h5open(fpath, "r") do h5
+                    @test load_DEIM_interpolation_matrix(h5; path = path_Π) == Π
+                    for _ in 1:2
+                        b = h5load(ReducedBasis, h5; path = path_b)
+                        @test b.Φ == basis.Φ
+                        @test b.Λ == basis.Λ
+                        @test load_DEIM_interpolation_matrix(h5; path = path_Π) == Π
+                    end
+                end
+            end
+
+            # A path with no dataset `Π` keeps HDF5's error, for a group that holds only a
+            # basis and for a group that does not exist.
+            h5open(fpath, "w") do h5
+                h5save(h5, basis; path = "reduction")
+                @test_throws KeyError load_DEIM_interpolation_matrix(h5)
+                @test_throws KeyError load_DEIM_interpolation_matrix(h5; path = "reduction")
+                @test_throws KeyError load_DEIM_interpolation_matrix(h5; path = "deim")
+            end
+        end
     end
 end

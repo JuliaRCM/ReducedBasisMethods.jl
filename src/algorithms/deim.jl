@@ -85,3 +85,30 @@ function get_DEIM_interpolation_matrix(Ψ::AbstractMatrix)
     end
     return Π
 end
+
+"""
+    save_DEIM_interpolation_matrix(h5::H5DataStore, Π::AbstractMatrix; path = "/")
+
+Writes the interpolation matrix `Π` of [`get_DEIM_interpolation_matrix`](@ref) as the dense
+dataset `"Π"` of the group at `path`, and creates that group where it does not exist. A wrapper
+such as an `Adjoint` is stored as `Matrix(Π)`. HDF5 keeps the element type.
+
+A group at `path` that already holds a dataset `"Π"` raises HDF5's error, and the stored matrix
+stays. `Π` is stored as it is given: nothing checks that it is an interpolation matrix.
+"""
+function save_DEIM_interpolation_matrix(
+        h5::H5DataStore, Π::AbstractMatrix; path::AbstractString = "/")
+    group = _create_group(h5, path)
+    group["Π"] = Matrix(Π)
+end
+
+"""
+    load_DEIM_interpolation_matrix(h5::H5DataStore; path = "/")
+
+Returns the matrix that [`save_DEIM_interpolation_matrix`](@ref) wrote to the group at `path`,
+with its element type. Without a group at `path` or a dataset `"Π"` in it, HDF5's `KeyError`
+stands.
+"""
+function load_DEIM_interpolation_matrix(h5::H5DataStore; path::AbstractString = "/")
+    read(h5[path]["Π"])
+end
