@@ -21,6 +21,13 @@ is written up below, newest first.
   `copyto!` and their `> 0` control in `test/reduced_tensor.jl` sit behind
   `Base.JLOptions().code_coverage == 0`, because coverage instrumentation allocates on its own
   account. Tests only; nothing in the package changes.
+- **The test environment's floors are `GeometricBrackets = "0.2"`, from `"0.1.1, 0.2"`, and
+  `GeometricIntegrators = "0.18.6"`, from `"0.18.5"`**, so that the downgrade check, which resolves
+  `Project.toml` and `test/Project.toml` together at their lower bounds, reaches every floor. The
+  package's own floor `GeometricEquations = "0.21.5"` requires `GeometricBase` 0.15, while
+  `GeometricBrackets` 0.1.1 and `GeometricIntegrators` 0.18.5 require `GeometricBase` 0.14; the
+  first releases on `GeometricBase` 0.15 are `GeometricBrackets` 0.2.0 and `GeometricIntegrators`
+  0.18.6. Test environment only; the package's own compat is unchanged.
 
 ## [0.4.0] — 2026-10-30
 
