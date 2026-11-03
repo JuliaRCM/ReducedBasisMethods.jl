@@ -91,10 +91,12 @@ end
 
 Writes the interpolation matrix `Π` of [`get_DEIM_interpolation_matrix`](@ref) as the dense
 dataset `"Π"` of the group at `path`, and creates that group where it does not exist. A wrapper
-such as an `Adjoint` is stored as `Matrix(Π)`. HDF5 keeps the element type.
+such as an `Adjoint` is stored as `Matrix(Π)`. HDF5 keeps a `Float32` or a `Float64` element
+type, and raises its error for `Float16` and `BigFloat`.
 
 A group at `path` that already holds a dataset `"Π"` raises HDF5's error, and the stored matrix
-stays. `Π` is stored as it is given: nothing checks that it is an interpolation matrix.
+stays. `Π` is stored as it is given: nothing checks that it is an interpolation matrix. A `path`
+that names a dataset stores `Π` as an attribute `"Π"` of that dataset.
 
 `h5` is an open HDF5 file or group. A `path` that starts with `/`, the default included, starts
 at the root of the file also where `h5` is a group. Any other `path` starts at `h5`.
@@ -109,8 +111,8 @@ end
     load_DEIM_interpolation_matrix(h5::H5DataStore; path = "/")
 
 Returns the matrix that [`save_DEIM_interpolation_matrix`](@ref) wrote to the group at `path`,
-with its element type. Without a group at `path` or a dataset `"Π"` in it, HDF5's `KeyError`
-stands.
+with the element type that HDF5 keeps. Without a group at `path` or a dataset `"Π"` in it,
+HDF5's `KeyError` stands.
 
 `h5` and `path` read as they do in [`save_DEIM_interpolation_matrix`](@ref): the default `path`
 is the root of the file also where `h5` is a group.
