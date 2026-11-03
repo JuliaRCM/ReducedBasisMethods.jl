@@ -95,6 +95,9 @@ such as an `Adjoint` is stored as `Matrix(Π)`. HDF5 keeps the element type.
 
 A group at `path` that already holds a dataset `"Π"` raises HDF5's error, and the stored matrix
 stays. `Π` is stored as it is given: nothing checks that it is an interpolation matrix.
+
+`h5` is an open HDF5 file or group. A `path` that starts with `/`, the default included, starts
+at the root of the file also where `h5` is a group. Any other `path` starts at `h5`.
 """
 function save_DEIM_interpolation_matrix(
         h5::H5DataStore, Π::AbstractMatrix; path::AbstractString = "/")
@@ -108,6 +111,9 @@ end
 Returns the matrix that [`save_DEIM_interpolation_matrix`](@ref) wrote to the group at `path`,
 with its element type. Without a group at `path` or a dataset `"Π"` in it, HDF5's `KeyError`
 stands.
+
+`h5` and `path` read as they do in [`save_DEIM_interpolation_matrix`](@ref): the default `path`
+is the root of the file also where `h5` is a group.
 """
 function load_DEIM_interpolation_matrix(h5::H5DataStore; path::AbstractString = "/")
     read(h5[path]["Π"])

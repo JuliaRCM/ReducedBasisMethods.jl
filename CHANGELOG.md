@@ -20,7 +20,8 @@ is written up below, newest first.
   `save_DEIM_interpolation_matrix(h5, Π; path = "/")` writes `Π` as the dense dataset `"Π"` of the
   group at `path`, and `load_DEIM_interpolation_matrix(h5; path = "/")` returns it with its element
   type. Both take an open HDF5 file or group, and the dataset can share a file or a group with a
-  saved `ReducedBasis`. A second save to the same `path` raises HDF5's error.
+  saved `ReducedBasis`. A `path` that starts with `/`, the default included, starts at the root of
+  the file also where the store is a group. A second save to the same `path` raises HDF5's error.
 
 ### Changed
 

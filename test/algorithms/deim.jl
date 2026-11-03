@@ -252,7 +252,7 @@ end
                     save_Π_first || save_DEIM_interpolation_matrix(h5, Π; path = path_Π)
                 end
 
-                # Each read runs once after a read of the other.
+                # The reads alternate, so each one follows a read of the other.
                 h5open(fpath, "r") do h5
                     @test load_DEIM_interpolation_matrix(h5; path = path_Π) == Π
                     for _ in 1:2
