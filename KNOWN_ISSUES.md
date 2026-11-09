@@ -4,7 +4,7 @@ What is known to be wrong in ReducedBasisMethods and is not fixed.
 
 ## This package
 
-### K1 · `_ReducedVectorField.cache` has the abstract field type `IdDict{DataType, Any}`
+### K1 · `_ReducedVectorField.cache` has the field type `IdDict{DataType, Any}`, whose value type `Any` is abstract
 
 - **location:** `src/reduced_equations.jl:36`, filled and read in `_work` (`src/reduced_equations.jl:48-52`)
 - **evidence:** The cache holds one pair of work buffers `(x, g)` for each state element type `S`
@@ -14,7 +14,7 @@ What is known to be wrong in ReducedBasisMethods and is not fixed.
   assertion `::Tuple{Vector{S}, Vector{S}}` after `get!` makes the return of `_work` concrete again,
   at the cost of an `IdDict` lookup and a type check on each call with `S !== T`.
   `Harness/scripts/concrete-fields.jl ReducedBasisMethods` reports the field as
-  `ReducedBasisMethods._ReducedVectorField.cache::IdDict{DataType, Any}`, its one violation. The rule
+  `ReducedBasisMethods._ReducedVectorField.cache::IdDict{DataType, Any}`, its one violation. The script
   flags a cache keyed by type by design. GeometricMachineLearning has the same pattern in
   `HRedSys.dual_cache` and `ReducedVFCache.dual_cache`. A fix sets the second element type when
   the callable is built: a type parameter `S` and a field `dual::Tuple{Vector{S}, Vector{S}}`,
