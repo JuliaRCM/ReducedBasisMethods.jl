@@ -12,6 +12,18 @@ tags. It is named as a gap rather than reconstructed, because a changelog assemb
 fact loses exactly the reasoning that makes it worth keeping. Every release from `v0.2.0` on
 is written up below, newest first.
 
+## [Unreleased]
+
+### Breaking Changes
+
+- **`ReducedComplexityModeling` is `"0.6"`**, from `"0.5"`. Compat only: no code in the package,
+  its extension, its tests or its scripts changes. ReducedComplexityModeling 0.6 renames and removes
+  nothing that this package reads; its breaking change is its own dependencies, KernelAbstractions
+  0.10 and AbstractNeuralNetworks 0.10, so an environment that holds KernelAbstractions 0.9 or
+  AbstractNeuralNetworks 0.9 does not resolve this release. `ReducedBasis` takes a
+  ReducedComplexityModeling `ParameterSpace`, and `h5save` and `h5load` are that package's
+  generics, so a caller moves to ReducedComplexityModeling 0.6 with this release.
+
 ## [0.4.1] — 2026-11-04
 
 ### New Features
