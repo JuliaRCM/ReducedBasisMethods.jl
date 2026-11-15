@@ -12,6 +12,17 @@ tags. It is named as a gap rather than reconstructed, because a changelog assemb
 fact loses exactly the reasoning that makes it worth keeping. Every release from `v0.2.0` on
 is written up below, newest first.
 
+## [Unreleased]
+
+### Changed
+
+- **The tests accept the latest `GeometricBrackets` and `GeometricIntegrators`.** In
+  `test/Project.toml`, `GeometricBrackets` goes from `"0.2"` to `"0.2, 0.3, 0.4"` and
+  `GeometricIntegrators` from `"0.18.6"` to `"0.18.6, 0.19"`. The floors stay. The tests take only
+  `Arakawa` and `PoissonTensor(DT, nx, nv, f)` from `GeometricBrackets`, which 0.3 and 0.4 keep, and
+  they call no symplectic Euler method, whose letters `GeometricIntegrators` 0.19 exchanges. Test
+  environment only: the package's code and its own `[compat]` do not change.
+
 ## [0.5.0] — 2026-11-13
 
 ### Breaking Changes
